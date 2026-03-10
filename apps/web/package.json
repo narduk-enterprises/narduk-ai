@@ -26,6 +26,8 @@
     "@narduk-enterprises/eslint-config": "^1.0.3",
     "drizzle-orm": "^0.45.1",
     "nuxt": "^4.3.1",
+    "@nuxt/ui": "^4.5.0",
+    "openai": "^4.85.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -8,8 +8,10 @@ export default defineNuxtConfig({
   // Extend the published Narduk Nuxt Layer
   extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],
 
+  css: ['~/assets/css/main.css'],
+
   // nitro-cloudflare-dev proxies D1 bindings to the local dev server
-  modules: ['nitro-cloudflare-dev'],
+  modules: ['nitro-cloudflare-dev', '@nuxt/ui'],
 
   nitro: {
     cloudflareDev: {
@@ -31,6 +33,7 @@ export default defineNuxtConfig({
     posthogApiKey: process.env.POSTHOG_PERSONAL_API_KEY || '',
     gaPropertyId: process.env.GA_PROPERTY_ID || '',
     posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
+    xaiApiKey: process.env.GROK_API_KEY || '',
     public: {
       appUrl: process.env.SITE_URL || 'https://narduk-ai.nard.uk',
       appName: process.env.APP_NAME || 'Narduk AI',
@@ -47,7 +50,7 @@ export default defineNuxtConfig({
     url: process.env.SITE_URL || 'https://narduk-ai.nard.uk',
     name: 'Narduk AI',
     description:
-      'Narduk AI — powered by Nuxt 4 and Cloudflare Workers.',
+      'AI-powered image and video generation. Create stunning visuals with text prompts using Grok Imagine.',
     defaultLocale: 'en',
   },
 

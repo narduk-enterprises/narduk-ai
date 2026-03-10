@@ -6,9 +6,7 @@
     "directory": ".output/public"
   },
   "compatibility_date": "2026-03-03",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
   },
@@ -17,6 +15,12 @@
       "binding": "DB",
       "database_name": "narduk-ai-db",
       "database_id": "2176c867-da11-4328-a79a-852fa713ca9e"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "narduk-ai-media"
     }
   ],
   "routes": [

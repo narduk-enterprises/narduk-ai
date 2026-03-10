@@ -1,0 +1,3 @@
+setup:
+  project: narduk-ai
+  config: dev

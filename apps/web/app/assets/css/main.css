@@ -1,0 +1,418 @@
+/* ─── Narduk AI — Custom Design System ─── */
+/* Dark-first, AI-native aesthetic with violet accents */
+
+@import 'tailwindcss';
+@import '@nuxt/ui';
+@theme {
+  /* Typography — inherited from layer (Inter + Outfit) */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', system-ui, sans-serif;
+
+  /* ─── AI-Native Shadows ─── */
+  --shadow-glow-sm: 0 0 12px -2px oklch(0.65 0.25 290 / 0.25);
+  --shadow-glow: 0 0 24px -4px oklch(0.65 0.25 290 / 0.3);
+  --shadow-glow-lg: 0 0 48px -8px oklch(0.65 0.25 290 / 0.35);
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-elevated: 0 8px 24px -4px rgb(0 0 0 / 0.15), 0 4px 8px -4px rgb(0 0 0 / 0.08);
+  --shadow-overlay: 0 16px 48px -8px rgb(0 0 0 / 0.2), 0 8px 16px -4px rgb(0 0 0 / 0.1);
+
+  /* ─── Border Radius ─── */
+  --radius-card: 1rem;
+  --radius-button: 0.625rem;
+  --radius-badge: 9999px;
+  --radius-input: 0.75rem;
+
+  /* ─── Motion Tokens ─── */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ─── Spacing ─── */
+  --spacing-section: 6rem;
+  --spacing-section-sm: 4rem;
+}
+
+/* ─── Base Styles ─── */
+
+body {
+  @apply antialiased text-default bg-default scheme-light dark:scheme-dark;
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* ─── Dark Mode Body Enhancements ─── */
+
+.dark body {
+  background: linear-gradient(180deg, oklch(0.13 0.02 285) 0%, oklch(0.1 0.01 285) 100%);
+}
+
+/* ─── Glassmorphism — AI-tinted ─── */
+
+.glass {
+  @apply border border-default;
+  background: oklch(0.98 0.005 290 / 0.75);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+}
+
+.dark .glass {
+  background: oklch(0.18 0.015 285 / 0.7);
+  border-color: oklch(0.35 0.04 290 / 0.3);
+}
+
+.glass-card {
+  @apply border border-default;
+  background: oklch(0.98 0.005 290 / 0.6);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  border-radius: var(--radius-card);
+}
+
+.dark .glass-card {
+  background: oklch(0.16 0.02 285 / 0.6);
+  border-color: oklch(0.35 0.04 290 / 0.25);
+}
+
+/* ─── Glow Cards ─── */
+
+.glow-card {
+  @apply border border-default;
+  background: oklch(0.99 0.002 290 / 0.8);
+  border-radius: var(--radius-card);
+  transition:
+    box-shadow var(--transition-slow),
+    transform var(--transition-slow),
+    border-color var(--transition-slow);
+}
+
+.glow-card:hover {
+  box-shadow: var(--shadow-glow-sm);
+  transform: translateY(-2px);
+}
+
+.dark .glow-card {
+  background: oklch(0.16 0.015 285 / 0.5);
+  border-color: oklch(0.3 0.04 290 / 0.2);
+}
+
+.dark .glow-card:hover {
+  border-color: oklch(0.55 0.15 290 / 0.4);
+  box-shadow: var(--shadow-glow);
+}
+
+/* ─── Neon Border Accent ─── */
+
+.neon-border {
+  border: 1px solid oklch(0.65 0.2 290 / 0.3);
+  transition: border-color var(--transition-base);
+}
+
+.neon-border:hover,
+.neon-border:focus-within {
+  border-color: oklch(0.7 0.25 290 / 0.6);
+}
+
+/* ─── Gradient Text ─── */
+
+.text-gradient {
+  background: linear-gradient(
+    135deg,
+    oklch(0.75 0.2 290),
+    oklch(0.7 0.22 320),
+    oklch(0.75 0.18 260)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .text-gradient {
+  background: linear-gradient(
+    135deg,
+    oklch(0.82 0.22 290),
+    oklch(0.78 0.24 320),
+    oklch(0.82 0.2 260)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Gradient Mesh Background ─── */
+
+.gradient-mesh {
+  position: relative;
+  overflow: hidden;
+}
+
+.gradient-mesh::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, oklch(0.75 0.2 290 / 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 50%, oklch(0.7 0.18 320 / 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 20% 80%, oklch(0.75 0.15 260 / 0.06) 0%, transparent 70%);
+  animation: gradient-mesh-shift 15s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dark .gradient-mesh::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, oklch(0.55 0.25 290 / 0.2) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 50%, oklch(0.5 0.2 320 / 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 20% 80%, oklch(0.55 0.18 260 / 0.08) 0%, transparent 70%);
+}
+
+/* ─── Prompt Input ─── */
+
+.prompt-input {
+  @apply border border-default;
+  background: oklch(0.99 0 290 / 0.5);
+  border-radius: var(--radius-input);
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.prompt-input:focus-within {
+  border-color: oklch(0.65 0.2 290 / 0.5);
+  box-shadow: 0 0 0 3px oklch(0.65 0.2 290 / 0.1);
+}
+
+.dark .prompt-input {
+  background: oklch(0.14 0.015 285 / 0.6);
+  border-color: oklch(0.3 0.04 290 / 0.3);
+}
+
+.dark .prompt-input:focus-within {
+  border-color: oklch(0.65 0.2 290 / 0.5);
+  box-shadow: 0 0 0 3px oklch(0.65 0.2 290 / 0.15);
+}
+
+/* ─── Animations ─── */
+
+@keyframes gradient-mesh-shift {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  100% {
+    transform: scale(1.1) rotate(2deg);
+  }
+}
+
+@keyframes shimmer-flow {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: var(--shadow-glow-sm);
+  }
+  50% {
+    box-shadow: var(--shadow-glow);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Utility classes for animations */
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    oklch(0.8 0.1 290 / 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-flow 2s linear infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Staggered fade-in for children */
+.stagger-children > * {
+  opacity: 0;
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 0.2s;
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: 0.25s;
+}
+.stagger-children > *:nth-child(6) {
+  animation-delay: 0.3s;
+}
+
+/* ─── Page Transitions ─── */
+
+.page-enter-active,
+.page-leave-active {
+  transition: all var(--transition-slow);
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* ─── Elevation Utilities ─── */
+
+.shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+.shadow-elevated {
+  box-shadow: var(--shadow-elevated);
+}
+
+.shadow-overlay {
+  box-shadow: var(--shadow-overlay);
+}
+
+/* ─── Dark Mode Elevation ─── */
+
+.dark .shadow-card {
+  --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  box-shadow: var(--tw-shadow);
+}
+
+.dark .shadow-elevated {
+  --tw-shadow: 0 8px 24px -4px rgb(0 0 0 / 0.5), 0 4px 8px -4px rgb(0 0 0 / 0.3);
+  box-shadow: var(--tw-shadow);
+}
+
+/* ─── Form Utilities (preserved from layer) ─── */
+
+.form-container {
+  width: 100%;
+  max-width: 32rem;
+  margin-inline: auto;
+}
+
+.form-narrow {
+  max-width: 24rem;
+}
+
+.form-wide {
+  max-width: 40rem;
+}
+
+.form-full {
+  max-width: none;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .form-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+.form-actions-center {
+  justify-content: center;
+}
+
+.form-actions-full {
+  flex-direction: column;
+}
+
+.form-actions-full > * {
+  width: 100%;
+}

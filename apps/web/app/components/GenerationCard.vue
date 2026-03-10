@@ -1,0 +1,164 @@
+<script setup lang="ts">
+import type { Generation } from '~/types/generation'
+
+const _props = defineProps<{
+  generation: Generation
+}>()
+
+const emit = defineEmits<{
+  click: []
+  'use-as-source': [generation: Generation]
+  delete: [generation: Generation]
+  retry: [generation: Generation]
+}>()
+
+const modeLabels: Record<string, string> = {
+  t2i: 'Text → Image',
+  t2v: 'Text → Video',
+  i2v: 'Image → Video',
+  i2i: 'Image → Image',
+}
+
+const statusColors: Record<string, string> = {
+  done: 'success',
+  pending: 'warning',
+  failed: 'error',
+  expired: 'neutral',
+}
+
+function handleUseAsSource() {
+  emit('use-as-source', _props.generation)
+}
+
+function handleRetry() {
+  emit('retry', _props.generation)
+}
+
+function handleDelete() {
+  emit('delete', _props.generation)
+}
+</script>
+
+<template>
+  <NuxtLink
+    :to="`/gallery/${generation.id}`"
+    class="glow-card group block cursor-pointer overflow-hidden"
+  >
+    <!-- Media Preview -->
+    <div class="relative aspect-video w-full overflow-hidden bg-elevated/50">
+      <template v-if="generation.status === 'done' && generation.mediaUrl">
+        <img
+          v-if="generation.type === 'image'"
+          :src="generation.mediaUrl"
+          :alt="generation.prompt"
+          class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading="lazy"
+        />
+        <video
+          v-else
+          :src="generation.mediaUrl"
+          class="h-full w-full object-cover"
+          muted
+          loop
+          preload="metadata"
+          @mouseenter="($event.target as HTMLVideoElement)?.play()"
+          @mouseleave="($event.target as HTMLVideoElement)?.pause()"
+        />
+      </template>
+      <div v-else class="flex h-full w-full items-center justify-center">
+        <UIcon
+          v-if="generation.status === 'pending'"
+          name="i-lucide-loader-2"
+          class="size-8 animate-spin text-primary"
+        />
+        <UIcon
+          v-else-if="generation.status === 'failed'"
+          name="i-lucide-alert-triangle"
+          class="size-8 text-error"
+        />
+        <UIcon v-else name="i-lucide-clock" class="size-8 text-muted" />
+      </div>
+
+      <!-- Hover Overlay -->
+      <div
+        class="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+      />
+
+      <!-- Type badge -->
+      <UBadge
+        :color="generation.type === 'video' ? 'info' : 'primary'"
+        variant="solid"
+        size="xs"
+        class="absolute left-2.5 top-2.5"
+        :icon="generation.type === 'video' ? 'i-lucide-video' : 'i-lucide-image'"
+        :label="generation.type === 'video' ? 'Video' : 'Image'"
+      />
+
+      <!-- Duration badge (videos) -->
+      <UBadge
+        v-if="generation.type === 'video' && generation.duration"
+        color="neutral"
+        variant="solid"
+        size="xs"
+        class="absolute bottom-2.5 right-2.5"
+        :label="`${generation.duration}s`"
+      />
+    </div>
+
+    <!-- Info -->
+    <div class="p-4 space-y-2">
+      <div class="flex items-center gap-2">
+        <UBadge
+          :color="
+            (statusColors[generation.status] as 'success' | 'warning' | 'error' | 'neutral') ||
+            'neutral'
+          "
+          variant="subtle"
+          size="xs"
+          :label="generation.status"
+        />
+        <span class="text-xs text-dimmed">{{
+          modeLabels[generation.mode] || generation.mode
+        }}</span>
+      </div>
+
+      <p class="line-clamp-2 text-sm text-muted leading-relaxed">
+        {{ generation.prompt }}
+      </p>
+
+      <div class="flex items-center justify-between pt-1">
+        <span class="text-xs text-dimmed">
+          {{ new Date(generation.createdAt).toLocaleDateString() }}
+        </span>
+        <div class="flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <UButton
+            v-if="generation.status === 'failed' || generation.status === 'expired'"
+            size="xs"
+            variant="ghost"
+            color="warning"
+            icon="i-lucide-refresh-cw"
+            title="Retry"
+            @click.stop.prevent="handleRetry"
+          />
+          <UButton
+            v-if="generation.type === 'image' && generation.status === 'done'"
+            size="xs"
+            variant="ghost"
+            color="primary"
+            icon="i-lucide-wand-2"
+            title="Use as source"
+            @click.stop.prevent="handleUseAsSource"
+          />
+          <UButton
+            size="xs"
+            variant="ghost"
+            color="error"
+            icon="i-lucide-trash-2"
+            title="Delete"
+            @click.stop.prevent="handleDelete"
+          />
+        </div>
+      </div>
+    </div>
+  </NuxtLink>
+</template>
