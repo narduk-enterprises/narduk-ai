@@ -28,6 +28,7 @@ async function shipApp(appTarget: string) {
     }
   }
 
+  // Read package.json earlier to get the package name for pnpm filters!
   const pkgPath = resolve(appDir, 'package.json')
   let hasMigrate = false
   let pkg
@@ -37,11 +38,13 @@ async function shipApp(appTarget: string) {
       hasMigrate = true
     }
   }
+  const pkgName = pkg?.name || appTarget
 
   // 1. Build Verification
   console.log(`\n🏗️ Building ${appTarget}...`)
   try {
-    run(`doppler run -- pnpm --filter ${appTarget} run build`, appDir)
+    // We can run from root using the proper workspace package name
+    run(`doppler run -- pnpm --filter ${pkgName} run build`)
   } catch (error) {
     console.error(`\n❌ Build failed for ${appTarget}. Aborting ship to prevent broken commit.`)
     process.exit(1)
@@ -90,7 +93,7 @@ async function shipApp(appTarget: string) {
   // 4. Deploy
   console.log(`\n☁️ Deploying ${appTarget} to Edge...`)
   try {
-    run(`doppler run -- pnpm --filter ${appTarget} run deploy`)
+    run(`doppler run -- pnpm --filter ${pkgName} run deploy`)
   } catch (error) {
     console.error(`\n❌ Deploy failed for ${appTarget}.`)
     process.exit(1)
