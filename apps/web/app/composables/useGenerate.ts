@@ -166,6 +166,29 @@ export function useGenerate() {
     await $fetch(`/api/generations/${id}`, { method: 'DELETE' })
   }
 
+  /**
+   * Retry a failed/expired generation by re-dispatching based on mode.
+   */
+  async function retryGeneration(gen: Generation): Promise<Generation | null> {
+    if (gen.mode === 't2i') {
+      return await generateImage(gen.prompt, gen.aspectRatio || undefined)
+    } else if (gen.mode === 't2v') {
+      return await generateVideo(gen.prompt, {
+        duration: gen.duration || 6,
+        aspectRatio: gen.aspectRatio || '16:9',
+        resolution: gen.resolution || '720p',
+      })
+    } else if (gen.mode === 'i2v' && gen.sourceGenerationId) {
+      return await generateVideoFromImage(gen.prompt, gen.sourceGenerationId, {
+        duration: gen.duration || 6,
+        resolution: gen.resolution || '720p',
+      })
+    } else if (gen.mode === 'i2i' && gen.sourceGenerationId) {
+      return await editImage(gen.prompt, gen.sourceGenerationId)
+    }
+    return null
+  }
+
   // Cleanup polling on unmount
   onUnmounted(() => {
     stopAllPolling()
@@ -183,5 +206,6 @@ export function useGenerate() {
     fetchGenerations,
     fetchGeneration,
     deleteGeneration,
+    retryGeneration,
   }
 }

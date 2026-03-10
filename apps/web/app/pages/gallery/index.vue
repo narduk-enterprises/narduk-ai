@@ -108,22 +108,18 @@ const filters = [
 
     <!-- Filter Bar -->
     <div class="flex gap-2 mb-6">
-      <!-- eslint-disable-next-line narduk/no-native-button -- custom pill styling not achievable with UButton -->
-      <button
+      <UButton
         v-for="filter in filters"
         :key="filter.value"
-        type="button"
-        class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border"
-        :class="
-          activeFilter === filter.value
-            ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
-            : 'border-default text-muted hover:text-default hover:border-primary/40 hover:bg-elevated/50'
-        "
+        :icon="filter.icon"
+        :label="filter.label"
+        :variant="activeFilter === filter.value ? 'solid' : 'outline'"
+        :color="activeFilter === filter.value ? 'primary' : 'neutral'"
+        size="sm"
+        class="rounded-full"
+        :class="activeFilter === filter.value ? 'shadow-lg shadow-primary/20' : ''"
         @click="activeFilter = filter.value"
-      >
-        <UIcon :name="filter.icon" class="size-3.5" />
-        {{ filter.label }}
-      </button>
+      />
     </div>
 
     <!-- Loading -->

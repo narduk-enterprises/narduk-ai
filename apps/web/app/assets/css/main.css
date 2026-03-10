@@ -360,59 +360,14 @@ h4,
   box-shadow: var(--tw-shadow);
 }
 
-/* ─── Form Utilities (preserved from layer) ─── */
+/* ─── Decorative Orbs ─── */
 
-.form-container {
-  width: 100%;
-  max-width: 32rem;
-  margin-inline: auto;
+.orb-primary {
+  background: radial-gradient(circle, oklch(0.65 0.25 290 / 0.4) 0%, transparent 70%);
+  filter: blur(60px);
 }
 
-.form-narrow {
-  max-width: 24rem;
-}
-
-.form-wide {
-  max-width: 40rem;
-}
-
-.form-full {
-  max-width: none;
-}
-
-.form-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.25rem;
-}
-
-@media (min-width: 640px) {
-  .form-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding-top: 0.5rem;
-}
-
-.form-actions-center {
-  justify-content: center;
-}
-
-.form-actions-full {
-  flex-direction: column;
-}
-
-.form-actions-full > * {
-  width: 100%;
+.orb-secondary {
+  background: radial-gradient(circle, oklch(0.6 0.2 320 / 0.3) 0%, transparent 70%);
+  filter: blur(50px);
 }

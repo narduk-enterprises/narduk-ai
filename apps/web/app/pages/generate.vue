@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { Generation } from '~/types/generation'
-
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({
@@ -13,108 +11,31 @@ useWebPageSchema({
 })
 
 const {
+  activeTab,
+  prompt,
+  aspectRatio,
+  duration,
+  resolution,
+  sourceGenerationId,
+  latestResult,
+  recentGenerations,
+  userImages,
   generating,
   error,
-  generateImage,
-  generateVideo,
-  generateVideoFromImage,
-  editImage,
-  pollGeneration,
-  fetchGenerations,
-} = useGenerate()
-
-// ─── Form State ─────────────────────────────────────────────
-
-const route = useRoute()
-const { defaultAspectRatio, defaultDuration, defaultResolution } = useSettings()
-const activeTab = ref((route.query.mode as string) || 't2i')
-const prompt = ref((route.query.prompt as string) || '')
-const aspectRatio = ref(defaultAspectRatio.value)
-const duration = ref(defaultDuration.value)
-const resolution = ref(defaultResolution.value)
-const sourceGenerationId = ref((route.query.source as string) || '')
-
-// ─── Generation Results ─────────────────────────────────────
-
-const latestResult = ref<Generation | null>(null)
-const recentGenerations = ref<Generation[]>([])
-const userImages = ref<Generation[]>([])
-
-async function loadUserImages() {
-  try {
-    const all = await fetchGenerations(100)
-    userImages.value = all.filter((g) => g.type === 'image' && g.status === 'done')
-    recentGenerations.value = all.slice(0, 6)
-  } catch {
-    // silent
-  }
-}
+  charCount,
+  isGenerateDisabled,
+  resultBadgeColor,
+  latestMediaType,
+  latestResultError,
+  loadUserImages,
+  handleGenerate,
+  selectSourceImage,
+  animateLatestImage,
+  editLatestImage,
+  useGenerationAsSource,
+} = useGenerationForm()
 
 onMounted(loadUserImages)
-
-// ─── Generate Handlers ──────────────────────────────────────
-
-async function handleGenerate() {
-  if (!prompt.value.trim()) return
-
-  latestResult.value = null
-  error.value = null
-
-  if (activeTab.value === 't2i') {
-    const result = await generateImage(prompt.value, aspectRatio.value)
-    if (result) {
-      latestResult.value = result
-      await loadUserImages()
-    }
-  } else if (activeTab.value === 't2v') {
-    const result = await generateVideo(prompt.value, {
-      duration: duration.value,
-      aspectRatio: aspectRatio.value,
-      resolution: resolution.value,
-    })
-    if (result) {
-      latestResult.value = result
-      const pollingRef = ref(result)
-      pollGeneration(pollingRef, (completed) => {
-        latestResult.value = completed
-        loadUserImages()
-      })
-      watch(pollingRef, (updated) => {
-        latestResult.value = updated
-      })
-    }
-  } else if (activeTab.value === 'i2v') {
-    if (!sourceGenerationId.value) {
-      error.value = 'Select a source image first'
-      return
-    }
-    const result = await generateVideoFromImage(prompt.value, sourceGenerationId.value, {
-      duration: duration.value,
-      resolution: resolution.value,
-    })
-    if (result) {
-      latestResult.value = result
-      const pollingRef = ref(result)
-      pollGeneration(pollingRef, (completed) => {
-        latestResult.value = completed
-        loadUserImages()
-      })
-      watch(pollingRef, (updated) => {
-        latestResult.value = updated
-      })
-    }
-  } else if (activeTab.value === 'i2i') {
-    if (!sourceGenerationId.value) {
-      error.value = 'Select a source image first'
-      return
-    }
-    const result = await editImage(prompt.value, sourceGenerationId.value)
-    if (result) {
-      latestResult.value = result
-      await loadUserImages()
-    }
-  }
-}
 
 const modes = [
   { value: 't2i', label: 'Text → Image', icon: 'i-lucide-image' },
@@ -125,51 +46,6 @@ const modes = [
 
 const aspectRatios = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
 const resolutions = ['480p', '720p']
-
-const charCount = computed(() => prompt.value.length)
-const isGenerateDisabled = computed(() => !prompt.value.trim() || generating.value)
-
-function selectSourceImage(id: string) {
-  sourceGenerationId.value = id
-}
-
-function animateLatestImage() {
-  activeTab.value = 'i2v'
-  sourceGenerationId.value = latestResult.value!.id
-}
-
-function editLatestImage() {
-  activeTab.value = 'i2i'
-  sourceGenerationId.value = latestResult.value!.id
-}
-
-function useGenerationAsSource(gen: Generation) {
-  activeTab.value = 'i2v'
-  sourceGenerationId.value = gen.id
-}
-
-const resultBadgeColor = computed(() => {
-  if (!latestResult.value) return 'neutral'
-  if (latestResult.value.status === 'done') return 'success'
-  if (latestResult.value.status === 'pending') return 'warning'
-  return 'error'
-})
-
-const latestMediaType = computed(() => {
-  return (latestResult.value?.type ?? 'image') as 'image' | 'video'
-})
-
-const latestResultError = computed(() => {
-  if (!latestResult.value?.metadata) return null
-  try {
-    const meta = JSON.parse(latestResult.value.metadata)
-    if (meta.error?.message) return meta.error.message
-    if (typeof meta.error === 'string') return meta.error
-    return null
-  } catch {
-    return null
-  }
-})
 </script>
 
 <template>
@@ -183,22 +59,18 @@ const latestResultError = computed(() => {
     <div class="space-y-6">
       <!-- Mode Selector — Pill Toolbar -->
       <div class="flex flex-wrap gap-2">
-        <!-- eslint-disable-next-line narduk/no-native-button -- custom pill styling not achievable with UButton -->
-        <button
+        <UButton
           v-for="mode in modes"
           :key="mode.value"
-          type="button"
-          class="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200 border"
-          :class="
-            activeTab === mode.value
-              ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
-              : 'border-default text-muted hover:text-default hover:border-primary/40 hover:bg-elevated/50'
-          "
+          :icon="mode.icon"
+          :label="mode.label"
+          :variant="activeTab === mode.value ? 'solid' : 'outline'"
+          :color="activeTab === mode.value ? 'primary' : 'neutral'"
+          size="sm"
+          class="rounded-full"
+          :class="activeTab === mode.value ? 'shadow-lg shadow-primary/20' : ''"
           @click="activeTab = mode.value"
-        >
-          <UIcon :name="mode.icon" class="size-4" />
-          {{ mode.label }}
-        </button>
+        />
       </div>
 
       <!-- Generation Form -->

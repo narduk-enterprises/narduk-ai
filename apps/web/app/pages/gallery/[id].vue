@@ -6,15 +6,7 @@ definePageMeta({ middleware: ['auth'] })
 const route = useRoute()
 const genId = route.params.id as string
 
-const {
-  fetchGeneration,
-  deleteGeneration,
-  generateImage,
-  generateVideo,
-  generateVideoFromImage,
-  editImage,
-  pollGeneration,
-} = useGenerate()
+const { fetchGeneration, deleteGeneration, retryGeneration, pollGeneration } = useGenerate()
 
 const generation = ref<Generation | null>(null)
 const loading = ref(true)
@@ -56,27 +48,8 @@ async function handleDelete() {
 async function handleRetry() {
   if (!generation.value || retrying.value) return
   retrying.value = true
-  const gen = generation.value
-  let result: Generation | null = null
-
   try {
-    if (gen.mode === 't2i') {
-      result = await generateImage(gen.prompt, gen.aspectRatio || undefined)
-    } else if (gen.mode === 't2v') {
-      result = await generateVideo(gen.prompt, {
-        duration: gen.duration || 6,
-        aspectRatio: gen.aspectRatio || '16:9',
-        resolution: gen.resolution || '720p',
-      })
-    } else if (gen.mode === 'i2v' && gen.sourceGenerationId) {
-      result = await generateVideoFromImage(gen.prompt, gen.sourceGenerationId, {
-        duration: gen.duration || 6,
-        resolution: gen.resolution || '720p',
-      })
-    } else if (gen.mode === 'i2i' && gen.sourceGenerationId) {
-      result = await editImage(gen.prompt, gen.sourceGenerationId)
-    }
-
+    const result = await retryGeneration(generation.value)
     if (result) {
       await navigateTo(`/gallery/${result.id}`, { replace: true })
     }
@@ -130,7 +103,6 @@ const errorMessage = computed(() => {
   if (!generation.value?.metadata) return null
   try {
     const meta = JSON.parse(generation.value.metadata)
-    // Handle {error: {message: '...'}} or {error: '...'}
     if (meta.error?.message) return meta.error.message
     if (typeof meta.error === 'string') return meta.error
     return null

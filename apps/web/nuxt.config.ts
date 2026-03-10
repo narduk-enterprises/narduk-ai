@@ -11,7 +11,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   // nitro-cloudflare-dev proxies D1 bindings to the local dev server
-  modules: ['nitro-cloudflare-dev', '@nuxt/ui'],
+  modules: ['nitro-cloudflare-dev'],
 
   nitro: {
     cloudflareDev: {

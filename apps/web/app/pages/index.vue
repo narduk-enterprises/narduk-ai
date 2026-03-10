@@ -99,19 +99,10 @@ const features = [
 
       <!-- Decorative gradient orbs -->
       <div
-        class="absolute top-1/4 -left-32 w-96 h-96 rounded-full animate-float opacity-20"
-        style="
-          background: radial-gradient(circle, oklch(0.65 0.25 290 / 0.4) 0%, transparent 70%);
-          filter: blur(60px);
-        "
+        class="absolute top-1/4 -left-32 w-96 h-96 rounded-full animate-float opacity-20 orb-primary"
       />
       <div
-        class="absolute bottom-1/4 -right-32 w-80 h-80 rounded-full animate-float opacity-15"
-        style="
-          background: radial-gradient(circle, oklch(0.6 0.2 320 / 0.3) 0%, transparent 70%);
-          filter: blur(50px);
-          animation-delay: 2s;
-        "
+        class="absolute bottom-1/4 -right-32 w-80 h-80 rounded-full animate-float opacity-15 orb-secondary [animation-delay:2s]"
       />
     </section>
 
