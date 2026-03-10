@@ -162,6 +162,41 @@ export function useGenerationForm() {
     sourceGenerationId.value = gen.id
   }
 
+  const isEnhanceModalOpen = ref(false)
+  const enhanceInstructions = ref('')
+  const enhancing = ref(false)
+
+  function openEnhanceModal() {
+    if (!prompt.value.trim()) return
+    isEnhanceModalOpen.value = true
+  }
+
+  async function enhanceCurrentPrompt() {
+    if (!prompt.value.trim() || enhancing.value) return
+
+    enhancing.value = true
+    error.value = null
+
+    try {
+      const result = await $fetch<{ enhancedPrompt: string }>('/api/generate/enhance-prompt', {
+        method: 'POST',
+        body: {
+          prompt: prompt.value,
+          instructions: enhanceInstructions.value || undefined,
+        },
+      })
+      if (result.enhancedPrompt) {
+        prompt.value = result.enhancedPrompt
+      }
+    } catch (e) {
+      const err = e as { data?: { message?: string }; message?: string }
+      error.value = err.data?.message || err.message || 'Failed to enhance prompt'
+    } finally {
+      enhancing.value = false
+      isEnhanceModalOpen.value = false
+    }
+  }
+
   return {
     // Form state
     activeTab,
@@ -178,6 +213,9 @@ export function useGenerationForm() {
 
     // Status
     generating,
+    enhancing,
+    isEnhanceModalOpen,
+    enhanceInstructions,
     error,
     charCount,
     isGenerateDisabled,
@@ -188,6 +226,8 @@ export function useGenerationForm() {
     // Actions
     loadUserImages,
     handleGenerate,
+    openEnhanceModal,
+    enhanceCurrentPrompt,
     selectSourceImage,
     animateLatestImage,
     editLatestImage,

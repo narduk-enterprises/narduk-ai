@@ -153,11 +153,12 @@ const filters = [
     </div>
 
     <!-- Grid -->
-    <div v-else class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
+    <div v-else class="columns-1 gap-5 sm:columns-2 lg:columns-3 stagger-children">
       <GenerationCard
         v-for="gen in filteredGenerations"
         :key="gen.id"
         :generation="gen"
+        class="break-inside-avoid mb-5"
         @click="navigateTo(`/gallery/${gen.id}`)"
         @use-as-source="handleUseAsSource"
         @delete="handleDelete"

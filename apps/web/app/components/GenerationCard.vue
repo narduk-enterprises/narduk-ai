@@ -26,6 +26,22 @@ const statusColors: Record<string, string> = {
   expired: 'neutral',
 }
 
+const aspectClass = computed(() => {
+  const ratio = props.generation.aspectRatio
+  if (!ratio) return 'aspect-video'
+
+  const map: Record<string, string> = {
+    '1:1': 'aspect-square',
+    '16:9': 'aspect-video',
+    '9:16': 'aspect-[9/16]',
+    '4:3': 'aspect-[4/3]',
+    '3:4': 'aspect-[3/4]',
+    '3:2': 'aspect-[3/2]',
+    '2:3': 'aspect-[2/3]',
+  }
+  return map[ratio] || 'aspect-video'
+})
+
 const errorSummary = computed(() => {
   if (props.generation.status !== 'failed' && props.generation.status !== 'expired') return null
   if (!props.generation.metadata) {
@@ -60,7 +76,7 @@ function handleDelete() {
     class="glow-card group block cursor-pointer overflow-hidden"
   >
     <!-- Media Preview -->
-    <div class="relative aspect-video w-full overflow-hidden bg-elevated/50">
+    <div :class="['relative w-full overflow-hidden bg-elevated/50', aspectClass]">
       <template v-if="generation.status === 'done' && generation.mediaUrl">
         <img
           v-if="generation.type === 'image'"
@@ -72,6 +88,7 @@ function handleDelete() {
         <video
           v-else
           :src="generation.mediaUrl"
+          :poster="generation.thumbnailUrl || undefined"
           class="h-full w-full object-cover"
           muted
           loop

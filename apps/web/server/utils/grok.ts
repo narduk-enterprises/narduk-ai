@@ -10,6 +10,50 @@
 
 import type OpenAI from 'openai'
 
+// ─── Chat Completions (OpenAI SDK / REST) ────────────────────
+export async function grokEnhancePrompt(
+  apiKey: string,
+  prompt: string,
+  instructions?: string,
+): Promise<string> {
+  const systemContent = instructions
+    ? `You are an expert prompt engineer for AI image and video generation. Your task is to take a simple user prompt and enhance it into a highly detailed, cinematic, and descriptive prompt that will produce stunning results. Look at the specific user instructions provided to guide your enhancement:\n\nUser Instructions: ${instructions}\n\nFocus on fulfilling the user instructions while adding details about lighting, camera angle, atmosphere, style, and subject specifics. Return ONLY the enhanced prompt text, with no introductory or conversational filler. Do not wrap in quotes.`
+    : 'You are an expert prompt engineer for AI image and video generation. Your task is to take a simple user prompt and enhance it into a highly detailed, cinematic, and descriptive prompt that will produce stunning results. Focus on adding details about lighting, camera angle, atmosphere, style, and subject specifics. Return ONLY the enhanced prompt text, with no introductory or conversational filler. Do not wrap in quotes.'
+
+  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'grok-3-mini',
+      messages: [
+        {
+          role: 'system',
+          content: systemContent,
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+    }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw createError({
+      statusCode: res.status,
+      message: `Grok chat completion error: ${text}`,
+    })
+  }
+
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> }
+  return data.choices?.[0]?.message?.content?.trim() || prompt
+}
+
 // ─── Image Generation (OpenAI SDK) ─────────────────────────
 
 interface GrokImageParams {
@@ -115,6 +159,7 @@ interface GrokVideoPollResponse {
     url: string
     duration: number
     respect_moderation: boolean
+    coverImg?: string
   }
   model?: string
   error?: {

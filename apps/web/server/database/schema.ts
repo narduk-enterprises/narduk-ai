@@ -27,6 +27,7 @@ export const generations = sqliteTable(
     xaiRequestId: text('xai_request_id'),
     r2Key: text('r2_key'),
     mediaUrl: text('media_url'),
+    thumbnailUrl: text('thumbnail_url'),
     duration: integer('duration'),
     aspectRatio: text('aspect_ratio'),
     resolution: text('resolution'),

@@ -21,6 +21,9 @@ const {
   recentGenerations,
   userImages,
   generating,
+  enhancing,
+  isEnhanceModalOpen,
+  enhanceInstructions,
   error,
   charCount,
   isGenerateDisabled,
@@ -29,6 +32,8 @@ const {
   latestResultError,
   loadUserImages,
   handleGenerate,
+  openEnhanceModal,
+  enhanceCurrentPrompt,
   selectSourceImage,
   animateLatestImage,
   editLatestImage,
@@ -88,7 +93,21 @@ const resolutions = ['480p', '720p']
             />
           </div>
           <template #hint>
-            <span class="text-xs text-dimmed">{{ charCount }} characters</span>
+            <div class="flex items-center gap-3">
+              <UButton
+                variant="ghost"
+                color="neutral"
+                size="xs"
+                icon="i-lucide-wand-2"
+                :loading="enhancing"
+                :disabled="!prompt.trim() || generating || enhancing"
+                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-[10px]"
+                @click="openEnhanceModal"
+              >
+                Enhance
+              </UButton>
+              <span class="text-xs text-dimmed">{{ charCount }} characters</span>
+            </div>
           </template>
         </UFormField>
 
@@ -247,16 +266,69 @@ const resolutions = ['480p', '720p']
             View All
           </UButton>
         </div>
-        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div class="columns-2 gap-4 sm:columns-3 stagger-children">
           <GenerationCard
             v-for="gen in recentGenerations"
             :key="gen.id"
             :generation="gen"
+            class="break-inside-avoid mb-4"
             @click="navigateTo(`/gallery/${gen.id}`)"
             @use-as-source="useGenerationAsSource"
           />
         </div>
       </div>
     </div>
+
+    <!-- Enhance Modal -->
+    <UModal v-model="isEnhanceModalOpen">
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="font-display font-semibold text-lg flex items-center gap-2">
+              <UIcon name="i-lucide-wand-2" class="size-5 text-primary" />
+              Enhance Prompt
+            </h3>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              class="-my-1"
+              @click="isEnhanceModalOpen = false"
+            />
+          </div>
+        </template>
+
+        <div class="space-y-4">
+          <p class="text-sm text-muted">
+            Tell Grok how you want to enhance your prompt. You can ask for a specific style,
+            lighting, camera angle, or just leave it blank for a general enhancement.
+          </p>
+          <UFormField label="Instructions (Optional)">
+            <UTextarea
+              v-model="enhanceInstructions"
+              placeholder="e.g. Make it highly cinematic, neon cyberpunk style, 8k resolution..."
+              :rows="3"
+              autoresize
+            />
+          </UFormField>
+        </div>
+
+        <template #footer>
+          <div class="flex justify-end gap-3">
+            <UButton color="neutral" variant="ghost" @click="isEnhanceModalOpen = false">
+              Cancel
+            </UButton>
+            <UButton
+              color="primary"
+              icon="i-lucide-sparkles"
+              :loading="enhancing"
+              @click="enhanceCurrentPrompt"
+            >
+              Enhance
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
   </div>
 </template>

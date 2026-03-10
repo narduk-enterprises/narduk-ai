@@ -12,6 +12,7 @@ export interface Generation {
   xaiRequestId: string | null
   r2Key: string | null
   mediaUrl: string | null
+  thumbnailUrl: string | null
   duration: number | null
   aspectRatio: string | null
   resolution: string | null
