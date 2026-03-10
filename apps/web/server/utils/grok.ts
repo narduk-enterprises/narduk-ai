@@ -155,6 +155,10 @@ export async function grokStartVideo(
 
 /**
  * Poll for video generation status.
+ * xAI returns two shapes:
+ *   - Normal: { status: 'pending' | 'done' | 'failed' | 'expired', video?: {...} }
+ *   - Error:  { code: '...', error: '...' } (e.g., content moderation rejection)
+ * We normalize the error shape into GrokVideoPollResponse.
  */
 export async function grokPollVideo(
   apiKey: string,
@@ -173,7 +177,20 @@ export async function grokPollVideo(
     })
   }
 
-  return (await res.json()) as GrokVideoPollResponse
+  const data = (await res.json()) as Record<string, unknown>
+
+  // Normalize xAI's top-level error shape into our expected format
+  if (!data.status && data.error) {
+    return {
+      status: 'failed',
+      error: {
+        code: (data.code as string) || 'unknown',
+        message: (data.error as string) || 'Video generation failed',
+      },
+    }
+  }
+
+  return data as GrokVideoPollResponse
 }
 
 /**

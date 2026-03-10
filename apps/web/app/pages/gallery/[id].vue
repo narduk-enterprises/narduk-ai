@@ -118,6 +118,19 @@ const metadataItems = computed(() => {
     items.push({ label: 'Resolution', value: generation.value.resolution })
   return items
 })
+
+const errorMessage = computed(() => {
+  if (!generation.value?.metadata) return null
+  try {
+    const meta = JSON.parse(generation.value.metadata)
+    // Handle {error: {message: '...'}} or {error: '...'}
+    if (meta.error?.message) return meta.error.message
+    if (typeof meta.error === 'string') return meta.error
+    return null
+  } catch {
+    return null
+  }
+})
 </script>
 
 <template>
@@ -180,6 +193,18 @@ const metadataItems = computed(() => {
             <div class="absolute inset-0 animate-glow-pulse rounded-full" />
           </div>
           <p class="text-muted">Still generating...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div
+          v-if="(generation.status === 'failed' || generation.status === 'expired') && errorMessage"
+          class="rounded-xl border border-error/20 bg-error/5 p-4 flex items-start gap-3"
+        >
+          <UIcon name="i-lucide-alert-triangle" class="size-5 text-error shrink-0 mt-0.5" />
+          <div>
+            <p class="text-sm font-medium text-error">Generation {{ generation.status }}</p>
+            <p class="text-sm text-muted mt-0.5">{{ errorMessage }}</p>
+          </div>
         </div>
 
         <!-- Metadata -->
