@@ -44,9 +44,10 @@ export async function grokEnhancePrompt(
 
   if (!res.ok) {
     const text = await res.text()
+    console.error(`[grokEnhancePrompt] API error (${res.status}):`, text)
     throw createError({
       statusCode: res.status,
-      message: `Grok chat completion error: ${text}`,
+      message: 'Failed to enhance prompt with Grok API.',
     })
   }
 
@@ -96,9 +97,10 @@ export async function grokGenerateImage(
 
   if (!res.ok) {
     const text = await res.text()
+    console.error(`[grokGenerateImage] API error (${res.status}):`, text)
     throw createError({
       statusCode: res.status,
-      message: `Grok image generation error: ${text}`,
+      message: 'Grok image generation failed.',
     })
   }
 
@@ -129,9 +131,10 @@ export async function grokEditImage(
 
   if (!res.ok) {
     const body = await res.text()
+    console.error(`[grokEditImage] API error (${res.status}):`, body)
     throw createError({
       statusCode: res.status,
-      message: `Grok image edit API error: ${body}`,
+      message: 'Grok image edit API failed.',
     })
   }
 
@@ -199,9 +202,10 @@ export async function grokStartVideo(
 
   if (!res.ok) {
     const text = await res.text()
+    console.error(`[grokStartVideo] API error (${res.status}):`, text)
     throw createError({
       statusCode: res.status,
-      message: `Grok video API error: ${text}`,
+      message: 'Grok video API failed to start generation.',
     })
   }
 
@@ -226,9 +230,10 @@ export async function grokPollVideo(
 
   if (!res.ok) {
     const text = await res.text()
+    console.error(`[grokPollVideo] API error (${res.status}):`, text)
     throw createError({
       statusCode: res.status,
-      message: `Grok video poll error: ${text}`,
+      message: 'Failed to poll Grok video status.',
     })
   }
 

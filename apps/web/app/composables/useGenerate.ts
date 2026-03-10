@@ -107,38 +107,46 @@ export function useGenerate() {
   }
 
   /**
-   * Poll a pending video generation until done.
+   * Poll a pending video generation until done using exponential backoff.
    * Returns a reactive generation ref that updates as polling progresses.
    */
   function pollGeneration(generation: Ref<Generation>, onComplete?: (gen: Generation) => void) {
     if (!generation.value.xaiRequestId) return
 
     const requestId = generation.value.xaiRequestId
-    const interval = setInterval(async () => {
+    let delay = 5000
+    const maxDelay = 30000
+
+    const executePoll = async () => {
       try {
         const result = await $fetch<Generation>(`/api/generate/poll/${requestId}`)
         generation.value = result
 
         if (result.status === 'done' || result.status === 'failed' || result.status === 'expired') {
-          clearInterval(interval)
           pollingIntervals.value.delete(requestId)
           onComplete?.(result)
+          return
         }
+
+        // Exponential backoff
+        delay = Math.min(delay * 1.5, maxDelay)
+        const nextTimeout = setTimeout(executePoll, delay)
+        pollingIntervals.value.set(requestId, nextTimeout)
       } catch {
-        clearInterval(interval)
         pollingIntervals.value.delete(requestId)
       }
-    }, 5000)
+    }
 
-    pollingIntervals.value.set(requestId, interval)
+    const initialTimeout = setTimeout(executePoll, delay)
+    pollingIntervals.value.set(requestId, initialTimeout)
   }
 
   /**
    * Stop all active polling.
    */
   function stopAllPolling() {
-    for (const interval of pollingIntervals.value.values()) {
-      clearInterval(interval)
+    for (const timer of pollingIntervals.value.values()) {
+      clearTimeout(timer)
     }
     pollingIntervals.value.clear()
   }

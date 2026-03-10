@@ -16,6 +16,7 @@ const bodySchema = z.object({
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Generate')
   const user = await requireAuth(event)
+  await enforceRateLimit(event, 'generate-video', 5, 60_000)
   const body = await readValidatedBody(event, bodySchema.parse)
   const config = useRuntimeConfig(event)
 
@@ -23,7 +24,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
   }
 
-  log.info('I2V request', {
+  log.info('AUDIT: I2V request', {
+    action: 'generate_i2v',
     userId: user.id,
     sourceId: body.sourceGenerationId,
     promptLength: body.prompt.length,

@@ -44,7 +44,11 @@ export default defineEventHandler(async (event) => {
   }
 
   await setUserSession(event, { user: cleanUser })
-  log.info('Login successful', { email: normalizedEmail, userId: cleanUser.id })
+  log.info('AUDIT: Login successful', {
+    action: 'user_login',
+    email: normalizedEmail,
+    userId: cleanUser.id,
+  })
 
   return { user: cleanUser }
 })

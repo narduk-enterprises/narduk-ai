@@ -39,9 +39,8 @@ export default defineEventHandler(async (event) => {
   }
 
   // Staleness check — auto-fail generations pending for >10 minutes
-  const STALE_TIMEOUT_MS = 10 * 60 * 1000
   const ageMs = Date.now() - new Date(gen.createdAt).getTime()
-  if (ageMs > STALE_TIMEOUT_MS) {
+  if (ageMs > GENERATION_STALE_TIMEOUT_MS) {
     const now = new Date().toISOString()
     const errorMeta = JSON.stringify({
       error: {
@@ -69,10 +68,18 @@ export default defineEventHandler(async (event) => {
   log.info('Poll result', { generationId: gen.id, requestId, status: result.status })
 
   if (result.status === 'done' && result.video?.url) {
-    // Download video and store in R2
+    // Download video and store in R2 in the background
     const r2Key = `generations/${user.id}/${gen.id}.mp4`
-    const buffer = await downloadMedia(result.video.url)
-    await uploadToR2(event, r2Key, buffer, 'video/mp4')
+    event.waitUntil(
+      (async () => {
+        try {
+          const buffer = await downloadMedia(result.video!.url)
+          await uploadToR2(event, r2Key, buffer, 'video/mp4')
+        } catch (err) {
+          log.error('Background R2 upload failed', { userId: user.id, generationId: gen.id, err })
+        }
+      })(),
+    )
 
     const now = new Date().toISOString()
     await db

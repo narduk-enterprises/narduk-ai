@@ -14,6 +14,7 @@ const bodySchema = z.object({
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Generate')
   const user = await requireAuth(event)
+  await enforceRateLimit(event, 'generate-image', 10, 60_000)
   const body = await readValidatedBody(event, bodySchema.parse)
   const config = useRuntimeConfig(event)
 
@@ -21,7 +22,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
   }
 
-  log.info('I2I request', {
+  log.info('AUDIT: I2I request', {
+    action: 'generate_i2i',
     userId: user.id,
     sourceId: body.sourceGenerationId,
     promptLength: body.prompt.length,
@@ -72,16 +74,25 @@ export default defineEventHandler(async (event) => {
   })
 
   const imageData = result.data?.[0]
-  if (!imageData?.url) {
+  const imageUrl = imageData?.url
+  if (!imageUrl) {
     log.error('I2I failed — no image returned', { userId: user.id })
     throw createError({ statusCode: 502, message: 'No image returned from Grok API' })
   }
 
-  // Download and store in R2
+  // Download and store in R2 in the background
   const id = crypto.randomUUID()
   const r2Key = `generations/${user.id}/${id}.png`
-  const buffer = await downloadMedia(imageData.url)
-  await uploadToR2(event, r2Key, buffer, 'image/png')
+  event.waitUntil(
+    (async () => {
+      try {
+        const buffer = await downloadMedia(imageUrl)
+        await uploadToR2(event, r2Key, buffer, 'image/png')
+      } catch (err) {
+        log.error('Background R2 upload failed', { userId: user.id, generationId: id, err })
+      }
+    })(),
+  )
 
   const now = new Date().toISOString()
   const record = {

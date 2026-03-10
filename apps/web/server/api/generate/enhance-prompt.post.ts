@@ -12,6 +12,7 @@ const bodySchema = z.object({
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('EnhancePrompt')
   const user = await requireAuth(event)
+  await enforceRateLimit(event, 'generate-enhance-prompt', 20, 60_000)
   const body = await readValidatedBody(event, bodySchema.parse)
   const config = useRuntimeConfig(event)
 
@@ -19,7 +20,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
   }
 
-  log.info('Enhance prompt request', { userId: user.id, promptLength: body.prompt.length })
+  log.info('AUDIT: Enhance prompt request', {
+    action: 'enhance_prompt',
+    userId: user.id,
+    promptLength: body.prompt.length,
+  })
 
   try {
     const enhancedPrompt = await grokEnhancePrompt(config.xaiApiKey, body.prompt, body.instructions)
