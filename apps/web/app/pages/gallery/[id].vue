@@ -30,6 +30,7 @@ const displayPrompt = computed(() => {
 
 async function copyPrompt() {
   if (!generation.value) return
+  if (!import.meta.client) return
   try {
     await navigator.clipboard.writeText(generation.value.prompt)
     toast.add({

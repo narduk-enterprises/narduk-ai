@@ -54,8 +54,8 @@ export default defineEventHandler(async (event) => {
         if (typeof meta.estimatedCostUsd === 'number') {
           costUsd = meta.estimatedCostUsd
         }
-      } catch {
-        // ignore parse errors
+      } catch (err) {
+        log.warn('Failed to parse generation metadata', { generationId: gen.id, err })
       }
     }
     if (costUsd === 0) {

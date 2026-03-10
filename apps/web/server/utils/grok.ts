@@ -298,7 +298,7 @@ interface GrokBatchResultsResponse {
   results: GrokBatchResult[]
 }
 
-function authHeaders(apiKey: string): Record<string, string> {
+function grokHeaders(apiKey: string): Record<string, string> {
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${apiKey}`,
@@ -316,7 +316,7 @@ export async function grokBatchGenerateImage(
   // 1. Create a batch
   const batchRes = await fetch('https://api.x.ai/v1/batches', {
     method: 'POST',
-    headers: authHeaders(apiKey),
+    headers: grokHeaders(apiKey),
     body: JSON.stringify({ name: `img-${Date.now()}` }),
   })
 
@@ -334,7 +334,7 @@ export async function grokBatchGenerateImage(
   // 2. Add image generation request to the batch
   const reqRes = await fetch(`https://api.x.ai/v1/batches/${batch.batch_id}/requests`, {
     method: 'POST',
-    headers: authHeaders(apiKey),
+    headers: grokHeaders(apiKey),
     body: JSON.stringify({
       input: {
         model: params.model || 'grok-imagine-image',
@@ -367,7 +367,7 @@ export async function grokBatchEditImage(
 ): Promise<{ batchId: string }> {
   const batchRes = await fetch('https://api.x.ai/v1/batches', {
     method: 'POST',
-    headers: authHeaders(apiKey),
+    headers: grokHeaders(apiKey),
     body: JSON.stringify({ name: `img-edit-${Date.now()}` }),
   })
 
@@ -384,7 +384,7 @@ export async function grokBatchEditImage(
 
   const reqRes = await fetch(`https://api.x.ai/v1/batches/${batch.batch_id}/requests`, {
     method: 'POST',
-    headers: authHeaders(apiKey),
+    headers: grokHeaders(apiKey),
     body: JSON.stringify({
       input: {
         model: params.model || 'grok-imagine-image',
