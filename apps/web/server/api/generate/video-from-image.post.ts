@@ -100,6 +100,9 @@ export default defineEventHandler(async (event) => {
     xaiRequestId: result.request_id,
     duration: body.duration,
     resolution: body.resolution,
+    metadata: JSON.stringify({
+      estimatedCostUsd: estimateGenerationCost({ type: 'video', duration: body.duration }),
+    }),
     createdAt: now,
     updatedAt: now,
   }

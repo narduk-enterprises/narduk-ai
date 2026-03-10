@@ -105,7 +105,10 @@ export default defineEventHandler(async (event) => {
     status: 'done' as const,
     r2Key,
     mediaUrl: `/api/media/${r2Key}`,
-    metadata: JSON.stringify({ revised_prompt: imageData.revised_prompt }),
+    metadata: JSON.stringify({
+      revised_prompt: imageData.revised_prompt,
+      estimatedCostUsd: estimateGenerationCost({ type: 'image' }),
+    }),
     createdAt: now,
     updatedAt: now,
   }
