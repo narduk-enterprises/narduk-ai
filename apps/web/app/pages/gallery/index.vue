@@ -29,6 +29,36 @@ async function load() {
 
 onMounted(load)
 
+// Auto-refresh while any generations are pending
+const hasPending = computed(() => generations.value.some((g) => g.status === 'pending'))
+let refreshInterval: ReturnType<typeof setInterval> | null = null
+
+watch(
+  hasPending,
+  (pending) => {
+    if (pending && !refreshInterval) {
+      refreshInterval = setInterval(async () => {
+        try {
+          generations.value = await fetchGenerations(100)
+        } catch {
+          // silent
+        }
+      }, 5000)
+    } else if (!pending && refreshInterval) {
+      clearInterval(refreshInterval)
+      refreshInterval = null
+    }
+  },
+  { immediate: true },
+)
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
+  }
+})
+
 const filteredGenerations = computed(() => {
   if (activeFilter.value === 'all') return generations.value
   if (activeFilter.value === 'images') return generations.value.filter((g) => g.type === 'image')

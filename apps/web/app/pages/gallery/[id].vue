@@ -13,6 +13,7 @@ const {
   generateVideo,
   generateVideoFromImage,
   editImage,
+  pollGeneration,
 } = useGenerate()
 
 const generation = ref<Generation | null>(null)
@@ -24,6 +25,12 @@ async function load() {
   loading.value = true
   try {
     generation.value = await fetchGeneration(genId)
+
+    // Start polling if generation is still pending
+    if (generation.value?.status === 'pending' && generation.value.xaiRequestId) {
+      const genRef = generation as Ref<Generation>
+      pollGeneration(genRef)
+    }
   } catch {
     error.value = 'Generation not found'
   } finally {

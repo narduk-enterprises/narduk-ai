@@ -8,16 +8,7 @@
  * so those use native fetch.
  */
 
-import OpenAI from 'openai'
-
-// ─── Client Factory ─────────────────────────────────────────
-
-function createClient(apiKey: string): OpenAI {
-  return new OpenAI({
-    apiKey,
-    baseURL: 'https://api.x.ai/v1',
-  })
-}
+import type OpenAI from 'openai'
 
 // ─── Image Generation (OpenAI SDK) ─────────────────────────
 
