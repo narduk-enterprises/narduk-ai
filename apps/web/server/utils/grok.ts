@@ -190,7 +190,7 @@ export async function grokPollVideo(
     }
   }
 
-  return data as GrokVideoPollResponse
+  return data as unknown as GrokVideoPollResponse
 }
 
 /**
