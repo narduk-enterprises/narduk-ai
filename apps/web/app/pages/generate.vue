@@ -280,55 +280,57 @@ const resolutions = ['480p', '720p']
     </div>
 
     <!-- Enhance Modal -->
-    <UModal v-model="isEnhanceModalOpen">
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="font-display font-semibold text-lg flex items-center gap-2">
-              <UIcon name="i-lucide-wand-2" class="size-5 text-primary" />
-              Enhance Prompt
-            </h3>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-x"
-              class="-my-1"
-              @click="isEnhanceModalOpen = false"
-            />
-          </div>
-        </template>
+    <UModal v-model:open="isEnhanceModalOpen">
+      <template #content>
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="font-display font-semibold text-lg flex items-center gap-2">
+                <UIcon name="i-lucide-wand-2" class="size-5 text-primary" />
+                Enhance Prompt
+              </h3>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-x"
+                class="-my-1"
+                @click="isEnhanceModalOpen = false"
+              />
+            </div>
+          </template>
 
-        <div class="space-y-4">
-          <p class="text-sm text-muted">
-            Tell Grok how you want to enhance your prompt. You can ask for a specific style,
-            lighting, camera angle, or just leave it blank for a general enhancement.
-          </p>
-          <UFormField label="Instructions (Optional)">
-            <UTextarea
-              v-model="enhanceInstructions"
-              placeholder="e.g. Make it highly cinematic, neon cyberpunk style, 8k resolution..."
-              :rows="3"
-              autoresize
-            />
-          </UFormField>
-        </div>
-
-        <template #footer>
-          <div class="flex justify-end gap-3">
-            <UButton color="neutral" variant="ghost" @click="isEnhanceModalOpen = false">
-              Cancel
-            </UButton>
-            <UButton
-              color="primary"
-              icon="i-lucide-sparkles"
-              :loading="enhancing"
-              @click="enhanceCurrentPrompt"
-            >
-              Enhance
-            </UButton>
+          <div class="space-y-4">
+            <p class="text-sm text-muted">
+              Tell Grok how you want to enhance your prompt. You can ask for a specific style,
+              lighting, camera angle, or just leave it blank for a general enhancement.
+            </p>
+            <UFormField label="Instructions (Optional)">
+              <UTextarea
+                v-model="enhanceInstructions"
+                placeholder="e.g. Make it highly cinematic, neon cyberpunk style, 8k resolution..."
+                :rows="3"
+                autoresize
+              />
+            </UFormField>
           </div>
-        </template>
-      </UCard>
+
+          <template #footer>
+            <div class="flex justify-end gap-3">
+              <UButton color="neutral" variant="ghost" @click="isEnhanceModalOpen = false">
+                Cancel
+              </UButton>
+              <UButton
+                color="primary"
+                icon="i-lucide-sparkles"
+                :loading="enhancing"
+                @click="enhanceCurrentPrompt"
+              >
+                Enhance
+              </UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
     </UModal>
   </div>
 </template>
