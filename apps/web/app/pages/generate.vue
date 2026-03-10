@@ -26,11 +26,12 @@ const {
 // ─── Form State ─────────────────────────────────────────────
 
 const route = useRoute()
+const { defaultAspectRatio, defaultDuration, defaultResolution } = useSettings()
 const activeTab = ref((route.query.mode as string) || 't2i')
 const prompt = ref((route.query.prompt as string) || '')
-const aspectRatio = ref('16:9')
-const duration = ref(6)
-const resolution = ref('720p')
+const aspectRatio = ref(defaultAspectRatio.value)
+const duration = ref(defaultDuration.value)
+const resolution = ref(defaultResolution.value)
 const sourceGenerationId = ref((route.query.source as string) || '')
 
 // ─── Generation Results ─────────────────────────────────────

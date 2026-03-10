@@ -37,6 +37,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Create', to: '/generate', icon: 'i-lucide-sparkles' },
   { label: 'Gallery', to: '/gallery', icon: 'i-lucide-grid-3x3' },
+  { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
 ]
 </script>
 
