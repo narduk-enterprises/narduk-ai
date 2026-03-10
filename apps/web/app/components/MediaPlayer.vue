@@ -20,13 +20,13 @@ const isZoomed = ref(false)
       />
 
       <!-- Zoom Modal -->
-      <UModal v-model="isZoomed" fullscreen :ui="{ base: 'bg-black/95' }">
+      <UModal v-model="isZoomed" fullscreen :ui="{ content: 'bg-black/95' }">
         <div class="relative h-full w-full flex items-center justify-center p-4">
           <UButton
             icon="i-lucide-x"
-            color="white"
+            color="neutral"
             variant="ghost"
-            class="absolute top-4 right-4 z-50 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-md"
+            class="absolute top-4 right-4 z-50 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-md text-white"
             size="xl"
             @click="isZoomed = false"
           />
