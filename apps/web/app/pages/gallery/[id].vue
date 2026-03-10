@@ -5,6 +5,7 @@ definePageMeta({ middleware: ['auth'] })
 
 const route = useRoute()
 const genId = route.params.id as string
+const toast = useToast()
 
 const { fetchGeneration, deleteGeneration, retryGeneration, pollGeneration } = useGenerate()
 
@@ -13,6 +14,39 @@ const sourceGeneration = ref<Generation | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const retrying = ref(false)
+const promptExpanded = ref(false)
+
+const PROMPT_TRUNCATE_LENGTH = 200
+
+const isPromptLong = computed(() => {
+  return (generation.value?.prompt.length ?? 0) > PROMPT_TRUNCATE_LENGTH
+})
+
+const displayPrompt = computed(() => {
+  if (!generation.value) return ''
+  if (promptExpanded.value || !isPromptLong.value) return generation.value.prompt
+  return generation.value.prompt.slice(0, PROMPT_TRUNCATE_LENGTH) + '…'
+})
+
+async function copyPrompt() {
+  if (!generation.value) return
+  try {
+    await navigator.clipboard.writeText(generation.value.prompt)
+    toast.add({
+      title: 'Copied',
+      description: 'Prompt copied to clipboard.',
+      color: 'success',
+      icon: 'i-lucide-check-circle',
+    })
+  } catch {
+    toast.add({
+      title: 'Copy failed',
+      description: 'Unable to copy to clipboard.',
+      color: 'error',
+      icon: 'i-lucide-x-circle',
+    })
+  }
+}
 
 async function load() {
   loading.value = true
@@ -195,10 +229,32 @@ const errorMessage = computed(() => {
             </div>
           </div>
 
-          <div class="px-2">
+          <div class="px-2 space-y-2">
             <p class="text-lg leading-relaxed text-default font-medium">
-              "{{ generation.prompt }}"
+              "{{ displayPrompt }}"
             </p>
+            <div class="flex items-center gap-2">
+              <UButton
+                v-if="isPromptLong"
+                variant="link"
+                color="primary"
+                size="xs"
+                :icon="promptExpanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                :padded="false"
+                @click="promptExpanded = !promptExpanded"
+              >
+                {{ promptExpanded ? 'Show less' : 'Show more' }}
+              </UButton>
+              <UButton
+                variant="ghost"
+                color="neutral"
+                size="xs"
+                icon="i-lucide-copy"
+                @click="copyPrompt"
+              >
+                Copy Prompt
+              </UButton>
+            </div>
           </div>
         </div>
 
