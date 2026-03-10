@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
 
-const _props = defineProps<{
+const props = defineProps<{
   generation: Generation
 }>()
 
@@ -26,16 +26,31 @@ const statusColors: Record<string, string> = {
   expired: 'neutral',
 }
 
+const errorSummary = computed(() => {
+  if (props.generation.status !== 'failed' && props.generation.status !== 'expired') return null
+  if (!props.generation.metadata) {
+    return props.generation.status === 'expired' ? 'Expired' : 'Failed'
+  }
+  try {
+    const meta = JSON.parse(props.generation.metadata)
+    if (meta.error?.message) return meta.error.message
+    if (typeof meta.error === 'string') return meta.error
+    return props.generation.status === 'expired' ? 'Expired' : 'Failed'
+  } catch {
+    return 'Failed'
+  }
+})
+
 function handleUseAsSource() {
-  emit('use-as-source', _props.generation)
+  emit('use-as-source', props.generation)
 }
 
 function handleRetry() {
-  emit('retry', _props.generation)
+  emit('retry', props.generation)
 }
 
 function handleDelete() {
-  emit('delete', _props.generation)
+  emit('delete', props.generation)
 }
 </script>
 
@@ -124,6 +139,11 @@ function handleDelete() {
 
       <p class="line-clamp-2 text-sm text-muted leading-relaxed">
         {{ generation.prompt }}
+      </p>
+
+      <!-- Error summary for failed/expired -->
+      <p v-if="errorSummary" class="text-xs text-error truncate">
+        {{ errorSummary }}
       </p>
 
       <div class="flex items-center justify-between pt-1">

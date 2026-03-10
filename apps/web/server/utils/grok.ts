@@ -25,6 +25,7 @@ interface GrokImageParams {
   prompt: string
   model?: string
   n?: number
+  aspectRatio?: string
   response_format?: 'url' | 'b64_json'
 }
 
@@ -42,13 +43,31 @@ export async function grokGenerateImage(
   apiKey: string,
   params: GrokImageParams,
 ): Promise<OpenAI.Images.ImagesResponse> {
-  const client = createClient(apiKey)
-  return await client.images.generate({
-    model: params.model || 'grok-imagine-image',
-    prompt: params.prompt,
-    n: params.n || 1,
-    response_format: params.response_format || 'url',
+  // Use direct REST call instead of OpenAI SDK to support xAI-specific aspect_ratio param
+  const res = await fetch('https://api.x.ai/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: params.model || 'grok-imagine-image',
+      prompt: params.prompt,
+      n: params.n || 1,
+      response_format: params.response_format || 'url',
+      ...(params.aspectRatio && { aspect_ratio: params.aspectRatio }),
+    }),
   })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw createError({
+      statusCode: res.status,
+      message: `Grok image generation error: ${text}`,
+    })
+  }
+
+  return (await res.json()) as OpenAI.Images.ImagesResponse
 }
 
 /**

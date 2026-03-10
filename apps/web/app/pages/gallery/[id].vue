@@ -197,13 +197,15 @@ const errorMessage = computed(() => {
 
         <!-- Error Message -->
         <div
-          v-if="(generation.status === 'failed' || generation.status === 'expired') && errorMessage"
+          v-if="generation.status === 'failed' || generation.status === 'expired'"
           class="rounded-xl border border-error/20 bg-error/5 p-4 flex items-start gap-3"
         >
           <UIcon name="i-lucide-alert-triangle" class="size-5 text-error shrink-0 mt-0.5" />
           <div>
             <p class="text-sm font-medium text-error">Generation {{ generation.status }}</p>
-            <p class="text-sm text-muted mt-0.5">{{ errorMessage }}</p>
+            <p class="text-sm text-muted mt-0.5">
+              {{ errorMessage || 'Something went wrong. No additional details are available.' }}
+            </p>
           </div>
         </div>
 

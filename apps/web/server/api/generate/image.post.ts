@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
   // Call Grok Imagine API
   const result = await grokGenerateImage(config.xaiApiKey, {
     prompt: body.prompt,
+    aspectRatio: body.aspectRatio,
   })
 
   const imageData = result.data?.[0]
