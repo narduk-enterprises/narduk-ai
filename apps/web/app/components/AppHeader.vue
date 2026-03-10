@@ -4,7 +4,7 @@
  * Glass backdrop, violet-tinted border, pill navigation.
  */
 const route = useRoute()
-const { loggedIn, user } = useAuth()
+const { loggedIn, user, logout } = useAuth()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Color Mode types depend on build-time module resolution
 const colorMode = useColorMode() as any
 
@@ -28,6 +28,11 @@ watch(
   },
 )
 
+async function handleLogout() {
+  await logout()
+  navigateTo('/')
+}
+
 interface NavItem {
   label: string
   to: string
@@ -48,6 +53,23 @@ const navItems = computed<NavItem[]>(() => {
 
   return items
 })
+
+const userMenuItems = computed(() => [
+  [
+    {
+      label: 'Signed in as',
+      slot: 'account',
+      disabled: true,
+    },
+  ],
+  [
+    {
+      label: 'Sign out',
+      icon: 'i-lucide-log-out',
+      onSelect: handleLogout,
+    },
+  ],
+])
 </script>
 
 <template>
@@ -59,57 +81,76 @@ const navItems = computed<NavItem[]>(() => {
 
       <!-- Desktop Navigation -->
       <!-- eslint-disable-next-line narduk/no-native-layout -- app-level scaffold: semantic landmark element -->
-      <nav class="hidden md:flex items-center gap-1" aria-label="Main navigation">
-        <NuxtLink
-          v-for="item in navItems"
-          :key="item.to"
-          :to="item.to"
-          class="px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-2"
-          :class="
-            route.path === item.to || route.path.startsWith(item.to + '/')
-              ? 'bg-primary/15 text-primary'
-              : 'text-muted hover:text-default hover:bg-elevated/80'
-          "
-        >
-          <UIcon :name="item.icon" class="size-4" />
-          {{ item.label }}
-        </NuxtLink>
+      <nav class="hidden md:flex items-center gap-2" aria-label="Main navigation">
+        <template v-if="loggedIn">
+          <NuxtLink
+            v-for="(item, index) in navItems"
+            :key="index"
+            :to="item.to"
+            class="px-4 py-2 text-sm font-medium rounded-full transition-all flex items-center gap-2"
+            :class="
+              route.path.startsWith(item.to)
+                ? 'bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20'
+                : 'text-muted hover:text-default hover:bg-elevated'
+            "
+          >
+            <UIcon :name="item.icon" class="size-4" />
+            {{ item.label }}
+          </NuxtLink>
+        </template>
       </nav>
 
-      <!-- Actions -->
-      <div class="flex items-center gap-1.5">
+      <!-- Actions Area -->
+      <div class="flex items-center gap-2">
         <UButton
           :icon="colorModeIcon"
           variant="ghost"
           color="neutral"
-          class="rounded-full"
           aria-label="Toggle color mode"
+          class="rounded-full"
           @click="cycleColorMode"
         />
 
-        <UButton
-          v-if="loggedIn"
-          to="/generate"
-          size="sm"
-          icon="i-lucide-plus"
-          label="New"
-          class="hidden sm:flex rounded-full"
-        />
-
-        <UButton
-          v-if="!loggedIn"
-          to="/login"
-          size="sm"
-          icon="i-lucide-log-in"
-          label="Sign In"
-          class="rounded-full"
-        />
+        <template v-if="loggedIn">
+          <UDropdownMenu
+            v-if="user"
+            :items="userMenuItems"
+            :content="{ align: 'end', sideOffset: 8 }"
+            class="hidden md:flex"
+          >
+            <UButton variant="ghost" color="neutral" class="rounded-full p-1.5! hover:bg-elevated">
+              <UAvatar
+                :alt="user.name || user.email || 'User'"
+                size="sm"
+                class="ring-1 ring-default/10"
+              />
+            </UButton>
+            <template #account="{ item }">
+              <div class="text-left">
+                <p class="text-xs text-muted">{{ item.label }}</p>
+                <p class="text-sm font-medium truncate max-w-[150px]">
+                  {{ user.email }}
+                </p>
+              </div>
+            </template>
+          </UDropdownMenu>
+        </template>
+        <template v-else>
+          <UButton
+            to="/login"
+            variant="solid"
+            color="primary"
+            class="hidden md:flex rounded-full px-5"
+          >
+            Sign In
+          </UButton>
+        </template>
 
         <!-- Mobile hamburger -->
         <UButton
           color="neutral"
           variant="ghost"
-          class="md:hidden rounded-full"
+          class="md:hidden p-2 rounded-full hover:bg-elevated"
           aria-label="Toggle navigation menu"
           :aria-expanded="mobileMenuOpen"
           @click="mobileMenuOpen = !mobileMenuOpen"
@@ -119,39 +160,60 @@ const navItems = computed<NavItem[]>(() => {
       </div>
     </div>
 
-    <!-- Mobile Navigation Drawer -->
+    <!-- Mobile nav drawer -->
     <Transition name="slide-down">
       <!-- eslint-disable-next-line narduk/no-native-layout -- app-level scaffold: semantic landmark element -->
       <nav
         v-if="mobileMenuOpen"
-        class="md:hidden border-t border-default/50 glass"
+        class="md:hidden border-t border-default/50 glass-elevated absolute w-full left-0 top-16"
         aria-label="Mobile navigation"
       >
-        <div class="max-w-7xl mx-auto px-4 py-3 space-y-1">
-          <NuxtLink
-            v-for="item in navItems"
-            :key="item.to"
-            :to="item.to"
-            class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors"
-            :class="
-              route.path === item.to
-                ? 'text-primary bg-primary/10'
-                : 'text-muted hover:text-default hover:bg-elevated/80'
-            "
-          >
-            <UIcon :name="item.icon" class="size-4" />
-            {{ item.label }}
-          </NuxtLink>
-
-          <div v-if="!loggedIn" class="pt-2 border-t border-default/50">
+        <div class="px-4 py-4 flex flex-col gap-2">
+          <template v-if="loggedIn">
             <NuxtLink
-              to="/login"
-              class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-primary rounded-xl hover:bg-primary/10 transition-colors"
+              v-for="(item, index) in navItems"
+              :key="index"
+              :to="item.to"
+              class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-2xl transition-all"
+              :class="
+                route.path.startsWith(item.to)
+                  ? 'bg-primary/10 text-primary ring-1 ring-primary/20'
+                  : 'text-muted hover:text-default hover:bg-elevated'
+              "
             >
-              <UIcon name="i-lucide-log-in" class="size-4" />
-              Sign In
+              <UIcon :name="item.icon" class="size-5" />
+              {{ item.label }}
             </NuxtLink>
-          </div>
+
+            <div class="h-px bg-default/50 my-2"></div>
+
+            <!-- Mobile User / Logout -->
+            <div class="flex items-center justify-between px-4 py-3">
+              <div class="flex items-center gap-3">
+                <UAvatar :alt="user?.name || user?.email || 'User'" size="sm" />
+                <div class="text-left">
+                  <p class="text-sm font-medium truncate max-w-[150px]">
+                    {{ user?.email }}
+                  </p>
+                </div>
+              </div>
+              <UButton
+                variant="ghost"
+                color="error"
+                icon="i-lucide-log-out"
+                size="sm"
+                class="rounded-full"
+                @click="handleLogout"
+              >
+                Sign out
+              </UButton>
+            </div>
+          </template>
+          <template v-else>
+            <UButton to="/login" variant="solid" color="primary" block class="rounded-2xl py-3">
+              Sign In
+            </UButton>
+          </template>
         </div>
       </nav>
     </Transition>
