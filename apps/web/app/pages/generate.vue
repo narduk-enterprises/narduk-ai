@@ -158,6 +158,18 @@ const resultBadgeColor = computed(() => {
 const latestMediaType = computed(() => {
   return (latestResult.value?.type ?? 'image') as 'image' | 'video'
 })
+
+const latestResultError = computed(() => {
+  if (!latestResult.value?.metadata) return null
+  try {
+    const meta = JSON.parse(latestResult.value.metadata)
+    if (meta.error?.message) return meta.error.message
+    if (typeof meta.error === 'string') return meta.error
+    return null
+  } catch {
+    return null
+  }
+})
 </script>
 
 <template>
@@ -343,10 +355,15 @@ const latestMediaType = computed(() => {
         <!-- Failed -->
         <div
           v-else-if="latestResult.status === 'failed' || latestResult.status === 'expired'"
-          class="py-12 text-center"
+          class="rounded-xl border border-error/20 bg-error/5 p-5 flex items-start gap-3"
         >
-          <UIcon name="i-lucide-alert-triangle" class="size-8 text-error" />
-          <p class="mt-3 text-muted">Generation {{ latestResult.status }}. Please try again.</p>
+          <UIcon name="i-lucide-alert-triangle" class="size-6 text-error shrink-0 mt-0.5" />
+          <div>
+            <p class="font-medium text-error">Generation {{ latestResult.status }}</p>
+            <p class="text-sm text-muted mt-1">
+              {{ latestResultError || 'Something went wrong. Please try again.' }}
+            </p>
+          </div>
         </div>
       </div>
 

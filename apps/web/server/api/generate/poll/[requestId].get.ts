@@ -38,6 +38,31 @@ export default defineEventHandler(async (event) => {
     return gen
   }
 
+  // Staleness check — auto-fail generations pending for >10 minutes
+  const STALE_TIMEOUT_MS = 10 * 60 * 1000
+  const ageMs = Date.now() - new Date(gen.createdAt).getTime()
+  if (ageMs > STALE_TIMEOUT_MS) {
+    const now = new Date().toISOString()
+    const errorMeta = JSON.stringify({
+      error: {
+        code: 'timeout',
+        message: 'Generation timed out after 10 minutes. The API did not return a result in time.',
+      },
+    })
+    await db
+      .update(generations)
+      .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
+      .where(eq(generations.id, gen.id))
+
+    log.warn('Poll — generation timed out', {
+      generationId: gen.id,
+      requestId,
+      ageMinutes: Math.round(ageMs / 60000),
+    })
+
+    return { ...gen, status: 'failed', metadata: errorMeta }
+  }
+
   // Poll Grok API
   const result = await grokPollVideo(config.xaiApiKey, requestId)
 
