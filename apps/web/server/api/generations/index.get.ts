@@ -7,8 +7,6 @@ const querySchema = z.object({
   offset: z.coerce.number().min(0).default(0),
 })
 
-const STALE_TIMEOUT_MS = 10 * 60 * 1000
-
 /**
  * GET /api/generations — List user's generations (newest first).
  * Supports ?limit=N&offset=N query params.
@@ -43,21 +41,13 @@ export default defineEventHandler(async (event) => {
       pendingVideos.map(async (gen) => {
         try {
           // Staleness check first
-          const ageMs = Date.now() - new Date(gen.createdAt).getTime()
-          if (ageMs > STALE_TIMEOUT_MS) {
-            const errorMeta = JSON.stringify({
-              error: {
-                code: 'timeout',
-                message:
-                  'Generation timed out after 10 minutes. The API did not return a result in time.',
-              },
-            })
+          if (isGenerationStale(gen.createdAt)) {
             await db
               .update(generations)
-              .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
+              .set({ status: 'failed', metadata: TIMEOUT_ERROR_META, updatedAt: now })
               .where(eq(generations.id, gen.id))
             gen.status = 'failed'
-            gen.metadata = errorMeta
+            gen.metadata = TIMEOUT_ERROR_META
             gen.updatedAt = now
             return
           }

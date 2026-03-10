@@ -39,28 +39,20 @@ export default defineEventHandler(async (event) => {
   }
 
   // Staleness check — auto-fail generations pending for >10 minutes
-  const STALE_TIMEOUT_MS = 10 * 60 * 1000
-  const ageMs = Date.now() - new Date(gen.createdAt).getTime()
-  if (ageMs > STALE_TIMEOUT_MS) {
+  if (isGenerationStale(gen.createdAt)) {
     const now = new Date().toISOString()
-    const errorMeta = JSON.stringify({
-      error: {
-        code: 'timeout',
-        message: 'Generation timed out after 10 minutes. The API did not return a result in time.',
-      },
-    })
     await db
       .update(generations)
-      .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
+      .set({ status: 'failed', metadata: TIMEOUT_ERROR_META, updatedAt: now })
       .where(eq(generations.id, gen.id))
 
     log.warn('Poll — generation timed out', {
       generationId: gen.id,
       requestId,
-      ageMinutes: Math.round(ageMs / 60000),
+      ageMinutes: Math.round((Date.now() - new Date(gen.createdAt).getTime()) / 60000),
     })
 
-    return { ...gen, status: 'failed', metadata: errorMeta }
+    return { ...gen, status: 'failed' as const, metadata: TIMEOUT_ERROR_META, updatedAt: now }
   }
 
   // Poll Grok API
@@ -95,10 +87,12 @@ export default defineEventHandler(async (event) => {
 
     return {
       ...gen,
-      status: 'done',
+      status: 'done' as const,
       r2Key,
       mediaUrl: `/api/media/${r2Key}`,
       duration: result.video.duration,
+      metadata: JSON.stringify(result),
+      updatedAt: now,
     }
   }
 
@@ -111,18 +105,19 @@ export default defineEventHandler(async (event) => {
 
     log.warn('Poll — video expired', { generationId: gen.id, requestId })
 
-    return { ...gen, status: 'expired' }
+    return { ...gen, status: 'expired' as const, updatedAt: now }
   }
 
   if (result.status === 'failed') {
     const now = new Date().toISOString()
+    const errorMeta = JSON.stringify({
+      error: result.error || { code: 'unknown', message: 'Video generation failed' },
+    })
     await db
       .update(generations)
       .set({
         status: 'failed',
-        metadata: JSON.stringify({
-          error: result.error || { code: 'unknown', message: 'Video generation failed' },
-        }),
+        metadata: errorMeta,
         updatedAt: now,
       })
       .where(eq(generations.id, gen.id))
@@ -135,10 +130,9 @@ export default defineEventHandler(async (event) => {
 
     return {
       ...gen,
-      status: 'failed',
-      metadata: JSON.stringify({
-        error: result.error || { code: 'unknown', message: 'Video generation failed' },
-      }),
+      status: 'failed' as const,
+      metadata: errorMeta,
+      updatedAt: now,
     }
   }
 

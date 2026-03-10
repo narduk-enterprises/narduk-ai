@@ -7,7 +7,7 @@ import type { Generation } from '~/types/generation'
 export function useGenerate() {
   const generating = ref(false)
   const error = ref<string | null>(null)
-  const pollingIntervals = ref<Map<string, ReturnType<typeof setInterval>>>(new Map())
+  const pollingIntervals = ref<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   /**
    * Generate an image from text (T2I).
@@ -108,37 +108,64 @@ export function useGenerate() {
 
   /**
    * Poll a pending video generation until done.
-   * Returns a reactive generation ref that updates as polling progresses.
+   * Uses exponential back-off (5 s → 10 s → 20 s → 30 s, capped at 30 s) to reduce
+   * unnecessary API traffic while videos are still rendering.
+   * Stops automatically after 5 consecutive network/fetch errors.
    */
   function pollGeneration(generation: Ref<Generation>, onComplete?: (gen: Generation) => void) {
     if (!generation.value.xaiRequestId) return
 
     const requestId = generation.value.xaiRequestId
-    const interval = setInterval(async () => {
-      try {
-        const result = await $fetch<Generation>(`/api/generate/poll/${requestId}`)
-        generation.value = result
+    let pollCount = 0
+    let consecutiveErrors = 0
+    const MAX_CONSECUTIVE_ERRORS = 5
+    const BASE_INTERVAL_MS = 5_000
+    const MAX_INTERVAL_MS = 30_000
 
-        if (result.status === 'done' || result.status === 'failed' || result.status === 'expired') {
-          clearInterval(interval)
-          pollingIntervals.value.delete(requestId)
-          onComplete?.(result)
-        }
-      } catch {
-        clearInterval(interval)
+    function scheduleNextPoll() {
+      const delay = Math.min(BASE_INTERVAL_MS * Math.pow(2, pollCount), MAX_INTERVAL_MS)
+      const timer = setTimeout(async () => {
         pollingIntervals.value.delete(requestId)
-      }
-    }, 5000)
+        try {
+          const result = await $fetch<Generation>(`/api/generate/poll/${requestId}`)
+          consecutiveErrors = 0
+          pollCount++
+          generation.value = result
 
-    pollingIntervals.value.set(requestId, interval)
+          if (
+            result.status === 'done' ||
+            result.status === 'failed' ||
+            result.status === 'expired'
+          ) {
+            onComplete?.(result)
+            return
+          }
+
+          // Still pending — schedule next poll
+          scheduleNextPoll()
+        } catch {
+          consecutiveErrors++
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            // Give up after too many consecutive failures
+            return
+          }
+          pollCount++
+          scheduleNextPoll()
+        }
+      }, delay)
+
+      pollingIntervals.value.set(requestId, timer)
+    }
+
+    scheduleNextPoll()
   }
 
   /**
    * Stop all active polling.
    */
   function stopAllPolling() {
-    for (const interval of pollingIntervals.value.values()) {
-      clearInterval(interval)
+    for (const timer of pollingIntervals.value.values()) {
+      clearTimeout(timer)
     }
     pollingIntervals.value.clear()
   }

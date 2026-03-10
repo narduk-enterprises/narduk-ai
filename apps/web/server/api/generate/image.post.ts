@@ -12,6 +12,7 @@ const bodySchema = z.object({
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Generate')
   const user = await requireAuth(event)
+  await enforceRateLimit(event, 'generate', 10, 60_000)
   const body = await readValidatedBody(event, bodySchema.parse)
   const config = useRuntimeConfig(event)
 

@@ -1,26 +1,38 @@
+import { z } from 'zod'
 import { desc } from 'drizzle-orm'
 import { generations } from '../../../database/schema'
 
-const STALE_TIMEOUT_MS = 10 * 60 * 1000
+const querySchema = z.object({
+  limit: z.coerce.number().min(1).max(200).default(100),
+  offset: z.coerce.number().min(0).default(0),
+})
 
 /**
  * GET /api/admin/generations — List ALL generations across all users (admin only).
  * Returns generations with user email, status diagnostics, and age info.
+ * Supports ?limit=N&offset=N query params.
  */
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('AdminGenerations')
   await requireAdmin(event)
 
+  const { limit, offset } = querySchema.parse(getQuery(event))
+
   const db = useDatabase(event)
   const config = useRuntimeConfig(event)
 
-  const rows = await db.select().from(generations).orderBy(desc(generations.createdAt)).limit(200)
+  const rows = await db
+    .select()
+    .from(generations)
+    .orderBy(desc(generations.createdAt))
+    .limit(limit)
+    .offset(offset)
 
   // Enrich with diagnostic info
   const enriched = rows.map((gen) => {
     const ageMs = Date.now() - new Date(gen.createdAt).getTime()
     const ageMinutes = Math.round(ageMs / 60000)
-    const isStale = gen.status === 'pending' && ageMs > STALE_TIMEOUT_MS
+    const isStale = gen.status === 'pending' && isGenerationStale(gen.createdAt)
 
     let errorInfo: string | null = null
     if (gen.metadata) {
@@ -42,7 +54,7 @@ export default defineEventHandler(async (event) => {
     }
   })
 
-  log.info('Admin listed generations', { count: enriched.length })
+  log.info('Admin listed generations', { count: enriched.length, limit, offset })
 
   return enriched
 })

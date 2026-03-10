@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm'
+import type { H3Error } from 'h3'
 import { generations } from '../../../../database/schema'
 
 /**
@@ -7,7 +8,7 @@ import { generations } from '../../../../database/schema'
  */
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('AdminGenerations')
-  await requireAdmin(event)
+  const admin = await requireAdmin(event)
 
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, message: 'Missing generation ID' })
@@ -32,6 +33,7 @@ export default defineEventHandler(async (event) => {
     const now = new Date().toISOString()
 
     log.info('Admin force-refresh', {
+      adminId: admin.id,
       generationId: id,
       xaiRequestId: gen.xaiRequestId,
       xaiStatus: result.status,
@@ -86,12 +88,16 @@ export default defineEventHandler(async (event) => {
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err)
     log.error('Admin refresh failed', {
+      adminId: admin.id,
       generationId: id,
       error: errorMsg,
     })
 
-    // If it's an explicit 4xx error from xAI (e.g. 400 Bad Request, moderation fail, etc), we should mark it failed
-    if (errorMsg.includes('40') && !errorMsg.includes('429')) {
+    // Persist 4xx errors (except 429 rate-limit) as permanently failed
+    const statusCode = (err as H3Error).statusCode ?? 0
+    const is4xxError =
+      typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500 && statusCode !== 429
+    if (is4xxError) {
       const now = new Date().toISOString()
       const errorMeta = JSON.stringify({
         error: { code: 'xai_error', message: errorMsg },

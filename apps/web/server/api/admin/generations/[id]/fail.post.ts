@@ -12,7 +12,7 @@ const bodySchema = z.object({
  */
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('AdminGenerations')
-  await requireAdmin(event)
+  const admin = await requireAdmin(event)
 
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, message: 'Missing generation ID' })
@@ -37,6 +37,7 @@ export default defineEventHandler(async (event) => {
     .where(eq(generations.id, gen.id))
 
   log.warn('Admin force-failed generation', {
+    adminId: admin.id,
     generationId: id,
     reason: body.reason,
     previousStatus: gen.status,

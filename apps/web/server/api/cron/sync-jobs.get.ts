@@ -1,7 +1,6 @@
 import { eq } from 'drizzle-orm'
+import type { H3Error } from 'h3'
 import { generations } from '../../database/schema'
-
-const STALE_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
 
 /**
  * GET /api/cron/sync-jobs
@@ -42,17 +41,10 @@ export default defineEventHandler(async (event) => {
     // eslint-disable-next-line narduk/no-map-async-in-server -- xAI has no batch poll API
     videoJobs.map(async (gen) => {
       try {
-        const ageMs = Date.now() - new Date(gen.createdAt).getTime()
-        if (ageMs > STALE_TIMEOUT_MS) {
-          const errorMeta = JSON.stringify({
-            error: {
-              code: 'timeout',
-              message: 'Generation timed out after 10 minutes.',
-            },
-          })
+        if (isGenerationStale(gen.createdAt)) {
           await db
             .update(generations)
-            .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
+            .set({ status: 'failed', metadata: TIMEOUT_ERROR_META, updatedAt: now })
             .where(eq(generations.id, gen.id))
           failed++
           return
@@ -98,11 +90,16 @@ export default defineEventHandler(async (event) => {
           generationId: gen.id,
           error: err instanceof Error ? err.message : String(err),
         })
-        const errorMsg = err instanceof Error ? err.message : String(err)
-        // Persist 4xx errors as failed state
-        if (errorMsg.includes('40') && !errorMsg.includes('429')) {
+        // Persist 4xx errors (except 429 rate-limit) as permanently failed
+        const statusCode = (err as H3Error).statusCode ?? 0
+        const is4xxError =
+          typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500 && statusCode !== 429
+        if (is4xxError) {
           const errorMeta = JSON.stringify({
-            error: { code: 'xai_error', message: errorMsg },
+            error: {
+              code: 'xai_error',
+              message: err instanceof Error ? err.message : String(err),
+            },
           })
           await db
             .update(generations)

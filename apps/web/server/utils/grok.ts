@@ -10,6 +10,24 @@
 
 import type OpenAI from 'openai'
 
+/**
+ * Extract a user-facing message from a raw xAI error response body.
+ * Prevents leaking internal API error details to end-users while retaining
+ * a meaningful message when the xAI response includes one.
+ */
+function extractXaiErrorMessage(rawText: string, fallback: string): string {
+  try {
+    const parsed = JSON.parse(rawText) as Record<string, unknown>
+    const msg =
+      (parsed.error as { message?: string } | undefined)?.message ||
+      (typeof parsed.message === 'string' ? parsed.message : null)
+    if (msg && typeof msg === 'string') return msg
+  } catch {
+    // not JSON — fall through to fallback
+  }
+  return fallback
+}
+
 // ─── Image Generation (OpenAI SDK) ─────────────────────────
 
 interface GrokImageParams {
@@ -54,7 +72,7 @@ export async function grokGenerateImage(
     const text = await res.text()
     throw createError({
       statusCode: res.status,
-      message: `Grok image generation error: ${text}`,
+      message: extractXaiErrorMessage(text, 'Image generation failed. Please try again.'),
     })
   }
 
@@ -87,7 +105,7 @@ export async function grokEditImage(
     const body = await res.text()
     throw createError({
       statusCode: res.status,
-      message: `Grok image edit API error: ${body}`,
+      message: extractXaiErrorMessage(body, 'Image edit failed. Please try again.'),
     })
   }
 
@@ -156,7 +174,7 @@ export async function grokStartVideo(
     const text = await res.text()
     throw createError({
       statusCode: res.status,
-      message: `Grok video API error: ${text}`,
+      message: extractXaiErrorMessage(text, 'Video generation failed. Please try again.'),
     })
   }
 
@@ -183,7 +201,7 @@ export async function grokPollVideo(
     const text = await res.text()
     throw createError({
       statusCode: res.status,
-      message: `Grok video poll error: ${text}`,
+      message: extractXaiErrorMessage(text, 'Failed to retrieve video status. Please try again.'),
     })
   }
 
