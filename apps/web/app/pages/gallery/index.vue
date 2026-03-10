@@ -14,9 +14,10 @@ useWebPageSchema({
 
 const { fetchGenerations, deleteGeneration } = useGenerate()
 
+const route = useRoute()
 const generations = ref<Generation[]>([])
 const loading = ref(true)
-const activeFilter = ref<string>('all')
+const activeFilter = computed(() => (route.query.filter as string) || 'all')
 
 async function load() {
   loading.value = true
@@ -109,16 +110,16 @@ const filters = [
     <!-- Filter Bar -->
     <div class="flex gap-2 mb-6">
       <UButton
-        v-for="filter in filters"
-        :key="filter.value"
-        :icon="filter.icon"
-        :label="filter.label"
-        :variant="activeFilter === filter.value ? 'solid' : 'outline'"
-        :color="activeFilter === filter.value ? 'primary' : 'neutral'"
+        v-for="filterItem in filters"
+        :key="filterItem.value"
+        :to="{ query: { filter: filterItem.value === 'all' ? undefined : filterItem.value } }"
+        :icon="filterItem.icon"
+        :label="filterItem.label"
+        :variant="activeFilter === filterItem.value ? 'solid' : 'outline'"
+        :color="activeFilter === filterItem.value ? 'primary' : 'neutral'"
         size="sm"
         class="rounded-full"
-        :class="activeFilter === filter.value ? 'shadow-lg shadow-primary/20' : ''"
-        @click="activeFilter = filter.value"
+        :class="activeFilter === filterItem.value ? 'shadow-lg shadow-primary/20' : ''"
       />
     </div>
 
