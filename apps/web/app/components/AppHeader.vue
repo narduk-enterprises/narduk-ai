@@ -4,7 +4,7 @@
  * Glass backdrop, violet-tinted border, pill navigation.
  */
 const route = useRoute()
-const { loggedIn } = useAuth()
+const { loggedIn, user } = useAuth()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Color Mode types depend on build-time module resolution
 const colorMode = useColorMode() as any
 
@@ -34,11 +34,20 @@ interface NavItem {
   icon: string
 }
 
-const navItems: NavItem[] = [
-  { label: 'Create', to: '/generate', icon: 'i-lucide-sparkles' },
-  { label: 'Gallery', to: '/gallery', icon: 'i-lucide-grid-3x3' },
-  { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
-]
+const navItems = computed<NavItem[]>(() => {
+  const items: NavItem[] = [
+    { label: 'Create', to: '/generate', icon: 'i-lucide-sparkles' },
+    { label: 'Gallery', to: '/gallery', icon: 'i-lucide-grid-3x3' },
+    { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
+  ]
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- user shape varies by build-time module resolution
+  if ((user.value as any)?.isAdmin) {
+    items.push({ label: 'Admin', to: '/admin', icon: 'i-lucide-shield-alert' })
+  }
+
+  return items
+})
 </script>
 
 <template>

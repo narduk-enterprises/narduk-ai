@@ -20,23 +20,25 @@ const isZoomed = ref(false)
       />
 
       <!-- Zoom Modal -->
-      <UModal v-model="isZoomed" fullscreen :ui="{ content: 'bg-black/95' }">
-        <div class="relative h-full w-full flex items-center justify-center p-4">
-          <UButton
-            icon="i-lucide-x"
-            color="neutral"
-            variant="ghost"
-            class="absolute top-4 right-4 z-50 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-md text-white"
-            size="xl"
-            @click="isZoomed = false"
-          />
-          <img
-            :src="src"
-            :alt="alt || 'Zoomed generated image'"
-            class="max-h-[90vh] max-w-full object-contain"
-            @click="isZoomed = false"
-          />
-        </div>
+      <UModal v-model:open="isZoomed" fullscreen :ui="{ content: 'bg-black/95' }">
+        <template #content>
+          <div class="relative h-full w-full flex items-center justify-center p-4">
+            <UButton
+              icon="i-lucide-x"
+              color="neutral"
+              variant="ghost"
+              class="absolute top-4 right-4 z-50 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-md text-white"
+              size="xl"
+              @click="isZoomed = false"
+            />
+            <img
+              :src="src"
+              :alt="alt || 'Zoomed generated image'"
+              class="max-h-[90vh] max-w-full object-contain"
+              @click="isZoomed = false"
+            />
+          </div>
+        </template>
       </UModal>
     </template>
     <template v-else>

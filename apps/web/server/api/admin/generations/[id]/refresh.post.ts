@@ -84,14 +84,31 @@ export default defineEventHandler(async (event) => {
     // Still pending at xAI
     return { ...gen, refreshResult: 'still_pending', xaiResponse: result }
   } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err)
     log.error('Admin refresh failed', {
       generationId: id,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMsg,
     })
+
+    // If it's an explicit 4xx error from xAI (e.g. 400 Bad Request, moderation fail, etc), we should mark it failed
+    if (errorMsg.includes('40') && !errorMsg.includes('429')) {
+      const now = new Date().toISOString()
+      const errorMeta = JSON.stringify({
+        error: { code: 'xai_error', message: errorMsg },
+      })
+      await db
+        .update(generations)
+        .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
+        .where(eq(generations.id, gen.id))
+
+      const updated = await db.select().from(generations).where(eq(generations.id, id)).get()
+      return { ...updated, refreshResult: 'failed_by_error', message: errorMsg }
+    }
+
     return {
       ...gen,
       refreshResult: 'error',
-      message: err instanceof Error ? err.message : String(err),
+      message: errorMsg,
     }
   }
 })
