@@ -165,7 +165,7 @@ const userMenuItems = computed(() => [
       <!-- eslint-disable-next-line narduk/no-native-layout -- app-level scaffold: semantic landmark element -->
       <nav
         v-if="mobileMenuOpen"
-        class="md:hidden border-t border-default/50 glass-elevated absolute w-full left-0 top-16"
+        class="md:hidden border-t border-default/50 bg-default/95 backdrop-blur-xl shadow-elevated absolute w-full left-0 top-16"
         aria-label="Mobile navigation"
       >
         <div class="px-4 py-4 flex flex-col gap-2">
