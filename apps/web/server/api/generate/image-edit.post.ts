@@ -56,7 +56,12 @@ export default defineEventHandler(async (event) => {
   }
 
   const imageBytes = await r2Object.arrayBuffer()
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(imageBytes)))
+  const bytes = new Uint8Array(imageBytes)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 8192) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 8192))
+  }
+  const base64 = btoa(binary)
   const mimeType = r2Object.httpMetadata?.contentType || 'image/png'
   const dataUrl = `data:${mimeType};base64,${base64}`
 
