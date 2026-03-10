@@ -62,6 +62,9 @@ export default defineEventHandler(async (event) => {
     duration: body.duration,
     aspectRatio: body.aspectRatio,
     resolution: body.resolution,
+    metadata: JSON.stringify({
+      estimatedCostUsd: estimateGenerationCost({ type: 'video', duration: body.duration }),
+    }),
     createdAt: now,
     updatedAt: now,
   }

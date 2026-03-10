@@ -28,19 +28,19 @@ export default defineEventHandler(async (event) => {
   const db = useDatabase(event)
   const pendingRows = await db.select().from(generations).where(eq(generations.status, 'pending'))
 
-  const videoJobs = pendingRows.filter((row) => row.xaiRequestId)
-  if (!videoJobs.length) {
-    return { status: 'ok', message: 'No pending video jobs to sync' }
+  const jobsWithRequestId = pendingRows.filter((row) => row.xaiRequestId)
+  if (!jobsWithRequestId.length) {
+    return { status: 'ok', message: 'No pending jobs to sync' }
   }
 
-  log.info(`Syncing ${videoJobs.length} pending video jobs`)
+  log.info(`Syncing ${jobsWithRequestId.length} pending jobs`)
   const now = new Date().toISOString()
   let synced = 0
   let failed = 0
 
   await Promise.all(
-    // eslint-disable-next-line narduk/no-map-async-in-server -- xAI has no batch poll API
-    videoJobs.map(async (gen) => {
+    // eslint-disable-next-line narduk/no-map-async-in-server -- xAI has no batch poll API; parallel per-generation calls are required
+    pendingRows.map(async (gen) => {
       try {
         const ageMs = Date.now() - new Date(gen.createdAt).getTime()
         if (ageMs > STALE_TIMEOUT_MS) {
@@ -58,42 +58,15 @@ export default defineEventHandler(async (event) => {
           return
         }
 
-        const result = await grokPollVideo(config.xaiApiKey, gen.xaiRequestId!)
+        if (!gen.xaiRequestId) return
 
-        if (result.status === 'done' && result.video?.url) {
-          const r2Key = `generations/${gen.userId}/${gen.id}.mp4`
-          const buffer = await downloadMedia(result.video.url)
-          await uploadToR2(event, r2Key, buffer, 'video/mp4')
-
-          await db
-            .update(generations)
-            .set({
-              status: 'done',
-              r2Key,
-              mediaUrl: `/api/media/${r2Key}`,
-              thumbnailUrl: result.video.coverImg,
-              duration: result.video.duration,
-              metadata: JSON.stringify(result),
-              updatedAt: now,
-            })
-            .where(eq(generations.id, gen.id))
-          synced++
-        } else if (result.status === 'failed') {
-          const errorMeta = JSON.stringify({
-            error: result.error || { code: 'unknown', message: 'Video generation failed' },
-          })
-          await db
-            .update(generations)
-            .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
-            .where(eq(generations.id, gen.id))
-          synced++
-        } else if (result.status === 'expired') {
-          await db
-            .update(generations)
-            .set({ status: 'expired', updatedAt: now })
-            .where(eq(generations.id, gen.id))
-          synced++
+        // Route to appropriate polling function based on generation type
+        if (gen.type === 'image') {
+          await syncBatchImage(gen, db, config.xaiApiKey, log, event, now)
+        } else {
+          await syncVideo(gen, db, config.xaiApiKey, log, event, now)
         }
+        synced++
       } catch (err) {
         log.warn('Failed to sync pending generation', {
           generationId: gen.id,
@@ -115,5 +88,78 @@ export default defineEventHandler(async (event) => {
     }),
   )
 
-  return { status: 'ok', synced, failed, total: videoJobs.length }
+  return { status: 'ok', synced, failed, total: jobsWithRequestId.length }
 })
+
+// ─── Helper: sync batch image generation ─────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function syncBatchImage(gen: any, db: any, apiKey: string, log: any, event: any, now: string) {
+  const result = await grokPollBatch(apiKey, gen.xaiRequestId!)
+
+  if (result.status === 'done' && result.imageUrl) {
+    const r2Key = `generations/${gen.userId}/${gen.id}.png`
+    const buffer = await downloadMedia(result.imageUrl)
+    await uploadToR2(event, r2Key, buffer, 'image/png')
+
+    await db
+      .update(generations)
+      .set({
+        status: 'done',
+        r2Key,
+        mediaUrl: `/api/media/${r2Key}`,
+        metadata: JSON.stringify({
+          revised_prompt: result.revisedPrompt,
+          estimatedCostUsd: estimateGenerationCost({ type: 'image' }),
+          batchApi: true,
+        }),
+        updatedAt: now,
+      })
+      .where(eq(generations.id, gen.id))
+  } else if (result.status === 'failed') {
+    const errorMeta = JSON.stringify({
+      error: result.error || { code: 'unknown', message: 'Batch image generation failed' },
+    })
+    await db
+      .update(generations)
+      .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
+      .where(eq(generations.id, gen.id))
+  }
+}
+
+// ─── Helper: sync video generation ───────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function syncVideo(gen: any, db: any, apiKey: string, log: any, event: any, now: string) {
+  const result = await grokPollVideo(apiKey, gen.xaiRequestId!)
+
+  if (result.status === 'done' && result.video?.url) {
+    const r2Key = `generations/${gen.userId}/${gen.id}.mp4`
+    const buffer = await downloadMedia(result.video.url)
+    await uploadToR2(event, r2Key, buffer, 'video/mp4')
+
+    await db
+      .update(generations)
+      .set({
+        status: 'done',
+        r2Key,
+        mediaUrl: `/api/media/${r2Key}`,
+        thumbnailUrl: result.video.coverImg,
+        duration: result.video.duration,
+        metadata: JSON.stringify(result),
+        updatedAt: now,
+      })
+      .where(eq(generations.id, gen.id))
+  } else if (result.status === 'failed') {
+    const errorMeta = JSON.stringify({
+      error: result.error || { code: 'unknown', message: 'Video generation failed' },
+    })
+    await db
+      .update(generations)
+      .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
+      .where(eq(generations.id, gen.id))
+  } else if (result.status === 'expired') {
+    await db
+      .update(generations)
+      .set({ status: 'expired', updatedAt: now })
+      .where(eq(generations.id, gen.id))
+  }
+}

@@ -47,6 +47,25 @@ const { user } = useAuth()
       </NuxtLink>
 
       <NuxtLink
+        to="/admin/spending"
+        class="glass-card p-6 rounded-2xl flex flex-col items-start gap-4 transition-transform hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 group neon-border"
+      >
+        <div class="p-3 bg-elevated/80 rounded-xl group-hover:bg-primary/10 transition-colors">
+          <UIcon
+            name="i-lucide-wallet"
+            class="size-6 text-dimmed group-hover:text-primary transition-colors"
+          />
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-default mb-1">Spending Overview</h2>
+          <p class="text-sm text-muted">
+            Monitor API usage and estimated costs. View breakdowns by mode, daily usage, and top
+            users.
+          </p>
+        </div>
+      </NuxtLink>
+
+      <NuxtLink
         to="/admin/indexing"
         class="glass-card p-6 rounded-2xl flex flex-col items-start gap-4 transition-transform hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 group"
       >

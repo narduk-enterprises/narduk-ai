@@ -56,8 +56,8 @@ export function useGenerationForm() {
     if (activeTab.value === 't2i') {
       const result = await generateImage(prompt.value, aspectRatio.value)
       if (result) {
-        latestResult.value = result
-        await loadUserImages()
+        // Image generation now uses batch API and returns pending status
+        startPolling(result)
       }
     } else if (activeTab.value === 't2v') {
       const result = await generateVideo(prompt.value, {
@@ -87,8 +87,8 @@ export function useGenerationForm() {
       }
       const result = await editImage(prompt.value, sourceGenerationId.value)
       if (result) {
-        latestResult.value = result
-        await loadUserImages()
+        // Image edit also uses batch API now
+        startPolling(result)
       }
     }
   }
