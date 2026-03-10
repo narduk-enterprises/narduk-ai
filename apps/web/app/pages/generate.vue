@@ -38,6 +38,14 @@ const {
   animateLatestImage,
   editLatestImage,
   useGenerationAsSource,
+  handleImageUpload,
+  removeEnhanceImage,
+  enhanceImageBase64,
+  chatMessages,
+  chatInput,
+  isChatting,
+  sendChatMessage,
+  useMessageAsPrompt,
 } = useGenerationForm()
 
 onMounted(loadUserImages)
@@ -47,6 +55,7 @@ const modes = [
   { value: 't2v', label: 'Text → Video', icon: 'i-lucide-video' },
   { value: 'i2v', label: 'Image → Video', icon: 'i-lucide-wand-2' },
   { value: 'i2i', label: 'Image → Image', icon: 'i-lucide-layers' },
+  { value: 'chat', label: 'Chat', icon: 'i-lucide-message-square' },
 ]
 
 const aspectRatios = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
@@ -78,107 +87,197 @@ const resolutions = ['480p', '720p']
         />
       </div>
 
-      <!-- Generation Form -->
+      <!-- Generation Form / Chat Interface -->
       <div class="glass-card p-6 space-y-5">
-        <!-- Prompt Input -->
-        <UFormField label="Prompt" required>
-          <div class="prompt-input p-1">
-            <UTextarea
-              v-model="prompt"
-              placeholder="Describe what you want to create..."
-              :rows="3"
-              autoresize
-              class="w-full"
-              :ui="{ base: 'border-none bg-transparent shadow-none focus:ring-0' }"
-            />
-          </div>
-          <template #hint>
-            <div class="flex items-center gap-3">
-              <UButton
-                variant="ghost"
-                color="neutral"
-                size="xs"
-                icon="i-lucide-wand-2"
-                :loading="enhancing"
-                :disabled="!prompt.trim() || generating || enhancing"
-                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-[10px]"
-                @click="openEnhanceModal"
-              >
-                Enhance
-              </UButton>
-              <span class="text-xs text-dimmed">{{ charCount }} characters</span>
+        <template v-if="activeTab !== 'chat'">
+          <!-- Prompt Input -->
+          <UFormField label="Prompt" required>
+            <div class="prompt-input p-1">
+              <UTextarea
+                v-model="prompt"
+                placeholder="Describe what you want to create..."
+                :rows="3"
+                autoresize
+                class="w-full"
+                :ui="{ base: 'border-none bg-transparent shadow-none focus:ring-0' }"
+              />
             </div>
-          </template>
-        </UFormField>
-
-        <!-- Options Row -->
-        <div class="flex flex-wrap items-end gap-4">
-          <!-- Aspect Ratio -->
-          <UFormField v-if="activeTab === 't2i' || activeTab === 't2v'" label="Aspect Ratio">
-            <USelect v-model="aspectRatio" :items="aspectRatios" class="w-28" />
-          </UFormField>
-
-          <!-- Duration -->
-          <UFormField v-if="activeTab === 't2v' || activeTab === 'i2v'" label="Duration">
-            <div class="flex items-center gap-3">
-              <USlider v-model="duration" :min="1" :max="15" :step="1" class="w-32" />
-              <span class="text-sm text-muted font-mono w-8">{{ duration }}s</span>
-            </div>
-          </UFormField>
-
-          <!-- Resolution -->
-          <UFormField v-if="activeTab === 't2v' || activeTab === 'i2v'" label="Resolution">
-            <USelect v-model="resolution" :items="resolutions" class="w-24" />
-          </UFormField>
-        </div>
-
-        <!-- Source Image Selector -->
-        <UFormField v-if="activeTab === 'i2v' || activeTab === 'i2i'" label="Source Image" required>
-          <div
-            v-if="userImages.length"
-            class="grid grid-cols-4 gap-2.5 sm:grid-cols-6 lg:grid-cols-8"
-          >
-            <UButton
-              v-for="img in userImages"
-              :key="img.id"
-              variant="ghost"
-              :padded="false"
-              class="relative aspect-square overflow-hidden rounded-xl ring-2 transition-all duration-200 hover:scale-[1.03]"
-              :class="
-                sourceGenerationId === img.id
-                  ? 'ring-primary shadow-lg shadow-primary/20'
-                  : 'ring-transparent hover:ring-primary/40'
-              "
-              @click="selectSourceImage(img.id)"
-            >
-              <img :src="img.mediaUrl!" :alt="img.prompt" class="h-full w-full object-cover" />
-              <div
-                v-if="sourceGenerationId === img.id"
-                class="absolute inset-0 bg-primary/10 flex items-center justify-center"
-              >
-                <UIcon name="i-lucide-check" class="size-5 text-primary" />
+            <template #hint>
+              <div class="flex items-center gap-3">
+                <UButton
+                  variant="ghost"
+                  color="neutral"
+                  size="xs"
+                  icon="i-lucide-wand-2"
+                  :loading="enhancing"
+                  :disabled="!prompt.trim() || generating || enhancing"
+                  class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-[10px]"
+                  @click="openEnhanceModal"
+                >
+                  Enhance
+                </UButton>
+                <span class="text-xs text-dimmed">{{ charCount }} characters</span>
               </div>
-            </UButton>
+            </template>
+          </UFormField>
+
+          <!-- Options Row -->
+          <div class="flex flex-wrap items-end gap-4">
+            <!-- Aspect Ratio -->
+            <UFormField v-if="activeTab === 't2i' || activeTab === 't2v'" label="Aspect Ratio">
+              <USelect v-model="aspectRatio" :items="aspectRatios" class="w-28" />
+            </UFormField>
+
+            <!-- Duration -->
+            <UFormField v-if="activeTab === 't2v' || activeTab === 'i2v'" label="Duration">
+              <div class="flex items-center gap-3">
+                <USlider v-model="duration" :min="1" :max="15" :step="1" class="w-32" />
+                <span class="text-sm text-muted font-mono w-8">{{ duration }}s</span>
+              </div>
+            </UFormField>
+
+            <!-- Resolution -->
+            <UFormField v-if="activeTab === 't2v' || activeTab === 'i2v'" label="Resolution">
+              <USelect v-model="resolution" :items="resolutions" class="w-24" />
+            </UFormField>
           </div>
-          <p v-else class="text-sm text-dimmed py-4 text-center">
-            No images yet. Generate some images first using Text → Image.
-          </p>
-        </UFormField>
 
-        <!-- Error -->
-        <UAlert v-if="error" color="error" icon="i-lucide-alert-triangle" :title="error" />
+          <!-- Source Image Selector -->
+          <UFormField
+            v-if="activeTab === 'i2v' || activeTab === 'i2i'"
+            label="Source Image"
+            required
+          >
+            <div
+              v-if="userImages.length"
+              class="grid grid-cols-4 gap-2.5 sm:grid-cols-6 lg:grid-cols-8"
+            >
+              <UButton
+                v-for="img in userImages"
+                :key="img.id"
+                variant="ghost"
+                :padded="false"
+                class="relative aspect-square overflow-hidden rounded-xl ring-2 transition-all duration-200 hover:scale-[1.03]"
+                :class="
+                  sourceGenerationId === img.id
+                    ? 'ring-primary shadow-lg shadow-primary/20'
+                    : 'ring-transparent hover:ring-primary/40'
+                "
+                @click="selectSourceImage(img.id)"
+              >
+                <img :src="img.mediaUrl!" :alt="img.prompt" class="h-full w-full object-cover" />
+                <div
+                  v-if="sourceGenerationId === img.id"
+                  class="absolute inset-0 bg-primary/10 flex items-center justify-center"
+                >
+                  <UIcon name="i-lucide-check" class="size-5 text-primary" />
+                </div>
+              </UButton>
+            </div>
+            <p v-else class="text-sm text-dimmed py-4 text-center">
+              No images yet. Generate some images first using Text → Image.
+            </p>
+          </UFormField>
 
-        <!-- Generate Button -->
-        <UButton
-          size="lg"
-          icon="i-lucide-sparkles"
-          :loading="generating"
-          :disabled="isGenerateDisabled"
-          block
-          :label="generating ? 'Generating...' : 'Generate'"
-          class="rounded-xl shadow-lg hover:shadow-primary/20 transition-shadow"
-          @click="handleGenerate"
-        />
+          <!-- Error -->
+          <UAlert v-if="error" color="error" icon="i-lucide-alert-triangle" :title="error" />
+
+          <!-- Generate Button -->
+          <UButton
+            size="lg"
+            icon="i-lucide-sparkles"
+            :loading="generating"
+            :disabled="isGenerateDisabled"
+            block
+            :label="generating ? 'Generating...' : 'Generate'"
+            class="rounded-xl shadow-lg hover:shadow-primary/20 transition-shadow"
+            @click="handleGenerate"
+          />
+        </template>
+
+        <!-- Chat Interface -->
+        <template v-else>
+          <div class="flex flex-col h-[500px]">
+            <!-- Message List -->
+            <div
+              class="flex-1 overflow-y-auto space-y-4 p-4 mb-4 rounded-xl bg-default/50 ring-1 ring-default"
+            >
+              <div
+                v-for="(msg, index) in chatMessages.filter((m) => m.role !== 'system')"
+                :key="index"
+                class="flex flex-col max-w-[85%]"
+                :class="msg.role === 'user' ? 'self-end items-end' : 'self-start items-start'"
+              >
+                <div
+                  class="p-4 rounded-2xl whitespace-pre-wrap text-sm"
+                  :class="[
+                    msg.role === 'user'
+                      ? 'bg-primary text-primary-inverted rounded-tr-sm'
+                      : 'bg-elevated text-default border border-default rounded-tl-sm',
+                  ]"
+                >
+                  {{ msg.content }}
+                </div>
+
+                <!-- Actions -->
+                <div
+                  v-if="msg.role === 'assistant' && msg.content.trim()"
+                  class="flex items-center gap-2 mt-1"
+                >
+                  <UButton
+                    variant="ghost"
+                    color="neutral"
+                    size="xs"
+                    icon="i-lucide-wand-2"
+                    @click="useMessageAsPrompt(msg.content)"
+                  >
+                    Use as Prompt
+                  </UButton>
+                  <CopyPromptButton :prompt="msg.content" />
+                </div>
+              </div>
+
+              <!-- Typing Indicator -->
+              <div
+                v-if="isChatting"
+                class="flex self-start items-center gap-1.5 p-4 rounded-2xl bg-elevated border border-default rounded-tl-sm max-w-[85%]"
+              >
+                <span
+                  class="size-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]"
+                ></span>
+                <span
+                  class="size-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]"
+                ></span>
+                <span class="size-2 rounded-full bg-primary animate-bounce"></span>
+              </div>
+            </div>
+
+            <!-- Chat Input form -->
+            <UForm
+              :state="{ input: chatInput }"
+              @submit.prevent="sendChatMessage"
+              class="flex gap-2 relative"
+            >
+              <UInput
+                v-model="chatInput"
+                placeholder="Ask Grok to help brainstorm a prompt..."
+                class="w-full shadow-sm"
+                size="lg"
+                :disabled="isChatting"
+                :ui="{ base: 'pr-12' }"
+              />
+              <UButton
+                type="submit"
+                color="primary"
+                variant="solid"
+                icon="i-lucide-send"
+                :loading="isChatting"
+                :disabled="!chatInput.trim() || isChatting"
+                class="absolute right-1.5 top-1.5 bottom-1.5 px-3"
+              />
+            </UForm>
+          </div>
+        </template>
       </div>
 
       <!-- Result Display -->
@@ -209,7 +308,13 @@ const resolutions = ['480p', '720p']
             :type="latestMediaType"
             :alt="latestResult.prompt"
           />
-          <p class="text-sm text-muted">{{ latestResult.prompt }}</p>
+          <div class="flex items-start gap-3 group w-full">
+            <p class="text-sm text-muted flex-1">{{ latestResult.prompt }}</p>
+            <CopyPromptButton
+              :prompt="latestResult.prompt"
+              class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            />
+          </div>
           <div class="flex flex-wrap gap-2">
             <UButton
               v-if="latestResult.type === 'image'"
@@ -312,6 +417,47 @@ const resolutions = ['480p', '720p']
                 autoresize
               />
             </UFormField>
+
+            <!-- Optional Image Attachment -->
+            <div class="flex items-center gap-4 pt-2">
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-image-plus"
+                size="sm"
+                @click="
+                  (
+                    ($refs.fileInput as HTMLInputElement[])[0] ||
+                    ($refs.fileInput as HTMLInputElement)
+                  ).click()
+                "
+              >
+                {{ enhanceImageBase64 ? 'Change Image' : 'Attach Image' }}
+              </UButton>
+              <!-- eslint-disable-next-line narduk/no-native-input -- Hidden file input for direct DOM click handling -->
+              <input
+                ref="fileInput"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="handleImageUpload"
+              />
+              <div v-if="enhanceImageBase64" class="relative group">
+                <img
+                  :src="enhanceImageBase64"
+                  alt="Enhanced Source"
+                  class="size-16 object-cover rounded-lg ring-1 ring-default shadow-sm"
+                />
+                <UButton
+                  color="error"
+                  variant="solid"
+                  icon="i-lucide-x"
+                  :padded="false"
+                  class="absolute -top-2 -right-2 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center size-5 shadow-sm hover:scale-110"
+                  @click="removeEnhanceImage"
+                />
+              </div>
+            </div>
           </div>
 
           <template #footer>

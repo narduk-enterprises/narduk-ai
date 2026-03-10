@@ -154,9 +154,15 @@ function handleDelete() {
         }}</span>
       </div>
 
-      <p class="line-clamp-2 text-sm text-muted leading-relaxed">
-        {{ generation.prompt }}
-      </p>
+      <div class="relative group/prompt">
+        <p class="line-clamp-2 text-sm text-muted leading-relaxed pr-8">
+          {{ generation.prompt }}
+        </p>
+        <CopyPromptButton
+          :prompt="generation.prompt"
+          class="absolute right-0 top-0 opacity-0 group-hover/prompt:opacity-100 transition-opacity"
+        />
+      </div>
 
       <!-- Error summary for failed/expired -->
       <p v-if="errorSummary" class="text-xs text-error truncate">

@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { generations } from '../../database/schema'
+import { eq } from 'drizzle-orm'
+import { generations, appSettings } from '../../database/schema'
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(2000),
@@ -26,9 +27,27 @@ export default defineEventHandler(async (event) => {
     promptLength: body.prompt.length,
   })
 
+  const db = useDatabase(event)
+
+  // Fetch configured model from database
+  let imageModel = 'grok-imagine-image'
+  try {
+    const settings = await db
+      .select({ imageModel: appSettings.imageModel })
+      .from(appSettings)
+      .where(eq(appSettings.id, 1))
+      .get()
+    if (settings?.imageModel) {
+      imageModel = settings.imageModel
+    }
+  } catch (err) {
+    log.warn('Could not fetch appSettings for imageModel', { err })
+  }
+
   // Call Grok Imagine API
   const result = await grokGenerateImage(config.xaiApiKey, {
     prompt: body.prompt,
+    model: imageModel,
     aspectRatio: body.aspectRatio,
   })
 
@@ -39,23 +58,19 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 502, message: 'No image returned from Grok API' })
   }
 
-  // Download and store in R2 in the background
+  // Download and store in R2 synchronously to prevent 404 race condition
   const id = crypto.randomUUID()
   const r2Key = `generations/${user.id}/${id}.png`
-  event.waitUntil(
-    (async () => {
-      try {
-        const buffer = await downloadMedia(imageUrl)
-        await uploadToR2(event, r2Key, buffer, 'image/png')
-      } catch (err) {
-        log.error('Background R2 upload failed', { userId: user.id, generationId: id, err })
-      }
-    })(),
-  )
+  try {
+    const buffer = await downloadMedia(imageUrl)
+    await uploadToR2(event, r2Key, buffer, 'image/png')
+  } catch (err) {
+    log.error('R2 upload failed', { userId: user.id, generationId: id, err })
+    throw createError({ statusCode: 500, message: 'Failed to save generated image' })
+  }
 
   // Insert generation record
   const now = new Date().toISOString()
-  const db = useDatabase(event)
   const record = {
     id,
     userId: user.id,

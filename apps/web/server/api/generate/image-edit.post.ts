@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { eq, and } from 'drizzle-orm'
-import { generations } from '../../database/schema'
+import { generations, appSettings } from '../../database/schema'
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(2000),
@@ -67,12 +67,27 @@ export default defineEventHandler(async (event) => {
   const mimeType = r2Object.httpMetadata?.contentType || 'image/png'
   const dataUrl = `data:${mimeType};base64,${base64}`
 
+  // Fetch configured model from database
+  let imageModel = 'grok-imagine-image'
+  try {
+    const settings = await db
+      .select({ imageModel: appSettings.imageModel })
+      .from(appSettings)
+      .where(eq(appSettings.id, 1))
+      .get()
+    if (settings?.imageModel) {
+      imageModel = settings.imageModel
+    }
+  } catch (err) {
+    log.warn('Could not fetch appSettings for imageModel', { err })
+  }
+
   // Call Grok Image Edit API
   const result = await grokEditImage(config.xaiApiKey, {
     prompt: body.prompt,
+    model: imageModel,
     imageUrl: dataUrl,
   })
-
   const imageData = result.data?.[0]
   const imageUrl = imageData?.url
   if (!imageUrl) {
@@ -80,19 +95,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 502, message: 'No image returned from Grok API' })
   }
 
-  // Download and store in R2 in the background
+  // Download and store in R2 synchronously to prevent 404 race condition
   const id = crypto.randomUUID()
   const r2Key = `generations/${user.id}/${id}.png`
-  event.waitUntil(
-    (async () => {
-      try {
-        const buffer = await downloadMedia(imageUrl)
-        await uploadToR2(event, r2Key, buffer, 'image/png')
-      } catch (err) {
-        log.error('Background R2 upload failed', { userId: user.id, generationId: id, err })
-      }
-    })(),
-  )
+  try {
+    const buffer = await downloadMedia(imageUrl)
+    await uploadToR2(event, r2Key, buffer, 'image/png')
+  } catch (err) {
+    log.error('R2 upload failed', { userId: user.id, generationId: id, err })
+    throw createError({ statusCode: 500, message: 'Failed to save edited image' })
+  }
 
   const now = new Date().toISOString()
   const record = {

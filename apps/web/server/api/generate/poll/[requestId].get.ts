@@ -68,18 +68,27 @@ export default defineEventHandler(async (event) => {
   log.info('Poll result', { generationId: gen.id, requestId, status: result.status })
 
   if (result.status === 'done' && result.video?.url) {
-    // Download video and store in R2 in the background
+    // Download video and store in R2 synchronously to prevent 404 race condition
     const r2Key = `generations/${user.id}/${gen.id}.mp4`
-    event.waitUntil(
-      (async () => {
-        try {
-          const buffer = await downloadMedia(result.video!.url)
-          await uploadToR2(event, r2Key, buffer, 'video/mp4')
-        } catch (err) {
-          log.error('Background R2 upload failed', { userId: user.id, generationId: gen.id, err })
-        }
-      })(),
-    )
+    try {
+      const buffer = await downloadMedia(result.video!.url)
+      await uploadToR2(event, r2Key, buffer, 'video/mp4')
+    } catch (err) {
+      log.error('R2 upload failed', { userId: user.id, generationId: gen.id, err })
+      const now = new Date().toISOString()
+      const errorMeta = JSON.stringify({
+        error: { message: 'Failed to save generated video to storage' },
+      })
+      await db
+        .update(generations)
+        .set({
+          status: 'failed',
+          metadata: errorMeta,
+          updatedAt: now,
+        })
+        .where(eq(generations.id, gen.id))
+      return { ...gen, status: 'failed' as const, metadata: errorMeta }
+    }
 
     const now = new Date().toISOString()
     await db

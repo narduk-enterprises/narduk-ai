@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { eq, and } from 'drizzle-orm'
-import { generations } from '../../database/schema'
+import { generations, appSettings } from '../../database/schema'
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(2000),
@@ -71,9 +71,25 @@ export default defineEventHandler(async (event) => {
   const mimeType = r2Object.httpMetadata?.contentType || 'image/png'
   const dataUrl = `data:${mimeType};base64,${base64}`
 
+  // Fetch configured model from database
+  let videoModel = 'grok-imagine-video'
+  try {
+    const settings = await db
+      .select({ videoModel: appSettings.videoModel })
+      .from(appSettings)
+      .where(eq(appSettings.id, 1))
+      .get()
+    if (settings?.videoModel) {
+      videoModel = settings.videoModel
+    }
+  } catch (err) {
+    log.warn('Could not fetch appSettings for videoModel', { err })
+  }
+
   // Start async video generation with source image
   const result = await grokStartVideo(config.xaiApiKey, {
     prompt: body.prompt,
+    model: videoModel,
     duration: body.duration,
     resolution: body.resolution,
     image: { url: dataUrl },

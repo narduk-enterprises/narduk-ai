@@ -29,6 +29,23 @@ export function useGenerationForm() {
   const resolution = ref(defaultResolution.value)
   const sourceGenerationId = ref((route.query.source as string) || '')
 
+  // ─── Chat State ─────────────────────────────────────────────
+
+  const chatMessages = ref<Array<{ role: 'system' | 'user' | 'assistant'; content: string }>>([
+    {
+      role: 'system',
+      content:
+        'You are Grok, an expert AI assistant specialized in writing prompts for image and video generation models. Help the user brainstorm and refine their ideas into detailed, vivid, and stylistic prompts. Be concise but highly descriptive when suggesting prompts.',
+    },
+    {
+      role: 'assistant',
+      content:
+        'Hi! I can help you craft the perfect prompt for your next image or video. What are you thinking of creating?',
+    },
+  ])
+  const chatInput = ref('')
+  const isChatting = ref(false)
+
   // ─── Generation Results ─────────────────────────────────────
 
   const latestResult = ref<Generation | null>(null)
@@ -164,11 +181,32 @@ export function useGenerationForm() {
 
   const isEnhanceModalOpen = ref(false)
   const enhanceInstructions = ref('')
+  const enhanceImageBase64 = ref<string | null>(null)
   const enhancing = ref(false)
 
   function openEnhanceModal() {
     if (!prompt.value.trim()) return
     isEnhanceModalOpen.value = true
+  }
+
+  async function handleImageUpload(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      error.value = 'Image size must be less than 5MB'
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      enhanceImageBase64.value = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function removeEnhanceImage() {
+    enhanceImageBase64.value = null
   }
 
   async function enhanceCurrentPrompt() {
@@ -183,6 +221,7 @@ export function useGenerationForm() {
         body: {
           prompt: prompt.value,
           instructions: enhanceInstructions.value || undefined,
+          imageBase64: enhanceImageBase64.value || undefined,
         },
       })
       if (result.enhancedPrompt) {
@@ -194,7 +233,45 @@ export function useGenerationForm() {
     } finally {
       enhancing.value = false
       isEnhanceModalOpen.value = false
+      enhanceImageBase64.value = null
+      enhanceInstructions.value = ''
     }
+  }
+
+  // ─── Chat Actions ───────────────────────────────────────────
+
+  async function sendChatMessage() {
+    if (!chatInput.value.trim() || isChatting.value) return
+
+    const userText = chatInput.value
+    chatInput.value = ''
+    error.value = null
+
+    chatMessages.value.push({ role: 'user', content: userText })
+    isChatting.value = true
+
+    try {
+      const result = await $fetch<{ content: string }>('/api/generate/chat', {
+        method: 'POST',
+        body: {
+          messages: chatMessages.value,
+        },
+      })
+      if (result.content) {
+        chatMessages.value.push({ role: 'assistant', content: result.content })
+      }
+    } catch (e) {
+      const err = e as { data?: { message?: string }; message?: string }
+      error.value = err.data?.message || err.message || 'Failed to get chat response'
+    } finally {
+      isChatting.value = false
+    }
+  }
+
+  function useMessageAsPrompt(text: string) {
+    prompt.value = text
+    error.value = null
+    activeTab.value = 't2i' // Switch to default generation tab
   }
 
   return {
@@ -205,6 +282,11 @@ export function useGenerationForm() {
     duration,
     resolution,
     sourceGenerationId,
+
+    // Chat
+    chatMessages,
+    chatInput,
+    isChatting,
 
     // Results
     latestResult,
@@ -232,5 +314,12 @@ export function useGenerationForm() {
     animateLatestImage,
     editLatestImage,
     useGenerationAsSource,
+    handleImageUpload,
+    removeEnhanceImage,
+    enhanceImageBase64,
+
+    // Chat Actions
+    sendChatMessage,
+    useMessageAsPrompt,
   }
 }

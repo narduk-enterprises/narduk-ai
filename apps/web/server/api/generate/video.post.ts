@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { generations } from '../../database/schema'
+import { eq } from 'drizzle-orm'
+import { generations, appSettings } from '../../database/schema'
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(2000),
@@ -36,9 +37,27 @@ export default defineEventHandler(async (event) => {
     resolution: body.resolution,
   })
 
+  const db = useDatabase(event)
+
+  // Fetch configured model from database
+  let videoModel = 'grok-imagine-video'
+  try {
+    const settings = await db
+      .select({ videoModel: appSettings.videoModel })
+      .from(appSettings)
+      .where(eq(appSettings.id, 1))
+      .get()
+    if (settings?.videoModel) {
+      videoModel = settings.videoModel
+    }
+  } catch (err) {
+    log.warn('Could not fetch appSettings for videoModel', { err })
+  }
+
   // Start async video generation
   const result = await grokStartVideo(config.xaiApiKey, {
     prompt: body.prompt,
+    model: videoModel,
     duration: body.duration,
     aspect_ratio: body.aspectRatio,
     resolution: body.resolution,
@@ -49,7 +68,6 @@ export default defineEventHandler(async (event) => {
   // Insert pending generation record
   const id = crypto.randomUUID()
   const now = new Date().toISOString()
-  const db = useDatabase(event)
 
   const record = {
     id,

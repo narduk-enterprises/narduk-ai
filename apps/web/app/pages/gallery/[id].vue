@@ -195,10 +195,14 @@ const errorMessage = computed(() => {
             </div>
           </div>
 
-          <div class="px-2">
-            <p class="text-lg leading-relaxed text-default font-medium">
+          <div class="px-2 flex items-start gap-3 group">
+            <p class="text-lg leading-relaxed text-default font-medium flex-1">
               "{{ generation.prompt }}"
             </p>
+            <CopyPromptButton
+              :prompt="generation.prompt"
+              class="opacity-0 group-hover:opacity-100 transition-opacity mt-1"
+            />
           </div>
         </div>
 

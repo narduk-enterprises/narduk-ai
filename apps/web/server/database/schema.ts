@@ -41,3 +41,11 @@ export const generations = sqliteTable(
     index('generations_xai_request_id_idx').on(table.xaiRequestId),
   ],
 )
+
+export const appSettings = sqliteTable('app_settings', {
+  id: integer('id').primaryKey(), // Single-row table, always id=1
+  videoModel: text('video_model').notNull().default('grok-imagine-video'),
+  imageModel: text('image_model').notNull().default('grok-imagine-image'),
+  promptEnhanceModel: text('prompt_enhance_model').notNull().default('grok-3-mini'),
+  updatedAt: text('updated_at').notNull(),
+})
