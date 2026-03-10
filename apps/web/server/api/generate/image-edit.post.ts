@@ -9,7 +9,8 @@ const bodySchema = z.object({
 
 /**
  * POST /api/generate/image-edit — Image-to-Image editing (I2I).
- * Takes a source generation (must be an image owned by the user) and a prompt.
+ * Uses the xAI batch API for ~50% cost savings.
+ * Returns a pending record; client polls /api/generate/poll/[requestId].
  */
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Generate')
@@ -67,34 +68,22 @@ export default defineEventHandler(async (event) => {
   const mimeType = r2Object.httpMetadata?.contentType || 'image/png'
   const dataUrl = `data:${mimeType};base64,${base64}`
 
-  // Call Grok Image Edit API
-  const result = await grokEditImage(config.xaiApiKey, {
+  // Submit via batch API for cost savings
+  const result = await grokBatchEditImage(config.xaiApiKey, {
     prompt: body.prompt,
     imageUrl: dataUrl,
   })
 
-  const imageData = result.data?.[0]
-  const imageUrl = imageData?.url
-  if (!imageUrl) {
-    log.error('I2I failed — no image returned', { userId: user.id })
-    throw createError({ statusCode: 502, message: 'No image returned from Grok API' })
-  }
+  log.info('I2I batch submitted', {
+    userId: user.id,
+    batchId: result.batchId,
+    sourceId: body.sourceGenerationId,
+  })
 
-  // Download and store in R2 in the background
+  // Insert pending generation record
   const id = crypto.randomUUID()
-  const r2Key = `generations/${user.id}/${id}.png`
-  event.waitUntil(
-    (async () => {
-      try {
-        const buffer = await downloadMedia(imageUrl)
-        await uploadToR2(event, r2Key, buffer, 'image/png')
-      } catch (err) {
-        log.error('Background R2 upload failed', { userId: user.id, generationId: id, err })
-      }
-    })(),
-  )
-
   const now = new Date().toISOString()
+
   const record = {
     id,
     userId: user.id,
@@ -102,20 +91,17 @@ export default defineEventHandler(async (event) => {
     mode: 'i2i' as const,
     prompt: body.prompt,
     sourceGenerationId: body.sourceGenerationId,
-    status: 'done' as const,
-    r2Key,
-    mediaUrl: `/api/media/${r2Key}`,
+    status: 'pending' as const,
+    xaiRequestId: result.batchId,
     metadata: JSON.stringify({
-      revised_prompt: imageData.revised_prompt,
       estimatedCostUsd: estimateGenerationCost({ type: 'image' }),
+      batchApi: true,
     }),
     createdAt: now,
     updatedAt: now,
   }
 
   await db.insert(generations).values(record)
-
-  log.info('I2I complete', { userId: user.id, generationId: id, sourceId: body.sourceGenerationId })
 
   return record
 })

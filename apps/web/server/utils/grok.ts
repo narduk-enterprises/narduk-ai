@@ -266,3 +266,228 @@ export async function downloadMedia(url: string): Promise<ArrayBuffer> {
   }
   return await res.arrayBuffer()
 }
+
+// ─── Batch API (xAI-specific REST, 50% cost savings) ─────────
+
+interface GrokBatchState {
+  num_requests: number
+  num_pending: number
+  num_success: number
+  num_error: number
+  num_cancelled: number
+}
+
+interface GrokBatchResponse {
+  batch_id: string
+  name: string
+  create_time: string
+  expire_time: string
+  state: GrokBatchState
+}
+
+interface GrokBatchResult {
+  request_id: string
+  status: 'success' | 'error'
+  output?: {
+    data?: Array<{ url?: string; b64_json?: string; revised_prompt?: string }>
+  }
+  error?: { message: string }
+}
+
+interface GrokBatchResultsResponse {
+  results: GrokBatchResult[]
+}
+
+function authHeaders(apiKey: string): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+  }
+}
+
+/**
+ * Create a batch, add an image generation request, and return the batch_id.
+ * Uses the xAI batch API for ~50% cost savings on image generation.
+ */
+export async function grokBatchGenerateImage(
+  apiKey: string,
+  params: GrokImageParams,
+): Promise<{ batchId: string }> {
+  // 1. Create a batch
+  const batchRes = await fetch('https://api.x.ai/v1/batches', {
+    method: 'POST',
+    headers: authHeaders(apiKey),
+    body: JSON.stringify({ name: `img-${Date.now()}` }),
+  })
+
+  if (!batchRes.ok) {
+    const text = await batchRes.text()
+    console.error(`[grokBatchGenerateImage] Create batch error (${batchRes.status}):`, text)
+    throw createError({
+      statusCode: batchRes.status,
+      message: 'Failed to create batch for image generation.',
+    })
+  }
+
+  const batch = (await batchRes.json()) as GrokBatchResponse
+
+  // 2. Add image generation request to the batch
+  const reqRes = await fetch(`https://api.x.ai/v1/batches/${batch.batch_id}/requests`, {
+    method: 'POST',
+    headers: authHeaders(apiKey),
+    body: JSON.stringify({
+      input: {
+        model: params.model || 'grok-imagine-image',
+        prompt: params.prompt,
+        n: params.n || 1,
+        response_format: params.response_format || 'url',
+        ...(params.aspectRatio && { aspect_ratio: params.aspectRatio }),
+      },
+    }),
+  })
+
+  if (!reqRes.ok) {
+    const text = await reqRes.text()
+    console.error(`[grokBatchGenerateImage] Add request error (${reqRes.status}):`, text)
+    throw createError({
+      statusCode: reqRes.status,
+      message: 'Failed to add image request to batch.',
+    })
+  }
+
+  return { batchId: batch.batch_id }
+}
+
+/**
+ * Create a batch, add an image edit request, and return the batch_id.
+ */
+export async function grokBatchEditImage(
+  apiKey: string,
+  params: GrokImageEditParams,
+): Promise<{ batchId: string }> {
+  const batchRes = await fetch('https://api.x.ai/v1/batches', {
+    method: 'POST',
+    headers: authHeaders(apiKey),
+    body: JSON.stringify({ name: `img-edit-${Date.now()}` }),
+  })
+
+  if (!batchRes.ok) {
+    const text = await batchRes.text()
+    console.error(`[grokBatchEditImage] Create batch error (${batchRes.status}):`, text)
+    throw createError({
+      statusCode: batchRes.status,
+      message: 'Failed to create batch for image edit.',
+    })
+  }
+
+  const batch = (await batchRes.json()) as GrokBatchResponse
+
+  const reqRes = await fetch(`https://api.x.ai/v1/batches/${batch.batch_id}/requests`, {
+    method: 'POST',
+    headers: authHeaders(apiKey),
+    body: JSON.stringify({
+      input: {
+        model: params.model || 'grok-imagine-image',
+        prompt: params.prompt,
+        image: { url: params.imageUrl, type: 'image_url' },
+      },
+    }),
+  })
+
+  if (!reqRes.ok) {
+    const text = await reqRes.text()
+    console.error(`[grokBatchEditImage] Add request error (${reqRes.status}):`, text)
+    throw createError({
+      statusCode: reqRes.status,
+      message: 'Failed to add image edit request to batch.',
+    })
+  }
+
+  return { batchId: batch.batch_id }
+}
+
+/**
+ * Poll batch status and optionally retrieve results.
+ * Returns a normalized response compatible with the generation pipeline.
+ */
+export async function grokPollBatch(
+  apiKey: string,
+  batchId: string,
+): Promise<{
+  status: 'pending' | 'done' | 'failed'
+  imageUrl?: string
+  revisedPrompt?: string
+  error?: { code: string; message: string }
+}> {
+  // Check batch status
+  const statusRes = await fetch(`https://api.x.ai/v1/batches/${batchId}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${apiKey}` },
+  })
+
+  if (!statusRes.ok) {
+    const text = await statusRes.text()
+    console.error(`[grokPollBatch] Status check error (${statusRes.status}):`, text)
+    throw createError({
+      statusCode: statusRes.status,
+      message: 'Failed to poll batch status.',
+    })
+  }
+
+  const batch = (await statusRes.json()) as GrokBatchResponse
+
+  // Still processing
+  if (batch.state.num_pending > 0) {
+    return { status: 'pending' }
+  }
+
+  // All requests errored
+  if (batch.state.num_success === 0 && batch.state.num_error > 0) {
+    return {
+      status: 'failed',
+      error: { code: 'batch_error', message: 'All batch requests failed' },
+    }
+  }
+
+  // Retrieve results
+  const resultsRes = await fetch(`https://api.x.ai/v1/batches/${batchId}/results`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${apiKey}` },
+  })
+
+  if (!resultsRes.ok) {
+    const text = await resultsRes.text()
+    console.error(`[grokPollBatch] Results fetch error (${resultsRes.status}):`, text)
+    throw createError({
+      statusCode: resultsRes.status,
+      message: 'Failed to retrieve batch results.',
+    })
+  }
+
+  const resultsData = (await resultsRes.json()) as GrokBatchResultsResponse
+  const first = resultsData.results?.[0]
+
+  if (!first || first.status === 'error') {
+    return {
+      status: 'failed',
+      error: {
+        code: 'batch_request_error',
+        message: first?.error?.message || 'Batch image generation failed',
+      },
+    }
+  }
+
+  const imageUrl = first.output?.data?.[0]?.url
+  if (!imageUrl) {
+    return {
+      status: 'failed',
+      error: { code: 'no_image', message: 'Batch completed but no image was returned' },
+    }
+  }
+
+  return {
+    status: 'done',
+    imageUrl,
+    revisedPrompt: first.output?.data?.[0]?.revised_prompt,
+  }
+}
