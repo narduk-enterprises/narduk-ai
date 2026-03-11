@@ -19,6 +19,7 @@ const {
   duration,
   resolution,
   sourceGenerationId,
+  activePresets,
   latestResult,
   recentGenerations,
   userImages,
@@ -65,6 +66,39 @@ function openComposeModal() {
   isComposeModalOpen.value = true
 }
 
+interface DropdownItem {
+  label: string
+  description?: string
+  onSelect?: () => void
+}
+
+const presetDropdownItems = computed(() => {
+  if (!elements.value.length) return []
+
+  const typeMap: Record<string, DropdownItem[]> = {}
+  for (const el of elements.value) {
+    if (!typeMap[el.type]) typeMap[el.type] = []
+    typeMap[el.type]!.push({
+      label: el.name,
+      description: el.content.substring(0, 30) + '...',
+      onSelect: () => {
+        prompt.value = prompt.value ? `${prompt.value}\n\n${el.content}` : el.content
+      },
+    })
+  }
+
+  const nestedItems = []
+  for (const [type, items] of Object.entries(typeMap)) {
+    nestedItems.push({
+      label: type.charAt(0).toUpperCase() + type.slice(1),
+      children: items,
+      icon: 'i-lucide-folder',
+    })
+  }
+
+  return [nestedItems]
+})
+
 function openRecentViewer(gen: Generation) {
   const idx = recentGenerations.value.findIndex((g: Generation) => g.id === gen.id)
   galleryViewer.open(recentGenerations.value, idx >= 0 ? idx : 0)
@@ -80,7 +114,10 @@ async function handleRemix() {
   if (!prompt.value.trim() || remixing.value) return
   remixing.value = true
   try {
-    prompt.value = await remixPrompt(prompt.value, currentMediaType.value)
+    const presetsToPass = Object.keys(activePresets.value).length
+      ? activePresets.value
+      : undefined
+    prompt.value = await remixPrompt(prompt.value, currentMediaType.value, presetsToPass)
   } catch (e) {
     console.error('Remix failed:', e)
   } finally {
@@ -239,6 +276,17 @@ const resolutions = ['480p', '720p']
               >
                 Library
               </UButton>
+              <UDropdownMenu v-if="presetDropdownItems?.length" :items="presetDropdownItems">
+                <UButton
+                  variant="ghost"
+                  color="neutral"
+                  size="sm"
+                  icon="i-lucide-bookmark"
+                  class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
+                >
+                  Presets
+                </UButton>
+              </UDropdownMenu>
               <UButton
                 variant="ghost"
                 color="neutral"

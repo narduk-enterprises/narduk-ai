@@ -371,6 +371,7 @@ export function useGenerationForm() {
     duration,
     resolution,
     sourceGenerationId,
+    activePresets,
     setBuilderContext,
 
     // Results

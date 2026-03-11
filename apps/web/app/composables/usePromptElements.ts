@@ -141,13 +141,78 @@ export function usePromptElements() {
     return (parsed.prompt || parsed.message || res.content) as string
   }
 
-  async function remixPrompt(currentPrompt: string, mediaType: 'image' | 'video' = 'image') {
+  async function remixPrompt(
+    currentPrompt: string,
+    mediaType: 'image' | 'video' = 'image',
+    presets?: Record<string, string>,
+  ) {
     if (!currentPrompt.trim()) throw new Error('No prompt to remix')
 
+    // Resolve preset content if presets are provided
+    let resolved: Record<string, { name: string; content: string }> = {}
+    if (presets && Object.keys(presets).length) {
+      try {
+        const res = await $fetch<{
+          resolved: Record<string, { name: string; content: string }>
+        }>('/api/elements/resolve-presets', {
+          method: 'POST',
+          body: { presets },
+        })
+        resolved = res.resolved
+      } catch {
+        /* continue without resolved presets */
+      }
+    }
+
+    const hasPresets = Object.keys(resolved).length > 0
+    const personPreset = resolved.person
+    const themePresets = Object.entries(resolved).filter(([type]) => type !== 'person')
     const isVideo = mediaType === 'video'
-    const systemContent = isVideo
-      ? 'You are a creative prompt remixer. The user will give you a video generation prompt for Grok Imagine. Create a fresh variation that keeps the same general theme and mood but changes specific details — swap out visual elements, shift the atmosphere, alter camera movements, change the pacing or motion dynamics, or add unexpected twists. Return JSON: { "message": "one-line summary of what you changed", "prompt": "the remixed prompt" }. Make meaningful creative changes, not just synonym swaps. Keep the result optimized for video generation.'
-      : 'You are a creative prompt remixer. The user will give you an image/video generation prompt. Create a fresh variation that keeps the same general theme and mood but changes specific details — swap out some visual elements, shift the atmosphere, alter the composition, or add unexpected twists. Return JSON: { "message": "one-line summary of what you changed", "prompt": "the remixed prompt" }. Make meaningful creative changes, not just synonym swaps.'
+
+    let systemContent: string
+
+    if (hasPresets) {
+      const parts: string[] = [
+        'You are a creative prompt remixer for AI ' +
+          mediaType +
+          ' generation. Create a DRAMATICALLY DIFFERENT variation of the user\'s prompt.',
+      ]
+
+      if (personPreset) {
+        parts.push(
+          '\n\nPERSON — DO NOT CHANGE (reproduce with pixel-perfect accuracy):\n' +
+            personPreset.content +
+            '\n\nThe person MUST appear exactly as described — same face, skin tone, hair, body type, and all features.',
+        )
+      }
+
+      if (themePresets.length > 0) {
+        parts.push(
+          '\n\nTHEME CONTEXT (loose inspiration only — make something COMPLETELY DIFFERENT):',
+        )
+        for (const [type, preset] of themePresets) {
+          parts.push(`${type.charAt(0).toUpperCase() + type.slice(1)}: ${preset.content}`)
+        }
+      }
+
+      parts.push(
+        '\n\nREMIX RULES:' +
+          '\n- ' +
+          (personPreset
+            ? 'Keep the person IDENTICAL — do not change any physical traits'
+            : 'Keep the core subject recognizable') +
+          '\n- Radically change scene, setting, time of day, weather, lighting, color palette' +
+          '\n- Try a completely different camera angle, composition, and visual style' +
+          (isVideo ? '\n- Include different motion dynamics, camera movement, and pacing' : '') +
+          '\n\nReturn JSON: { "message": "one-line summary of what you changed", "prompt": "the remixed prompt" }. Make DRAMATIC creative changes, not subtle tweaks.',
+      )
+
+      systemContent = parts.join('\n')
+    } else {
+     systemContent = isVideo
+      ? 'You are a creative prompt remixer. The user will give you a video generation prompt for Grok Imagine. Create a fresh variation that keeps the same general theme and mood but changes specific details — swap out visual elements, shift the atmosphere, alter camera movements, change the pacing or motion dynamics, or add unexpected twists. CRITICAL: The output MUST look like real footage shot on a real camera — photorealistic, natural lighting, real skin textures, real environments. NEVER produce cartoon, illustration, CGI, 3D render, anime, digital art, painterly, or fantasy-looking results. Include cues like "photorealistic", "shot on [real camera]", "natural lighting", "film grain", "shallow depth of field", or "35mm film" to anchor realism. Return JSON: { "message": "one-line summary of what you changed", "prompt": "the remixed prompt" }. Make meaningful creative changes, not just synonym swaps. Keep the result optimized for video generation.'
+      : 'You are a creative prompt remixer. The user will give you an image/video generation prompt. Create a fresh variation that keeps the same general theme and mood but changes specific details — swap out some visual elements, shift the atmosphere, alter the composition, or add unexpected twists. CRITICAL: The output MUST look like a real photograph taken with a real camera — photorealistic, natural lighting, real skin textures, real environments. NEVER produce cartoon, illustration, CGI, 3D render, anime, digital art, painterly, or fantasy-looking results. Include cues like "photorealistic", "shot on [real camera]", "natural lighting", "film grain", "shallow depth of field", or "35mm film" to anchor realism. Return JSON: { "message": "one-line summary of what you changed", "prompt": "the remixed prompt" }. Make meaningful creative changes, not just synonym swaps.'
+    }
 
     const res = await $fetch<{ content: string }>('/api/generate/chat', {
       method: 'POST',

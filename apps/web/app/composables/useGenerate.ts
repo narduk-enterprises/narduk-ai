@@ -264,19 +264,42 @@ export function useGenerate() {
   }
 
   /**
-   * Remix a generation — sends the original prompt to Grok with creative remix
-   * instructions, then auto-submits a new generation with the remixed prompt.
+   * Remix a generation — resolves any presets to build targeted remix
+   * instructions that preserve person traits while radically changing the scene,
+   * then auto-submits a new generation with the remixed prompt.
    */
   async function remixGeneration(gen: Generation): Promise<Generation | null> {
     remixing.value = true
     error.value = null
     try {
-      // Step 1: Get a remixed prompt from Grok
-      const remixInstructions =
-        'Creatively remix this prompt — change several elements such as the setting, ' +
-        'time of day, lighting, color palette, camera angle, mood, or artistic style. ' +
-        'Keep the core subject/character but reimagine the scene in a fresh and surprising way. ' +
-        'Return ONLY the remixed prompt.'
+      // Parse presets from the generation record
+      let presets: Record<string, string> | undefined
+      if (gen.presets) {
+        try {
+          presets = JSON.parse(gen.presets) as Record<string, string>
+        } catch {
+          /* ignore invalid JSON */
+        }
+      }
+
+      // Resolve preset content if presets exist
+      let resolved: Record<string, { name: string; content: string }> = {}
+      if (presets && Object.keys(presets).length) {
+        try {
+          const res = await $fetch<{
+            resolved: Record<string, { name: string; content: string }>
+          }>('/api/elements/resolve-presets', {
+            method: 'POST',
+            body: { presets },
+          })
+          resolved = res.resolved
+        } catch {
+          /* continue without resolved presets */
+        }
+      }
+
+      // Build preset-aware remix instructions
+      const remixInstructions = buildRemixInstructions(resolved, gen.type)
 
       const { enhancedPrompt } = await $fetch<{ enhancedPrompt: string }>(
         '/api/generate/enhance-prompt',
@@ -285,22 +308,25 @@ export function useGenerate() {
           body: {
             prompt: gen.prompt,
             instructions: remixInstructions,
+            mediaType: gen.type,
           },
         },
       )
 
       const remixedPrompt = enhancedPrompt || gen.prompt
 
-      // Step 2: Generate with the remixed prompt, matching the original type
+      // Generate with the remixed prompt, carrying presets through
       if (gen.type === 'video') {
         return await generateVideo(remixedPrompt, {
           duration: gen.duration || 6,
           aspectRatio: gen.aspectRatio || '16:9',
           resolution: gen.resolution || '720p',
+          presets,
         })
       } else {
         return await generateImage(remixedPrompt, {
           aspectRatio: gen.aspectRatio || undefined,
+          presets,
         })
       }
     } catch (err: unknown) {
@@ -309,6 +335,80 @@ export function useGenerate() {
     } finally {
       remixing.value = false
     }
+  }
+
+  /**
+   * Build remix instructions based on resolved preset content.
+   * Person traits are locked; everything else is fair game for radical change.
+   */
+  function buildRemixInstructions(
+    resolved: Record<string, { name: string; content: string }>,
+    mediaType: 'image' | 'video',
+  ): string {
+    const hasPresets = Object.keys(resolved).length > 0
+    const personPreset = resolved.person
+    const themePresets = Object.entries(resolved).filter(([type]) => type !== 'person')
+
+    if (!hasPresets) {
+      // Fallback: no presets, use aggressive generic remix
+      return (
+        'Creatively remix this prompt to produce a DRAMATICALLY DIFFERENT result. ' +
+        'Keep any people or characters looking exactly the same (same appearance, features, ' +
+        'body type, hair, clothing) but completely change the scene, setting, time of day, ' +
+        'weather, lighting, color palette, camera angle, composition, mood, and artistic style. ' +
+        'The result should look like an entirely different photograph or frame of the same subject. ' +
+        'Return ONLY the remixed prompt.'
+      )
+    }
+
+    const parts: string[] = []
+
+    parts.push(
+      'You are a creative remix engine for AI ' +
+        mediaType +
+        ' generation. ' +
+        'Your job is to create a DRAMATICALLY DIFFERENT variation of the original prompt.',
+    )
+
+    if (personPreset) {
+      parts.push(
+        '\n\nPERSON — DO NOT CHANGE (reproduce these traits with pixel-perfect accuracy):\n' +
+          personPreset.content +
+          '\n\nThe person described above MUST appear exactly as described — ' +
+          'same face shape, skin tone, hair, body type, and all distinguishing features. ' +
+          'Do NOT alter the person in any way.',
+      )
+    }
+
+    if (themePresets.length > 0) {
+      parts.push(
+        '\n\nTHEME CONTEXT (use as loose inspiration, but create something COMPLETELY DIFFERENT):',
+      )
+      for (const [type, preset] of themePresets) {
+        parts.push(`${type.charAt(0).toUpperCase() + type.slice(1)}: ${preset.content}`)
+      }
+    }
+
+    parts.push(
+      '\n\nREMIX RULES:' +
+        '\n- ' +
+        (personPreset
+          ? 'Keep the person IDENTICAL — do not change any physical traits or appearance'
+          : 'Keep the core subject recognizable') +
+        '\n- Radically change the scene, setting, environment, time of day, and weather' +
+        '\n- Use a completely different lighting setup, color palette, and atmosphere' +
+        '\n- Try a different camera angle, composition, and visual style' +
+        '\n- The result should look like an ENTIRELY DIFFERENT ' +
+        mediaType +
+        ' of the same ' +
+        (personPreset ? 'person' : 'subject') +
+        (mediaType === 'video'
+          ? '\n- Include different motion dynamics, camera movement, and pacing'
+          : '') +
+        '\n\nReturn ONLY the remixed prompt text.',
+    )
+
+    return parts.join('\n')
   }
 
   /**
