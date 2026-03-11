@@ -47,7 +47,7 @@ useWebPageSchema({
 })
 
 // ── Scoped Chat ──────────────────────────────────────────
-const { chatMode, chatMessages, chatInput, isChatting, error, initializeChat, sendChatMessage } =
+const { chatMode, chatMessages, chatInput, isChatting, initializeChat, sendChatMessage } =
   useChatForm()
 
 const chatScrollContainer = ref<HTMLElement | null>(null)
@@ -276,10 +276,6 @@ watch(currentBuilderState, (state) => {
     }
   }
 })
-
-function formatKey(key: string | number) {
-  return String(key).replaceAll('_', ' ')
-}
 
 // ── Preset List ──────────────────────────────────────────
 const { elements, fetchElements } = usePromptElements()

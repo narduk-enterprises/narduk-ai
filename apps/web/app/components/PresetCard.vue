@@ -5,7 +5,7 @@ const props = defineProps<{
   preset: PromptElement
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   delete: [id: string]
 }>()
 
@@ -49,6 +49,14 @@ const cardDescription = computed(() => {
     .join(' · ')
   return meaningful || props.preset.content
 })
+
+function handleEdit() {
+  navigateTo(`/presets/${props.preset.id}`)
+}
+
+function handleDelete() {
+  emit('delete', props.preset.id)
+}
 </script>
 
 <template>
@@ -108,7 +116,7 @@ const cardDescription = computed(() => {
         icon="i-lucide-pencil"
         size="xs"
         class="rounded-full flex-1"
-        @click.stop="navigateTo(`/presets/${preset.id}`)"
+        @click.stop="handleEdit"
       >
         Edit
       </UButton>
@@ -118,7 +126,7 @@ const cardDescription = computed(() => {
         icon="i-lucide-trash-2"
         size="xs"
         class="rounded-full"
-        @click.stop="$emit('delete', preset.id)"
+        @click.stop="handleDelete"
       />
     </div>
   </div>

@@ -77,6 +77,14 @@ const presetTypes = [
   { label: 'Action', value: 'action', icon: 'i-lucide-activity' },
 ]
 
+const dropdownItems = computed(() =>
+  presetTypes.map((t) => ({
+    label: t.label,
+    icon: t.icon,
+    onSelect: () => handleCreate(t.value),
+  })),
+)
+
 async function handleCreate(type: string) {
   submitting.value = true
   try {
@@ -107,15 +115,7 @@ async function handleDelete(id: string) {
         <h1 class="font-display text-3xl sm:text-4xl font-bold mb-2">Presets</h1>
         <p class="text-muted">Browse your prompt library and build faster</p>
       </div>
-      <UDropdownMenu
-        :items="
-          presetTypes.map((t) => ({
-            label: t.label,
-            icon: t.icon,
-            onSelect: () => handleCreate(t.value),
-          }))
-        "
-      >
+      <UDropdownMenu :items="dropdownItems">
         <UButton
           icon="i-lucide-plus"
           label="New Preset"
@@ -183,15 +183,7 @@ async function handleDelete(id: string) {
           generation workflow.
         </p>
       </div>
-      <UDropdownMenu
-        :items="
-          presetTypes.map((t) => ({
-            label: t.label,
-            icon: t.icon,
-            onSelect: () => handleCreate(t.value),
-          }))
-        "
-      >
+      <UDropdownMenu :items="dropdownItems">
         <UButton
           icon="i-lucide-plus"
           label="Create your first preset"

@@ -438,192 +438,186 @@ const resolutions = ['480p', '720p']
 
     <!-- Enhance Modal -->
     <UModal v-model:open="isEnhanceModalOpen">
-      <template #content>
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
-              <h3 class="font-display font-semibold text-lg flex items-center gap-2">
-                <UIcon name="i-lucide-wand-2" class="size-5 text-primary" />
-                Enhance Prompt
-              </h3>
+      <template #header>
+        <div class="flex items-center justify-between">
+          <h3 class="font-display font-semibold text-lg flex items-center gap-2">
+            <UIcon name="i-lucide-wand-2" class="size-5 text-primary" />
+            Enhance Prompt
+          </h3>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            class="-my-1"
+            @click="isEnhanceModalOpen = false"
+          />
+        </div>
+      </template>
+
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-muted">
+            Tell Grok how you want to enhance your prompt. You can ask for a specific style,
+            lighting, camera angle, or just leave it blank for a general enhancement.
+          </p>
+          <UFormField label="Instructions (Optional)">
+            <UTextarea
+              v-model="enhanceInstructions"
+              placeholder="e.g. Make it highly cinematic, neon cyberpunk style, 8k resolution..."
+              :rows="3"
+              autoresize
+            />
+          </UFormField>
+
+          <!-- Optional Image Attachment -->
+          <div class="flex items-center gap-4 pt-2">
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-image-plus"
+              size="sm"
+              @click="
+                (
+                  ($refs.fileInput as HTMLInputElement[])[0] ||
+                  ($refs.fileInput as HTMLInputElement)
+                ).click()
+              "
+            >
+              {{ enhanceImageBase64 ? 'Change Image' : 'Attach Image' }}
+            </UButton>
+            <!-- eslint-disable-next-line narduk/no-native-input -- Hidden file input for direct DOM click handling -->
+            <input
+              ref="fileInput"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="handleImageUpload"
+            />
+            <div v-if="enhanceImageBase64" class="relative group">
+              <img
+                :src="enhanceImageBase64"
+                alt="Enhanced Source"
+                class="size-16 object-cover rounded-lg ring-1 ring-default shadow-sm"
+              />
               <UButton
-                color="neutral"
-                variant="ghost"
+                color="error"
+                variant="solid"
                 icon="i-lucide-x"
-                class="-my-1"
-                @click="isEnhanceModalOpen = false"
+                :padded="false"
+                class="absolute -top-2 -right-2 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center size-5 shadow-sm hover:scale-110"
+                @click="removeEnhanceImage"
               />
-            </div>
-          </template>
-
-          <div class="space-y-4">
-            <p class="text-sm text-muted">
-              Tell Grok how you want to enhance your prompt. You can ask for a specific style,
-              lighting, camera angle, or just leave it blank for a general enhancement.
-            </p>
-            <UFormField label="Instructions (Optional)">
-              <UTextarea
-                v-model="enhanceInstructions"
-                placeholder="e.g. Make it highly cinematic, neon cyberpunk style, 8k resolution..."
-                :rows="3"
-                autoresize
-              />
-            </UFormField>
-
-            <!-- Optional Image Attachment -->
-            <div class="flex items-center gap-4 pt-2">
-              <UButton
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-image-plus"
-                size="sm"
-                @click="
-                  (
-                    ($refs.fileInput as HTMLInputElement[])[0] ||
-                    ($refs.fileInput as HTMLInputElement)
-                  ).click()
-                "
-              >
-                {{ enhanceImageBase64 ? 'Change Image' : 'Attach Image' }}
-              </UButton>
-              <!-- eslint-disable-next-line narduk/no-native-input -- Hidden file input for direct DOM click handling -->
-              <input
-                ref="fileInput"
-                type="file"
-                accept="image/*"
-                class="hidden"
-                @change="handleImageUpload"
-              />
-              <div v-if="enhanceImageBase64" class="relative group">
-                <img
-                  :src="enhanceImageBase64"
-                  alt="Enhanced Source"
-                  class="size-16 object-cover rounded-lg ring-1 ring-default shadow-sm"
-                />
-                <UButton
-                  color="error"
-                  variant="solid"
-                  icon="i-lucide-x"
-                  :padded="false"
-                  class="absolute -top-2 -right-2 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center size-5 shadow-sm hover:scale-110"
-                  @click="removeEnhanceImage"
-                />
-              </div>
             </div>
           </div>
+        </div>
+      </template>
 
-          <template #footer>
-            <div class="flex justify-end gap-3">
-              <UButton color="neutral" variant="ghost" @click="isEnhanceModalOpen = false">
-                Cancel
-              </UButton>
-              <UButton
-                color="primary"
-                icon="i-lucide-sparkles"
-                :loading="enhancing"
-                @click="enhanceCurrentPrompt"
-              >
-                Enhance
-              </UButton>
-            </div>
-          </template>
-        </UCard>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <UButton color="neutral" variant="ghost" @click="isEnhanceModalOpen = false">
+            Cancel
+          </UButton>
+          <UButton
+            color="primary"
+            icon="i-lucide-sparkles"
+            :loading="enhancing"
+            @click="enhanceCurrentPrompt"
+          >
+            Enhance
+          </UButton>
+        </div>
       </template>
     </UModal>
 
     <!-- Compose from Parts Modal -->
     <UModal v-model:open="isComposeModalOpen">
-      <template #content>
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
-              <h3 class="font-display font-semibold text-lg flex items-center gap-2">
-                <UIcon name="i-lucide-puzzle" class="size-5 text-primary" />
-                Compose Prompt
-              </h3>
+      <template #header>
+        <div class="flex items-center justify-between">
+          <h3 class="font-display font-semibold text-lg flex items-center gap-2">
+            <UIcon name="i-lucide-puzzle" class="size-5 text-primary" />
+            Compose Prompt
+          </h3>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            class="-my-1"
+            @click="isComposeModalOpen = false"
+          />
+        </div>
+      </template>
+
+      <template #body>
+        <div class="space-y-5">
+          <p class="text-sm text-muted">
+            Pick one element from each category to assemble a complete prompt.
+          </p>
+
+          <div v-for="(typeLabel, typeKey) in composeCategories" :key="typeKey" class="space-y-2">
+            <h4
+              class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-1.5"
+            >
+              <UIcon :name="composeTypeIcons[typeKey] || 'i-lucide-folder'" class="size-3.5" />
+              {{ typeLabel }}
+            </h4>
+            <div v-if="groupedByType[typeKey]?.length" class="flex flex-wrap gap-2">
               <UButton
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-x"
-                class="-my-1"
-                @click="isComposeModalOpen = false"
-              />
-            </div>
-          </template>
-
-          <div class="space-y-5">
-            <p class="text-sm text-muted">
-              Pick one element from each category to assemble a complete prompt.
-            </p>
-
-            <div v-for="(typeLabel, typeKey) in composeCategories" :key="typeKey" class="space-y-2">
-              <h4
-                class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-1.5"
+                v-for="el in groupedByType[typeKey]"
+                :key="el.id"
+                :variant="isElementSelected(el) ? 'solid' : 'outline'"
+                :color="isElementSelected(el) ? 'primary' : 'neutral'"
+                size="sm"
+                class="rounded-full transition-all duration-200"
+                :class="isElementSelected(el) ? 'shadow-md shadow-primary/20' : ''"
+                @click="handleComposeToggle(el)"
               >
-                <UIcon :name="composeTypeIcons[typeKey] || 'i-lucide-folder'" class="size-3.5" />
-                {{ typeLabel }}
-              </h4>
-              <div v-if="groupedByType[typeKey]?.length" class="flex flex-wrap gap-2">
-                <UButton
-                  v-for="el in groupedByType[typeKey]"
-                  :key="el.id"
-                  :variant="isElementSelected(el) ? 'solid' : 'outline'"
-                  :color="isElementSelected(el) ? 'primary' : 'neutral'"
-                  size="sm"
-                  class="rounded-full transition-all duration-200"
-                  :class="isElementSelected(el) ? 'shadow-md shadow-primary/20' : ''"
-                  @click="handleComposeToggle(el)"
-                >
-                  {{ el.name }}
-                </UButton>
-              </div>
-              <p v-else class="text-xs text-dimmed italic">No {{ typeKey }} presets yet.</p>
+                {{ el.name }}
+              </UButton>
             </div>
+            <p v-else class="text-xs text-dimmed italic">No {{ typeKey }} presets yet.</p>
           </div>
+        </div>
+      </template>
 
-          <template #footer>
-            <!-- Composed result preview -->
-            <div v-if="composedResult" class="space-y-3">
-              <div
-                class="rounded-xl border border-primary/20 bg-primary/5 p-4 max-h-40 overflow-y-auto"
-              >
-                <p class="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-                  Assembled Prompt
-                </p>
-                <p class="text-sm text-default leading-relaxed">
-                  {{ composedResult }}
-                </p>
-              </div>
-              <div class="flex justify-end gap-3">
-                <UButton color="neutral" variant="ghost" @click="composedResult = null">
-                  Back
-                </UButton>
-                <UButton color="primary" icon="i-lucide-check" @click="useComposedPrompt">
-                  Use Prompt
-                </UButton>
-              </div>
-            </div>
+      <template #footer>
+        <!-- Composed result preview -->
+        <div v-if="composedResult" class="space-y-3">
+          <div
+            class="rounded-xl border border-primary/20 bg-primary/5 p-4 max-h-40 overflow-y-auto"
+          >
+            <p class="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+              Assembled Prompt
+            </p>
+            <p class="text-sm text-default leading-relaxed">
+              {{ composedResult }}
+            </p>
+          </div>
+          <div class="flex justify-end gap-3">
+            <UButton color="neutral" variant="ghost" @click="composedResult = null"> Back </UButton>
+            <UButton color="primary" icon="i-lucide-check" @click="useComposedPrompt">
+              Use Prompt
+            </UButton>
+          </div>
+        </div>
 
-            <!-- Selection controls -->
-            <div v-else class="flex items-center justify-between">
-              <span class="text-xs text-muted"> {{ composeSelectionCount }} of 4 selected </span>
-              <div class="flex gap-3">
-                <UButton color="neutral" variant="ghost" @click="isComposeModalOpen = false">
-                  Cancel
-                </UButton>
-                <UButton
-                  color="primary"
-                  icon="i-lucide-sparkles"
-                  :disabled="composeSelectionCount === 0"
-                  :loading="composing"
-                  @click="composeWithGrok"
-                >
-                  Compose with Grok
-                </UButton>
-              </div>
-            </div>
-          </template>
-        </UCard>
+        <!-- Selection controls -->
+        <div v-else class="flex items-center justify-between">
+          <span class="text-xs text-muted"> {{ composeSelectionCount }} of 4 selected </span>
+          <div class="flex gap-3">
+            <UButton color="neutral" variant="ghost" @click="isComposeModalOpen = false">
+              Cancel
+            </UButton>
+            <UButton
+              color="primary"
+              icon="i-lucide-sparkles"
+              :disabled="composeSelectionCount === 0"
+              :loading="composing"
+              @click="composeWithGrok"
+            >
+              Compose with Grok
+            </UButton>
+          </div>
+        </div>
       </template>
     </UModal>
   </div>

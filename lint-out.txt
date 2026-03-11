@@ -1,0 +1,61 @@
+
+> narduk-ai@1.17.2 lint /Users/narduk/new-code/template-apps/narduk-ai
+> turbo run lint
+
+• turbo 2.8.15
+• Packages in scope: @narduk-enterprises/narduk-nuxt-template-layer, @narduk/eslint-config, narduk-ai
+• Running lint in 3 packages
+• Remote caching disabled
+@narduk-enterprises/narduk-nuxt-template-layer:lint: cache miss, executing f8ea140fb69d0fd3
+@narduk-enterprises/narduk-nuxt-template-layer:build: cache hit, replaying logs a7a849ee82876025
+@narduk-enterprises/narduk-nuxt-template-layer:build: 
+@narduk-enterprises/narduk-nuxt-template-layer:build: 
+@narduk-enterprises/narduk-nuxt-template-layer:build: > @narduk-enterprises/narduk-nuxt-template-layer@1.0.11 build /Users/narduk/new-code/template-apps/narduk-ai/layers/narduk-nuxt-layer
+@narduk-enterprises/narduk-nuxt-template-layer:build: > nuxt prepare
+@narduk-enterprises/narduk-nuxt-template-layer:build: 
+@narduk-enterprises/narduk-nuxt-template-layer:build: [36mℹ[39m Nuxt Icon server bundle mode is set to [36mremote[39m                                           [90m12:10:25 AM[39m
+@narduk-enterprises/narduk-nuxt-template-layer:build: [90m│[39m
+@narduk-enterprises/narduk-nuxt-template-layer:build: [32m◆[39m  Types generated in [36m.nuxt[39m.
+narduk-ai:lint: cache miss, executing 22b1b9fd19ed97f1
+@narduk-enterprises/narduk-nuxt-template-layer:lint: 
+@narduk-enterprises/narduk-nuxt-template-layer:lint: > @narduk-enterprises/narduk-nuxt-template-layer@1.0.11 prelint /Users/narduk/new-code/template-apps/narduk-ai/layers/narduk-nuxt-layer
+@narduk-enterprises/narduk-nuxt-template-layer:lint: > test -f .nuxt/eslint.config.mjs || nuxt prepare
+@narduk-enterprises/narduk-nuxt-template-layer:lint: 
+narduk-ai:lint: 
+narduk-ai:lint: > narduk-ai@1.17.2 prelint /Users/narduk/new-code/template-apps/narduk-ai/apps/web
+narduk-ai:lint: > test -f .nuxt/eslint.config.mjs || nuxt prepare
+narduk-ai:lint: 
+@narduk-enterprises/narduk-nuxt-template-layer:lint: 
+@narduk-enterprises/narduk-nuxt-template-layer:lint: > @narduk-enterprises/narduk-nuxt-template-layer@1.0.11 lint /Users/narduk/new-code/template-apps/narduk-ai/layers/narduk-nuxt-layer
+@narduk-enterprises/narduk-nuxt-template-layer:lint: > eslint . --max-warnings 0
+@narduk-enterprises/narduk-nuxt-template-layer:lint: 
+narduk-ai:lint: 
+narduk-ai:lint: > narduk-ai@1.17.2 lint /Users/narduk/new-code/template-apps/narduk-ai/apps/web
+narduk-ai:lint: > eslint . --max-warnings 0
+narduk-ai:lint: 
+narduk-ai:lint: 
+narduk-ai:lint: /Users/narduk/new-code/template-apps/narduk-ai/apps/web/app/components/PromptElementManagement.vue
+narduk-ai:lint:   186:9  error  Do not nest UCard inside UModal. Nuxt UI 4 uses a slot-based architecture directly on UModal. Use #header, #body, and #footer slots instead  narduk/no-ucard-in-umodal
+narduk-ai:lint: 
+narduk-ai:lint: /Users/narduk/new-code/template-apps/narduk-ai/apps/web/app/pages/generate.vue
+narduk-ai:lint:   442:9  error  Do not nest UCard inside UModal. Nuxt UI 4 uses a slot-based architecture directly on UModal. Use #header, #body, and #footer slots instead  narduk/no-ucard-in-umodal
+narduk-ai:lint:   537:9  error  Do not nest UCard inside UModal. Nuxt UI 4 uses a slot-based architecture directly on UModal. Use #header, #body, and #footer slots instead  narduk/no-ucard-in-umodal
+narduk-ai:lint: 
+narduk-ai:lint: /Users/narduk/new-code/template-apps/narduk-ai/apps/web/tests/e2e/hydration.spec.ts
+narduk-ai:lint:   1:10  error  test not found in '@playwright/test'    import-x/named
+narduk-ai:lint:   1:16  error  expect not found in '@playwright/test'  import-x/named
+narduk-ai:lint: 
+narduk-ai:lint: ✖ 5 problems (5 errors, 0 warnings)
+narduk-ai:lint: 
+narduk-ai:lint:  ELIFECYCLE  Command failed with exit code 1.
+narduk-ai:lint: ERROR: command finished with error: command (/Users/narduk/new-code/template-apps/narduk-ai/apps/web) /Users/narduk/.volta/bin/pnpm run lint exited (1)
+@narduk-enterprises/narduk-nuxt-template-layer:lint:  ELIFECYCLE  Command failed.
+narduk-ai#lint: command (/Users/narduk/new-code/template-apps/narduk-ai/apps/web) /Users/narduk/.volta/bin/pnpm run lint exited (1)
+
+ Tasks:    1 successful, 3 total
+Cached:    1 cached, 3 total
+  Time:    3.778s 
+Failed:    narduk-ai#lint
+
+ ERROR  run failed: command  exited (1)
+ ELIFECYCLE  Command failed with exit code 1.

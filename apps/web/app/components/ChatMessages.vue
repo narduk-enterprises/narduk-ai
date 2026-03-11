@@ -14,6 +14,14 @@ const emit = defineEmits<{
   'save-prompt': [text: string]
 }>()
 
+function handleUsePrompt(prompt: string) {
+  emit('use-prompt', prompt)
+}
+
+function handleSavePrompt(prompt: string) {
+  emit('save-prompt', prompt)
+}
+
 function formatKey(key: string | number) {
   return String(key).replaceAll('_', ' ')
 }
@@ -55,7 +63,7 @@ function formatKey(key: string | number) {
                   variant="solid"
                   icon="i-lucide-wand-2"
                   size="sm"
-                  @click="emit('use-prompt', msg.parsedResponse.prompt!)"
+                  @click="handleUsePrompt(msg.parsedResponse.prompt!)"
                 >
                   Use This Prompt
                 </UButton>
@@ -64,7 +72,7 @@ function formatKey(key: string | number) {
                   variant="soft"
                   icon="i-lucide-bookmark-plus"
                   size="sm"
-                  @click="emit('save-prompt', msg.parsedResponse.prompt!)"
+                  @click="handleSavePrompt(msg.parsedResponse.prompt!)"
                 >
                   Save to Presets
                 </UButton>

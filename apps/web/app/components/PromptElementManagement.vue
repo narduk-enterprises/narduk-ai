@@ -182,47 +182,45 @@ const groupedElements = computed(() => {
 
     <!-- Create Modal -->
     <UModal v-model:open="isModalOpen">
-      <template #content>
-        <UCard>
-          <template #header>
-            <h3 class="font-display font-semibold text-lg flex items-center gap-2">
-              <UIcon
-                :name="isEditing ? 'i-lucide-pencil' : 'i-lucide-plus-circle'"
-                class="size-5 text-primary"
-              />
-              {{ isEditing ? 'Edit Preset' : 'New Preset' }}
-            </h3>
-          </template>
+      <template #header>
+        <h3 class="font-display font-semibold text-lg flex items-center gap-2">
+          <UIcon
+            :name="isEditing ? 'i-lucide-pencil' : 'i-lucide-plus-circle'"
+            class="size-5 text-primary"
+          />
+          {{ isEditing ? 'Edit Preset' : 'New Preset' }}
+        </h3>
+      </template>
 
-          <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-            <UFormField label="Type" name="type">
-              <USelect v-model="state.type" :items="options" class="w-full" />
-            </UFormField>
+      <template #body>
+        <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
+          <UFormField label="Type" name="type">
+            <USelect v-model="state.type" :items="options" class="w-full" />
+          </UFormField>
 
-            <UFormField label="Name" name="name" description="A short, memorable title">
-              <UInput v-model="state.name" placeholder="e.g. Elf Ranger" class="w-full" />
-            </UFormField>
+          <UFormField label="Name" name="name" description="A short, memorable title">
+            <UInput v-model="state.name" placeholder="e.g. Elf Ranger" class="w-full" />
+          </UFormField>
 
-            <UFormField label="Content" name="content" description="The actual prompt text snippet">
-              <UTextarea
-                v-model="state.content"
-                placeholder="A tall elegant elven ranger wearing a green cloak..."
-                :rows="3"
-                autoresize
-                class="w-full"
-              />
-            </UFormField>
+          <UFormField label="Content" name="content" description="The actual prompt text snippet">
+            <UTextarea
+              v-model="state.content"
+              placeholder="A tall elegant elven ranger wearing a green cloak..."
+              :rows="3"
+              autoresize
+              class="w-full"
+            />
+          </UFormField>
 
-            <div class="flex justify-end gap-3 pt-4 border-t border-default/50 mt-6">
-              <UButton type="button" color="neutral" variant="ghost" @click="isModalOpen = false">
-                Cancel
-              </UButton>
-              <UButton type="submit" color="primary" icon="i-lucide-save" :loading="submitting">
-                {{ isEditing ? 'Update Preset' : 'Save Preset' }}
-              </UButton>
-            </div>
-          </UForm>
-        </UCard>
+          <div class="flex justify-end gap-3 pt-4 border-t border-default/50 mt-6">
+            <UButton type="button" color="neutral" variant="ghost" @click="isModalOpen = false">
+              Cancel
+            </UButton>
+            <UButton type="submit" color="primary" icon="i-lucide-save" :loading="submitting">
+              {{ isEditing ? 'Update Preset' : 'Save Preset' }}
+            </UButton>
+          </div>
+        </UForm>
       </template>
     </UModal>
   </div>
