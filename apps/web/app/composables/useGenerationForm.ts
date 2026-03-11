@@ -95,7 +95,6 @@ export function useGenerationForm() {
         }
       } else {
         // Batch: fire N parallel requests
-        // eslint-disable-next-line nuxt-guardrails/no-map-async-in-server -- Client-side Promise.all batching, not N+1
         const settled = await Promise.allSettled(
           Array.from({ length: count }, () => generateImage(prompt.value, opts)),
         )
