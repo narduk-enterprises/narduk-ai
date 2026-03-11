@@ -17,12 +17,14 @@ export const PERSON_ATTRIBUTES = [
   'eye_color',
   'face_shape',
   'expression',
+  'breasts',
   'clothing',
   'accessories',
   'makeup',
   'tattoos_piercings',
   'vibe',
   'distinguishing_features',
+  'other',
 ] as const
 
 export const SCENE_ATTRIBUTES = [
@@ -262,8 +264,8 @@ export function usePresetEditor() {
     headshotUrl.value = null
 
     if (presetMode === 'person') {
-      const fullBodyPrompt = `Full body portrait photograph of a person: ${attrs}. Standing pose facing the viewer, plain white background, studio lighting, clean and simple, fashion lookbook style, no distractions, high quality, photorealistic.`
-      const headshotPrompt = `Professional headshot portrait of a person: ${attrs}. Close-up face and shoulders, plain white background, studio lighting, sharp focus, high quality, photorealistic.`
+      const fullBodyPrompt = `Full body portrait photograph of a person: ${attrs}. Standing pose facing the viewer, plain white background, studio lighting, clean and simple. Shot on 35mm lens, RAW photo, unretouched, natural skin texture, highly detailed, realistic, everyday authentic photography style, not CGI, not plasticy, no airbrushing. The person should be smiling naturally unless their description strongly implies they rarely smile.`
+      const headshotPrompt = `Professional headshot portrait of a person: ${attrs}. Close-up face and shoulders, plain white background, studio lighting, sharp focus. Shot on 85mm lens, RAW photo, unretouched, natural skin texture, highly detailed, realistic, authentic photography, not CGI, not plasticy, no airbrushing. The person should be smiling naturally unless their description strongly implies they rarely smile.`
 
       const presets = state.name ? { [presetMode]: state.name } : undefined
 

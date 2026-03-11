@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, like, and } from 'drizzle-orm'
 import { generations } from '../../database/schema'
 
 const querySchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(50),
   offset: z.coerce.number().min(0).default(0),
+  search: z.string().optional(),
 })
 
 const STALE_TIMEOUT_MS = 10 * 60 * 1000
@@ -17,18 +18,24 @@ const STALE_TIMEOUT_MS = 10 * 60 * 1000
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Generations')
   const user = await requireAuth(event)
-  const { limit, offset } = querySchema.parse(getQuery(event))
+  const { limit, offset, search } = querySchema.parse(getQuery(event))
 
   const db = useDatabase(event)
   const config = useRuntimeConfig(event)
 
-  const rows = await db
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Drizzle dynamic query filter array avoids tricky SQL conditional typings
+  const filters: any[] = [eq(generations.userId, user.id)]
+
+  if (search && search.trim()) {
+    filters.push(like(generations.prompt, `%${search.trim()}%`))
+  }
+
+  const baseQuery = db
     .select()
     .from(generations)
-    .where(eq(generations.userId, user.id))
-    .orderBy(desc(generations.createdAt))
-    .limit(limit)
-    .offset(offset)
+    .where(and(...filters))
+
+  const rows = await baseQuery.orderBy(desc(generations.createdAt)).limit(limit).offset(offset)
 
   // Refresh pending video generations from xAI
   const pendingVideos = rows.filter(

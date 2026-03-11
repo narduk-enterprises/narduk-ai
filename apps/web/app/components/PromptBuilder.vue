@@ -12,6 +12,7 @@ const { elements, groupedByType, fetchElements } = usePromptElements()
 const { savePrompt, loading: saving } = usePromptLibrary()
 
 const step = ref<'presets' | 'refine'>('presets')
+const searchQuery = ref('')
 
 // Preset Selection State
 const composeSelection = reactive<Record<string, string | null>>({
@@ -36,6 +37,24 @@ const composeCategories: Record<string, string> = {
   framing: 'Framing / Camera',
   action: 'Action / Pose',
 }
+
+const filteredGroupedByType = computed(() => {
+  if (!searchQuery.value.trim()) return groupedByType.value
+
+  const q = searchQuery.value.toLowerCase()
+  const filtered: Record<string, typeof elements.value> = {}
+
+  for (const key of Object.keys(groupedByType.value)) {
+    const list = groupedByType.value[key] || []
+    const matches = list.filter(
+      (el) => el.name.toLowerCase().includes(q) || el.content.toLowerCase().includes(q),
+    )
+    if (matches.length > 0) {
+      filtered[key] = matches
+    }
+  }
+  return filtered
+})
 
 function isElementSelected(el: { type: string; content: string }) {
   return composeSelection[el.type] === el.content
@@ -258,24 +277,38 @@ watch(
     <template #body>
       <!-- STEP 1: PRESETS -->
       <div v-if="step === 'presets'" class="h-full flex flex-col p-6 overflow-y-auto space-y-6">
-        <div class="space-y-1">
-          <h4 class="text-sm font-medium text-default">Step 1: Select Starting Elements</h4>
-          <p class="text-sm text-muted">
-            Pick at least one element to use as a starting point. Grok will help you tie them
-            together.
-          </p>
+        <div class="space-y-4">
+          <div class="space-y-1">
+            <h4 class="text-sm font-medium text-default">Step 1: Select Starting Elements</h4>
+            <p class="text-sm text-muted">
+              Pick at least one element to use as a starting point. Grok will help you tie them
+              together.
+            </p>
+          </div>
+          <UInput
+            v-model="searchQuery"
+            icon="i-lucide-search"
+            placeholder="Search elements..."
+            class="w-full"
+            size="sm"
+          />
         </div>
 
-        <div v-for="(typeLabel, typeKey) in composeCategories" :key="typeKey" class="space-y-3">
+        <div
+          v-for="(typeLabel, typeKey) in composeCategories"
+          :key="typeKey"
+          class="space-y-3"
+          v-show="filteredGroupedByType[typeKey]?.length"
+        >
           <h5
             class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-1.5"
           >
             <UIcon :name="composeTypeIcons[typeKey] || 'i-lucide-folder'" class="size-3.5" />
             {{ typeLabel }}
           </h5>
-          <div v-if="groupedByType[typeKey]?.length" class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-2">
             <UButton
-              v-for="el in groupedByType[typeKey]"
+              v-for="el in filteredGroupedByType[typeKey]"
               :key="el.id"
               :variant="isElementSelected(el) ? 'solid' : 'outline'"
               :color="isElementSelected(el) ? 'primary' : 'neutral'"
@@ -287,7 +320,13 @@ watch(
               {{ el.name }}
             </UButton>
           </div>
-          <p v-else class="text-xs text-dimmed italic">No {{ typeKey }} presets yet.</p>
+        </div>
+
+        <div
+          v-if="Object.keys(filteredGroupedByType).length === 0"
+          class="text-center py-6 text-sm text-muted"
+        >
+          No elements match your search.
         </div>
       </div>
 

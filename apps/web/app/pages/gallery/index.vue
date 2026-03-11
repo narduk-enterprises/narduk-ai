@@ -30,12 +30,27 @@ const offset = ref(0)
 const isFinished = ref(false)
 const loadingMore = ref(false)
 
+const searchQuery = ref('')
+const debouncedSearchQuery = ref('')
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+
+watch(searchQuery, (newVal) => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    debouncedSearchQuery.value = newVal
+  }, 300)
+})
+
+watch(debouncedSearchQuery, () => {
+  load()
+})
+
 async function load() {
   loading.value = true
   offset.value = 0
   isFinished.value = false
   try {
-    generations.value = await fetchGenerations(limit, offset.value)
+    generations.value = await fetchGenerations(limit, offset.value, debouncedSearchQuery.value)
     if (generations.value.length < limit) {
       isFinished.value = true
     }
@@ -49,7 +64,7 @@ async function loadMore() {
   loadingMore.value = true
   offset.value += limit
   try {
-    const nextBatch = await fetchGenerations(limit, offset.value)
+    const nextBatch = await fetchGenerations(limit, offset.value, debouncedSearchQuery.value)
     if (nextBatch.length < limit) {
       isFinished.value = true
     }
@@ -90,7 +105,7 @@ watch(
       refreshInterval = setInterval(async () => {
         try {
           // fetch only the first page for fast updates of pending items
-          const fresh = await fetchGenerations(limit, 0)
+          const fresh = await fetchGenerations(limit, 0, debouncedSearchQuery.value)
 
           // update existing items in the generations array
           for (const item of fresh) {
@@ -197,20 +212,31 @@ const filters = [
       />
     </div>
 
-    <!-- Filter Bar -->
-    <div class="flex gap-2 mb-6">
-      <UButton
-        v-for="filterItem in filters"
-        :key="filterItem.value"
-        :to="{ query: { filter: filterItem.value === 'all' ? undefined : filterItem.value } }"
-        :icon="filterItem.icon"
-        :label="filterItem.label"
-        :variant="activeFilter === filterItem.value ? 'solid' : 'outline'"
-        :color="activeFilter === filterItem.value ? 'primary' : 'neutral'"
-        size="sm"
-        class="rounded-full"
-        :class="activeFilter === filterItem.value ? 'shadow-lg shadow-primary/20' : ''"
-      />
+    <!-- Filter and Search Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div class="flex gap-2">
+        <UButton
+          v-for="filterItem in filters"
+          :key="filterItem.value"
+          :to="{ query: { filter: filterItem.value === 'all' ? undefined : filterItem.value } }"
+          :icon="filterItem.icon"
+          :label="filterItem.label"
+          :variant="activeFilter === filterItem.value ? 'solid' : 'outline'"
+          :color="activeFilter === filterItem.value ? 'primary' : 'neutral'"
+          size="sm"
+          class="rounded-full"
+          :class="activeFilter === filterItem.value ? 'shadow-lg shadow-primary/20' : ''"
+        />
+      </div>
+
+      <div class="w-full sm:w-64 shrink-0">
+        <UInput
+          v-model="searchQuery"
+          icon="i-lucide-search"
+          placeholder="Search prompts..."
+          size="sm"
+        />
+      </div>
     </div>
 
     <!-- Loading -->

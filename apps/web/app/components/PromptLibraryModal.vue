@@ -2,12 +2,21 @@
 import { usePromptLibrary, type UserPrompt } from '../composables/usePromptLibrary'
 
 const isModalOpen = defineModel<boolean>('open', { default: false })
+const searchQuery = ref('')
 
 const emit = defineEmits<{
   (e: 'use-prompt', promptText: string, presets: Record<string, string>, promptId?: string): void
 }>()
 
 const { prompts, loading, fetchPrompts, deletePrompt } = usePromptLibrary()
+
+const filteredPrompts = computed(() => {
+  if (!searchQuery.value.trim()) return prompts.value
+  const q = searchQuery.value.toLowerCase()
+  return prompts.value.filter(
+    (p) => p.title?.toLowerCase().includes(q) || p.prompt.toLowerCase().includes(q),
+  )
+})
 
 watch(isModalOpen, (open) => {
   if (open && prompts.value.length === 0) {
@@ -63,7 +72,7 @@ async function handleDelete(id: string) {
     </template>
 
     <template #body>
-      <div class="h-full overflow-y-auto p-4 md:p-6">
+      <div class="h-full overflow-y-auto p-4 md:p-6 flex flex-col">
         <div v-if="loading" class="flex justify-center py-12">
           <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-primary" />
         </div>
@@ -83,51 +92,73 @@ async function handleDelete(id: string) {
           </UButton>
         </div>
 
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <template v-else>
+          <div class="mb-4 shrink-0">
+            <UInput
+              v-model="searchQuery"
+              icon="i-lucide-search"
+              placeholder="Search saved prompts..."
+              class="w-full"
+              size="sm"
+            />
+          </div>
+
           <div
-            v-for="p in prompts"
-            :key="p.id"
-            class="glass-card p-4 flex flex-col group transition-all duration-200 hover:shadow-md hover:border-primary/30"
+            v-if="filteredPrompts.length === 0"
+            class="flex flex-col items-center justify-center py-12 text-center"
           >
-            <div class="flex items-start justify-between mb-2">
-              <h4 class="font-semibold text-sm line-clamp-1 flex-1 pr-2" :title="p.title">
-                {{ p.title || 'Untitled Prompt' }}
-              </h4>
+            <UIcon name="i-lucide-search-x" class="size-12 text-muted mb-4 opacity-50" />
+            <p class="text-sm text-dimmed">No prompts match your search.</p>
+          </div>
+
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div
+              v-for="p in filteredPrompts"
+              :key="p.id"
+              class="glass-card p-4 flex flex-col group transition-all duration-200 hover:shadow-md hover:border-primary/30"
+            >
+              <div class="flex items-start justify-between mb-2">
+                <h4 class="font-semibold text-sm line-clamp-1 flex-1 pr-2" :title="p.title">
+                  {{ p.title || 'Untitled Prompt' }}
+                </h4>
+                <div
+                  class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <UButton
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    class="-my-1 -mr-2"
+                    @click="handleDelete(p.id)"
+                  />
+                </div>
+              </div>
+
               <div
-                class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                class="flex-1 bg-default/50 rounded-lg p-3 text-muted line-clamp-4 relative mb-4 font-mono text-xs"
               >
+                {{ p.prompt }}
+              </div>
+
+              <div
+                class="mt-auto flex items-center justify-between pt-2 border-t border-default/10"
+              >
+                <span class="text-[10px] text-dimmed uppercase tracking-wider font-semibold">
+                  {{ new Date(p.createdAt).toLocaleDateString() }}
+                </span>
                 <UButton
-                  size="xs"
-                  color="error"
-                  variant="ghost"
-                  icon="i-lucide-trash-2"
-                  class="-my-1 -mr-2"
-                  @click="handleDelete(p.id)"
-                />
+                  size="sm"
+                  color="primary"
+                  icon="i-lucide-arrow-right"
+                  @click="handleUsePrompt(p)"
+                >
+                  Use
+                </UButton>
               </div>
             </div>
-
-            <div
-              class="flex-1 bg-default/50 rounded-lg p-3 text-muted line-clamp-4 relative mb-4 font-mono text-xs"
-            >
-              {{ p.prompt }}
-            </div>
-
-            <div class="mt-auto flex items-center justify-between pt-2 border-t border-default/10">
-              <span class="text-[10px] text-dimmed uppercase tracking-wider font-semibold">
-                {{ new Date(p.createdAt).toLocaleDateString() }}
-              </span>
-              <UButton
-                size="sm"
-                color="primary"
-                icon="i-lucide-arrow-right"
-                @click="handleUsePrompt(p)"
-              >
-                Use
-              </UButton>
-            </div>
           </div>
-        </div>
+        </template>
       </div>
     </template>
   </UModal>

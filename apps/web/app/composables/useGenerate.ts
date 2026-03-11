@@ -201,9 +201,9 @@ export function useGenerate() {
   /**
    * Fetch user's generation gallery.
    */
-  async function fetchGenerations(limit = 50, offset = 0): Promise<Generation[]> {
+  async function fetchGenerations(limit = 50, offset = 0, search?: string): Promise<Generation[]> {
     return await $fetch<Generation[]>('/api/generations', {
-      query: { limit, offset },
+      query: { limit, offset, search: search || undefined },
     })
   }
 
