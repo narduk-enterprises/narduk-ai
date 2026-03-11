@@ -53,15 +53,15 @@ const cardDescription = computed(() => {
 const isModalOpen = ref(false)
 
 const parsedCharacteristics = computed(() => {
-  const meta = parsedMeta.value;
+  const meta = parsedMeta.value
   // Exclude url-related keys and other generic fields
   const exclude = ['headshotUrl', 'fullBodyUrl', 'other', 'id', 'name']
-  const chars: { label: string, value: string }[] = []
+  const chars: { label: string; value: string }[] = []
   for (const [key, val] of Object.entries(meta)) {
     if (!exclude.includes(key) && val && typeof val === 'string' && val.trim() !== '') {
-      chars.push({ 
+      chars.push({
         label: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
-        value: val 
+        value: val,
       })
     }
   }
@@ -155,8 +155,10 @@ function openModal() {
     </div>
 
     <!-- Actions -->
-    <div class="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 z-20 flex gap-1 bg-black/40 p-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-sm">
-       <UButton
+    <div
+      class="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 z-20 flex gap-1 bg-black/40 p-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-sm"
+    >
+      <UButton
         variant="ghost"
         color="neutral"
         icon="i-lucide-pencil"
@@ -180,7 +182,9 @@ function openModal() {
     <UCard :ui="{ base: 'overflow-hidden flex flex-col', body: { padding: 'p-0 sm:p-0' } }">
       <div class="flex flex-col max-h-[90vh]">
         <!-- Image Header Area -->
-        <div class="bg-black/5 dark:bg-black/40 relative aspect-video sm:aspect-21/9 shrink-0 flex items-center justify-center p-0 overflow-hidden">
+        <div
+          class="bg-black/5 dark:bg-black/40 relative aspect-video sm:aspect-21/9 shrink-0 flex items-center justify-center p-0 overflow-hidden"
+        >
           <NuxtImg
             v-if="previewUrl"
             :src="previewUrl"
@@ -200,12 +204,9 @@ function openModal() {
             class="size-full flex items-center justify-center preset-placeholder absolute inset-0 z-0"
             :class="`preset-placeholder--${preset.type}`"
           >
-            <UIcon
-              :name="config!.icon"
-              class="size-16 text-default/20"
-            />
+            <UIcon :name="config!.icon" class="size-16 text-default/20" />
           </div>
-          
+
           <div class="absolute top-4 right-4 z-20 flex gap-2">
             <UButton
               color="neutral"
@@ -227,11 +228,13 @@ function openModal() {
                   {{ config!.label }}
                 </UBadge>
               </div>
-              <h2 class="font-display text-2xl font-bold text-default tracking-tight">{{ preset.name }}</h2>
+              <h2 class="font-display text-2xl font-bold text-default tracking-tight">
+                {{ preset.name }}
+              </h2>
             </div>
-            
+
             <UButton
-              variant="solid" 
+              variant="solid"
               color="primary"
               icon="i-lucide-pencil"
               size="md"
@@ -240,21 +243,28 @@ function openModal() {
               label="Edit Preset"
             />
           </div>
-           
+
           <div class="prose prose-sm dark:prose-invert text-dimmed mb-8 max-w-none text-base">
             <p>{{ cardDescription }}</p>
           </div>
 
           <!-- All Characteristics -->
           <div v-if="parsedCharacteristics.length > 0" class="space-y-4">
-            <h3 class="text-xs font-semibold text-default uppercase tracking-widest border-b border-default pb-2">Characteristics</h3>
+            <h3
+              class="text-xs font-semibold text-default uppercase tracking-widest border-b border-default pb-2"
+            >
+              Characteristics
+            </h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
               <div
                 v-for="c in parsedCharacteristics"
                 :key="c.label"
                 class="bg-elevated p-3 rounded-xl border border-default hover:border-primary/30 transition-colors duration-200"
               >
-                <span class="text-[10px] text-muted block mb-0.5 uppercase tracking-wider font-medium">{{ c.label }}</span>
+                <span
+                  class="text-[10px] text-muted block mb-0.5 uppercase tracking-wider font-medium"
+                  >{{ c.label }}</span
+                >
                 <span class="text-sm text-default font-medium leading-tight">{{ c.value }}</span>
               </div>
             </div>

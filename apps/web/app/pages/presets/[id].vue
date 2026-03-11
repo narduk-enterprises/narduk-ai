@@ -218,7 +218,11 @@ async function handleSavePrompt(promptText: string) {
 
   const { createElement, fetchElements } = usePromptElements()
   try {
-    await createElement(elementType as 'person' | 'scene' | 'framing' | 'action' | 'style', name, promptText)
+    await createElement(
+      elementType as 'person' | 'scene' | 'framing' | 'action' | 'style',
+      name,
+      promptText,
+    )
     const toast = useToast()
     toast.add({
       title: 'Saved to Presets',
@@ -300,7 +304,10 @@ async function handleGenerateImage() {
   const presetMode = preset.value.type
   const attrs = Object.entries(mergedState.value)
     .filter(([k, v]) => v && k !== 'name' && k !== 'description')
-    .map(([k, v]) => `${String(k).charAt(0).toUpperCase() + String(k).slice(1).replaceAll('_', ' ')}: ${v}`)
+    .map(
+      ([k, v]) =>
+        `${String(k).charAt(0).toUpperCase() + String(k).slice(1).replaceAll('_', ' ')}: ${v}`,
+    )
     .join(', ')
 
   let prompt = ''
@@ -326,8 +333,8 @@ async function handleGenerateImage() {
     })
     // Poll/load for a bit to catch the result
     for (let i = 0; i < 5; i++) {
-        await new Promise((r) => setTimeout(r, 6000))
-        await loadGenerations()
+      await new Promise((r) => setTimeout(r, 6000))
+      await loadGenerations()
     }
   } catch (err: unknown) {
     useToast().add({
@@ -655,7 +662,7 @@ function presetThumb(metadata: string | null | undefined) {
                 <UIcon name="i-lucide-loader-2" class="size-4 animate-spin text-primary" />
                 <span class="text-xs text-muted">Generating...</span>
               </div>
-              
+
               <!-- Generate Image Button -->
               <UButton
                 v-if="headshotUrl || previewImageUrl"
@@ -666,7 +673,14 @@ function presetThumb(metadata: string | null | undefined) {
                 :loading="isGeneratingImage"
                 @click="handleGenerateImage"
               >
-                Generate {{ preset?.type === 'person' ? 'Person' : preset?.type ? preset.type.charAt(0).toUpperCase() + preset.type.slice(1) : 'Image' }}
+                Generate
+                {{
+                  preset?.type === 'person'
+                    ? 'Person'
+                    : preset?.type
+                      ? preset.type.charAt(0).toUpperCase() + preset.type.slice(1)
+                      : 'Image'
+                }}
               </UButton>
             </div>
 
@@ -695,10 +709,13 @@ function presetThumb(metadata: string | null | undefined) {
               </div>
             </div>
           </div>
-          
+
           <!-- Separator before gallery section -->
           <div v-if="presetGenerations.length > 0" class="my-10">
-            <USeparator label="Recent Generations" class="mb-6 font-display font-medium text-sm text-muted" />
+            <USeparator
+              label="Recent Generations"
+              class="mb-6 font-display font-medium text-sm text-muted"
+            />
           </div>
 
           <!-- Generations Carousel -->
@@ -713,15 +730,23 @@ function presetThumb(metadata: string | null | undefined) {
               arrows
               class="w-full relative"
             >
-              <div class="relative group rounded-xl overflow-hidden ring-1 ring-default shadow-card bg-elevated my-2 hover:ring-primary/50 transition-all duration-300">
-                <NuxtLink v-if="item.mediaUrl" :to="`/gallery/${item.id}`" class="block h-48 w-auto">
-                  <MediaPlayer 
+              <div
+                class="relative group rounded-xl overflow-hidden ring-1 ring-default shadow-card bg-elevated my-2 hover:ring-primary/50 transition-all duration-300"
+              >
+                <NuxtLink
+                  v-if="item.mediaUrl"
+                  :to="`/gallery/${item.id}`"
+                  class="block h-48 w-auto"
+                >
+                  <MediaPlayer
                     :src="item.mediaUrl || ''"
                     :type="item.type"
                     class="h-full w-auto object-cover"
                   />
                 </NuxtLink>
-                <div class="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                <div
+                  class="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                ></div>
               </div>
             </UCarousel>
           </div>
