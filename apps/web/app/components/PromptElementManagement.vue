@@ -11,7 +11,7 @@ const isModalOpen = ref(false)
 const submitting = ref(false)
 
 const schema = z.object({
-  type: z.enum(['person', 'scene', 'framing', 'action']),
+  type: z.enum(['person', 'scene', 'framing', 'action', 'style']),
   name: z.string().min(1, 'Name is required').max(100),
   content: z.string().min(1, 'Content is required').max(2000),
 })
@@ -29,6 +29,7 @@ const options = [
   { label: 'Scene / Environment', value: 'scene' },
   { label: 'Framing / Camera', value: 'framing' },
   { label: 'Action / Pose', value: 'action' },
+  { label: 'Style / Aesthetics', value: 'style' },
   { label: 'Assembled Prompt', value: 'prompt' },
 ]
 
@@ -88,6 +89,7 @@ const groupedElements = computed(() => {
     { label: 'Scenes', type: 'scene', icon: 'i-lucide-image', items: [] },
     { label: 'Framings', type: 'framing', icon: 'i-lucide-camera', items: [] },
     { label: 'Actions', type: 'action', icon: 'i-lucide-activity', items: [] },
+    { label: 'Styles', type: 'style', icon: 'i-lucide-palette', items: [] },
     { label: 'Prompts', type: 'prompt', icon: 'i-lucide-file-text', items: [] },
   ]
 

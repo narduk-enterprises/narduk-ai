@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PromptElement } from '~/composables/usePromptElements'
+import type { Generation } from '~/types/generation'
 import { PRESET_ATTRIBUTES } from '~/composables/usePresetEditor'
 
 definePageMeta({ middleware: ['auth'] })
@@ -77,7 +78,7 @@ const presetInitialized = ref(false)
 async function initPreset(el: PromptElement) {
   loadPreset(el)
 
-  chatMode.value = el.type as 'person' | 'scene' | 'framing' | 'action'
+  chatMode.value = el.type as 'person' | 'scene' | 'framing' | 'action' | 'style'
   await nextTick()
 
   // Try loading persisted chat history
@@ -217,7 +218,7 @@ async function handleSavePrompt(promptText: string) {
 
   const { createElement, fetchElements } = usePromptElements()
   try {
-    await createElement(elementType as 'person' | 'scene' | 'framing' | 'action', name, promptText)
+    await createElement(elementType as 'person' | 'scene' | 'framing' | 'action' | 'style', name, promptText)
     const toast = useToast()
     toast.add({
       title: 'Saved to Presets',
@@ -264,6 +265,82 @@ watch([() => JSON.stringify(mergedState.value), () => JSON.stringify(editableOve
   }, 2000)
 })
 
+// ── Generation ───────────────────────────────────────────
+const { generateImage: callGenerateImage, fetchGenerations } = useGenerate()
+
+const allGenerations = ref<Generation[]>([])
+const isGeneratingImage = ref(false)
+
+async function loadGenerations() {
+  allGenerations.value = await fetchGenerations(100)
+}
+
+onMounted(() => {
+  loadGenerations()
+})
+
+const presetGenerations = computed(() => {
+  const currentPreset = preset.value
+  if (!currentPreset || !currentPreset.name) return []
+  return allGenerations.value.filter((gen) => {
+    if (!gen.presets) return false
+    try {
+      const parsedPresets = JSON.parse(gen.presets)
+      return parsedPresets[currentPreset.type] === currentPreset.name
+    } catch {
+      return false
+    }
+  })
+})
+
+async function handleGenerateImage() {
+  if (!mergedState.value || !preset.value) return
+  isGeneratingImage.value = true
+
+  const presetMode = preset.value.type
+  const attrs = Object.entries(mergedState.value)
+    .filter(([k, v]) => v && k !== 'name' && k !== 'description')
+    .map(([k, v]) => `${String(k).charAt(0).toUpperCase() + String(k).slice(1).replaceAll('_', ' ')}: ${v}`)
+    .join(', ')
+
+  let prompt = ''
+  if (presetMode === 'person') {
+    prompt = `A portrait photograph of a person: ${attrs}. Realistic, high quality, highly detailed.`
+  } else if (presetMode === 'scene') {
+    prompt = `A cinematic photograph of a scene: ${attrs}. Cinematic composition, ultra-detailed environment, atmospheric, high quality.`
+  } else if (presetMode === 'framing') {
+    prompt = `A demonstration of camera framing and composition: ${attrs}. Cinematic quality.`
+  } else if (presetMode === 'action') {
+    prompt = `A dynamic photograph: ${attrs}. Dramatic lighting, high energy, motion captured, high quality.`
+  }
+
+  const presetsToPass = preset.value.name ? { [presetMode]: preset.value.name } : undefined
+
+  try {
+    await callGenerateImage(prompt, { aspectRatio: '9:16', presets: presetsToPass })
+    useToast().add({
+      title: 'Generation Started',
+      description: 'Your image is generating!',
+      icon: 'i-lucide-check-circle',
+      color: 'success',
+    })
+    // Poll/load for a bit to catch the result
+    for (let i = 0; i < 5; i++) {
+        await new Promise((r) => setTimeout(r, 6000))
+        await loadGenerations()
+    }
+  } catch (err: unknown) {
+    useToast().add({
+      title: 'Generation Failed',
+      description: err instanceof Error ? err.message : 'Unknown error',
+      icon: 'i-lucide-alert-triangle',
+      color: 'error',
+    })
+  } finally {
+    isGeneratingImage.value = false
+  }
+}
+
 // ── Auto-Preview on First Full Attributes ────────────────
 
 watch(currentBuilderState, (state) => {
@@ -293,6 +370,7 @@ const filteredGroupedElements = computed(() => {
     scene: [],
     framing: [],
     action: [],
+    style: [],
   }
   for (const el of elements.value) {
     if (q && !el.name.toLowerCase().includes(q) && !el.type.toLowerCase().includes(q)) continue
@@ -577,6 +655,19 @@ function presetThumb(metadata: string | null | undefined) {
                 <UIcon name="i-lucide-loader-2" class="size-4 animate-spin text-primary" />
                 <span class="text-xs text-muted">Generating...</span>
               </div>
+              
+              <!-- Generate Image Button -->
+              <UButton
+                v-if="headshotUrl || previewImageUrl"
+                block
+                color="primary"
+                icon="i-lucide-image"
+                class="mt-4 shadow-elevated"
+                :loading="isGeneratingImage"
+                @click="handleGenerateImage"
+              >
+                Generate {{ preset?.type === 'person' ? 'Person' : preset?.type ? preset.type.charAt(0).toUpperCase() + preset.type.slice(1) : 'Image' }}
+              </UButton>
             </div>
 
             <!-- Attributes Column -->
@@ -603,6 +694,36 @@ function presetThumb(metadata: string | null | undefined) {
                 {{ preset.content }}
               </div>
             </div>
+          </div>
+          
+          <!-- Separator before gallery section -->
+          <div v-if="presetGenerations.length > 0" class="my-10">
+            <USeparator label="Recent Generations" class="mb-6 font-display font-medium text-sm text-muted" />
+          </div>
+
+          <!-- Generations Carousel -->
+          <div v-if="presetGenerations.length > 0" class="pb-8">
+            <UCarousel
+              v-slot="{ item }"
+              :items="presetGenerations"
+              :ui="{
+                item: 'flex basis-auto',
+                container: 'gap-4',
+              }"
+              arrows
+              class="w-full relative"
+            >
+              <div class="relative group rounded-xl overflow-hidden ring-1 ring-default shadow-card bg-elevated my-2 hover:ring-primary/50 transition-all duration-300">
+                <NuxtLink v-if="item.mediaUrl" :to="`/gallery/${item.id}`" class="block h-48 w-auto">
+                  <MediaPlayer 
+                    :src="item.mediaUrl || ''"
+                    :type="item.type"
+                    class="h-full w-auto object-cover"
+                  />
+                </NuxtLink>
+                <div class="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+              </div>
+            </UCarousel>
           </div>
         </div>
       </div>

@@ -24,6 +24,7 @@ export const PERSON_ATTRIBUTES = [
   'tattoos_piercings',
   'vibe',
   'distinguishing_features',
+  'extended_detail',
   'other',
 ] as const
 
@@ -73,6 +74,19 @@ export const ACTION_ATTRIBUTES = [
   'emotion',
 ] as const
 
+export const STYLE_ATTRIBUTES = [
+  'name',
+  'description',
+  'art_medium',
+  'color_palette',
+  'lighting',
+  'brushwork_or_texture',
+  'influence_or_era',
+  'mood',
+  'level_of_detail',
+  'key_elements',
+] as const
+
 export type PersonAttribute = (typeof PERSON_ATTRIBUTES)[number]
 
 export const PRESET_ATTRIBUTES: Record<string, ReadonlyArray<string>> = {
@@ -80,6 +94,7 @@ export const PRESET_ATTRIBUTES: Record<string, ReadonlyArray<string>> = {
   scene: SCENE_ATTRIBUTES,
   framing: FRAMING_ATTRIBUTES,
   action: ACTION_ATTRIBUTES,
+  style: STYLE_ATTRIBUTES,
 }
 
 // ─── Composable ────────────────────────────────────────────
@@ -228,7 +243,7 @@ export function usePresetEditor() {
         await updateElement(currentPresetId.value, { name, content, metadata: metadataStr })
       } else {
         // Create new
-        const payloadType = mode as 'person' | 'scene' | 'framing' | 'action'
+        const payloadType = mode as 'person' | 'scene' | 'framing' | 'action' | 'style'
         const created = await createElement(payloadType, name, content, metadataStr)
         currentPresetId.value = created?.id ?? null
       }
@@ -294,6 +309,11 @@ export function usePresetEditor() {
       const prompt = `A dynamic photograph of a person performing an action: ${attrs}. Dramatic lighting, high energy, motion captured, photorealistic, high quality.`
       const presets = state.name ? { [presetMode]: state.name } : undefined
       const result = await generateImage(prompt, { aspectRatio: '9:16', presets }).catch(() => null)
+      if (result?.mediaUrl) previewImageUrl.value = result.mediaUrl
+    } else if (presetMode === 'style') {
+      const prompt = `An artistic demonstration of a specific visual style: ${attrs}. Clearly exhibit the unique aesthetics, medium, and techniques described. Masterpiece, highly detailed.`
+      const presets = state.name ? { [presetMode]: state.name } : undefined
+      const result = await generateImage(prompt, { aspectRatio: '1:1', presets }).catch(() => null)
       if (result?.mediaUrl) previewImageUrl.value = result.mediaUrl
     }
 

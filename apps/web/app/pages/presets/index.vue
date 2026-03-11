@@ -24,6 +24,7 @@ const filters = [
   { value: 'scene', label: 'Scenes', icon: 'i-lucide-image' },
   { value: 'framing', label: 'Framing', icon: 'i-lucide-camera' },
   { value: 'action', label: 'Actions', icon: 'i-lucide-activity' },
+  { value: 'style', label: 'Styles', icon: 'i-lucide-palette' },
   { value: 'prompt', label: 'Prompts', icon: 'i-lucide-file-text' },
 ]
 
@@ -42,12 +43,13 @@ const filterCounts = computed(() => {
 
 // Build ordered category sections for the "All" view
 const categorySections = computed(() => {
-  const order = ['person', 'scene', 'framing', 'action', 'prompt']
+  const order = ['person', 'scene', 'framing', 'action', 'style', 'prompt']
   const labelMap: Record<string, string> = {
     person: 'Persons',
     scene: 'Scenes',
     framing: 'Framing',
     action: 'Actions',
+    style: 'Styles',
     prompt: 'Prompts',
   }
   const iconMap: Record<string, string> = {
@@ -55,6 +57,7 @@ const categorySections = computed(() => {
     scene: 'i-lucide-image',
     framing: 'i-lucide-camera',
     action: 'i-lucide-activity',
+    style: 'i-lucide-palette',
     prompt: 'i-lucide-file-text',
   }
   return order
@@ -75,6 +78,7 @@ const presetTypes = [
   { label: 'Scene', value: 'scene', icon: 'i-lucide-image' },
   { label: 'Framing', value: 'framing', icon: 'i-lucide-camera' },
   { label: 'Action', value: 'action', icon: 'i-lucide-activity' },
+  { label: 'Style', value: 'style', icon: 'i-lucide-palette' },
 ]
 
 const dropdownItems = computed(() =>

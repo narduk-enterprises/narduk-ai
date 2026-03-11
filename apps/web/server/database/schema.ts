@@ -70,7 +70,7 @@ export const promptElements = sqliteTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    type: text('type').notNull(), // 'person' | 'scene' | 'framing' | 'action'
+    type: text('type').notNull(), // 'person' | 'scene' | 'framing' | 'action' | 'style' | 'prompt'
     name: text('name').notNull(),
     content: text('content').notNull(),
     metadata: text('metadata'), // JSON blob: { headshotUrl?, fullBodyUrl?, ... }

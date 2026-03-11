@@ -1,7 +1,7 @@
 export interface PromptElement {
   id: string
   userId: string
-  type: 'person' | 'scene' | 'framing' | 'action' | 'prompt'
+  type: 'person' | 'scene' | 'framing' | 'action' | 'style' | 'prompt'
   name: string
   content: string
   metadata?: string | null
@@ -103,7 +103,7 @@ export function usePromptElements() {
   }
 
   async function composeElements(components: Record<string, string | null>) {
-    const parts = ['person', 'scene', 'framing', 'action']
+    const parts = ['person', 'scene', 'framing', 'action', 'style']
       .map((t) => {
         const content = components[t]
         if (!content) return null
@@ -164,6 +164,7 @@ export function usePromptElements() {
       scene: [],
       framing: [],
       action: [],
+      style: [],
       prompt: [],
     }
     for (const el of elements.value) {

@@ -20,6 +20,7 @@ const composeSelection = reactive<Record<string, string | null>>({
   scene: null,
   framing: null,
   action: null,
+  style: null,
 })
 
 const composeSelectionCount = computed(() => Object.values(composeSelection).filter(Boolean).length)
@@ -29,6 +30,7 @@ const composeTypeIcons: Record<string, string> = {
   scene: 'i-lucide-image',
   framing: 'i-lucide-camera',
   action: 'i-lucide-activity',
+  style: 'i-lucide-palette',
 }
 
 const composeCategories: Record<string, string> = {
@@ -36,6 +38,7 @@ const composeCategories: Record<string, string> = {
   scene: 'Scene / Environment',
   framing: 'Framing / Camera',
   action: 'Action / Pose',
+  style: 'Style / Aesthetics',
 }
 
 const filteredGroupedByType = computed(() => {
@@ -176,7 +179,7 @@ async function handleSaveToLibrary() {
   if (!currentPromptDraft.value || saving.value) return
   let title = saveTitle.value.trim()
   if (!title) {
-    const componentNames = ['person', 'scene', 'framing', 'action']
+    const componentNames = ['person', 'scene', 'framing', 'action', 'style']
       .filter((t) => composeSelection[t])
       .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
     title = componentNames.length > 0 ? `Composed: ${componentNames.join(' + ')}` : 'New Prompt'

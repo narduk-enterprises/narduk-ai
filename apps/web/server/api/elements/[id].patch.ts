@@ -3,7 +3,7 @@ import { eq, and } from 'drizzle-orm'
 import { promptElements } from '../../database/schema'
 
 const bodySchema = z.object({
-  type: z.enum(['person', 'scene', 'framing', 'action', 'prompt']).optional(),
+  type: z.enum(['person', 'scene', 'framing', 'action', 'style', 'prompt']).optional(),
   name: z.string().min(1).max(100).optional(),
   content: z.string().min(1).max(2000).optional(),
   metadata: z.string().max(10000).nullish(),

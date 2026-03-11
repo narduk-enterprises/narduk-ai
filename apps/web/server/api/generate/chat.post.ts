@@ -5,7 +5,7 @@ import { grokChat, type GrokChatMessage } from '../../utils/grok'
 
 const bodySchema = z.object({
   chatMode: z
-    .enum(['general', 'person', 'scene', 'framing', 'action'])
+    .enum(['general', 'person', 'scene', 'framing', 'action', 'style'])
     .optional()
     .default('general'),
   messages: z
