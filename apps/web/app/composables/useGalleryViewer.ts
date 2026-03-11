@@ -2,7 +2,7 @@ import type { Generation } from '~/types/generation'
 
 /**
  * Composable for the full-page gallery viewer.
- * Manages viewer state, keyboard/swipe navigation, and infinite scroll prefetch.
+ * Manages viewer state, wrap-around navigation, and infinite scroll prefetch.
  */
 export function useGalleryViewer() {
   const isOpen = useState('gallery-viewer-open', () => false)
@@ -14,9 +14,18 @@ export function useGalleryViewer() {
   const loadingMore = ref(false)
 
   const currentItem = computed(() => items.value[currentIndex.value] ?? null)
-  const hasNext = computed(() => currentIndex.value < items.value.length - 1)
-  const hasPrev = computed(() => currentIndex.value > 0)
-  const counter = computed(() => `${currentIndex.value + 1} / ${items.value.length}`)
+
+  // Navigation always wraps around when there are 2+ items
+  const hasNext = computed(() => items.value.length > 1)
+  const hasPrev = computed(() => items.value.length > 1)
+
+  // Whether more items can potentially be loaded from the server
+  const canLoadMore = computed(() => !!loadMoreCallback.value)
+
+  const counter = computed(() => {
+    const suffix = canLoadMore.value ? '+' : ''
+    return `${currentIndex.value + 1} / ${items.value.length}${suffix}`
+  })
 
   function open(list: Generation[], index: number, loadMoreFn?: () => Promise<void>) {
     items.value = [...list]
@@ -29,23 +38,37 @@ export function useGalleryViewer() {
     isOpen.value = false
   }
 
-  function next() {
-    if (hasNext.value) {
+  async function next() {
+    if (items.value.length <= 1) return
+
+    // Near the end — try to prefetch before advancing
+    if (currentIndex.value >= items.value.length - 4) {
+      await maybePrefetch()
+    }
+
+    if (currentIndex.value < items.value.length - 1) {
       currentIndex.value++
-      maybePrefetch()
+    } else {
+      // Wrap to first item
+      currentIndex.value = 0
     }
   }
 
   function prev() {
-    if (hasPrev.value) {
+    if (items.value.length <= 1) return
+
+    if (currentIndex.value > 0) {
       currentIndex.value--
+    } else {
+      // Wrap to last item
+      currentIndex.value = items.value.length - 1
     }
   }
 
-  function goTo(index: number) {
+  async function goTo(index: number) {
     if (index >= 0 && index < items.value.length) {
       currentIndex.value = index
-      maybePrefetch()
+      await maybePrefetch()
     }
   }
 
@@ -77,6 +100,7 @@ export function useGalleryViewer() {
     currentItem,
     hasNext,
     hasPrev,
+    canLoadMore,
     counter,
     loadingMore,
     open,

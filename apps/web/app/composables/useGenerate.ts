@@ -6,6 +6,7 @@ import type { Generation } from '~/types/generation'
  */
 export function useGenerate() {
   const generating = ref(false)
+  const remixing = ref(false)
   const error = ref<string | null>(null)
   const pollingIntervals = ref<Map<string, ReturnType<typeof setInterval>>>(new Map())
 
@@ -248,6 +249,54 @@ export function useGenerate() {
   }
 
   /**
+   * Remix a generation — sends the original prompt to Grok with creative remix
+   * instructions, then auto-submits a new generation with the remixed prompt.
+   */
+  async function remixGeneration(gen: Generation): Promise<Generation | null> {
+    remixing.value = true
+    error.value = null
+    try {
+      // Step 1: Get a remixed prompt from Grok
+      const remixInstructions =
+        'Creatively remix this prompt — change several elements such as the setting, '
+        + 'time of day, lighting, color palette, camera angle, mood, or artistic style. '
+        + 'Keep the core subject/character but reimagine the scene in a fresh and surprising way. '
+        + 'Return ONLY the remixed prompt.'
+
+      const { enhancedPrompt } = await $fetch<{ enhancedPrompt: string }>(
+        '/api/generate/enhance-prompt',
+        {
+          method: 'POST',
+          body: {
+            prompt: gen.prompt,
+            instructions: remixInstructions,
+          },
+        },
+      )
+
+      const remixedPrompt = enhancedPrompt || gen.prompt
+
+      // Step 2: Generate with the remixed prompt, matching the original type
+      if (gen.type === 'video') {
+        return await generateVideo(remixedPrompt, {
+          duration: gen.duration || 6,
+          aspectRatio: gen.aspectRatio || '16:9',
+          resolution: gen.resolution || '720p',
+        })
+      } else {
+        return await generateImage(remixedPrompt, {
+          aspectRatio: gen.aspectRatio || undefined,
+        })
+      }
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'Failed to remix generation'
+      return null
+    } finally {
+      remixing.value = false
+    }
+  }
+
+  /**
    * Retry a failed/expired generation by re-dispatching based on mode.
    */
   async function retryGeneration(gen: Generation): Promise<Generation | null> {
@@ -306,6 +355,7 @@ export function useGenerate() {
 
   return {
     generating,
+    remixing,
     error,
     generateImage,
     editImage,
@@ -318,6 +368,7 @@ export function useGenerate() {
     deleteGeneration,
     upscaleGeneration,
     retryGeneration,
+    remixGeneration,
     uploadImage,
   }
 }

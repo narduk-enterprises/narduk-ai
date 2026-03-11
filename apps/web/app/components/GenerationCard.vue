@@ -11,6 +11,7 @@ const emit = defineEmits<{
   upscale: [generation: Generation]
   delete: [generation: Generation]
   retry: [generation: Generation]
+  remix: [generation: Generation]
 }>()
 
 const modeLabels: Record<string, string> = {
@@ -71,6 +72,10 @@ function handleDelete() {
 
 function handleUpscale() {
   emit('upscale', props.generation)
+}
+
+function handleRemix() {
+  emit('remix', props.generation)
 }
 </script>
 
@@ -244,6 +249,19 @@ function handleUpscale() {
               icon="i-lucide-wand-2"
               class="touch-target"
               @click.stop.prevent="handleUseAsSource"
+            />
+          </UTooltip>
+          <UTooltip
+            v-if="generation.status === 'done'"
+            text="Remix"
+          >
+            <UButton
+              size="sm"
+              variant="ghost"
+              color="primary"
+              icon="i-lucide-shuffle"
+              class="touch-target"
+              @click.stop.prevent="handleRemix"
             />
           </UTooltip>
           <UTooltip text="Delete">

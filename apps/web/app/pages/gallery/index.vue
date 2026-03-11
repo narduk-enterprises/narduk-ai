@@ -16,6 +16,8 @@ const {
   fetchGenerations,
   deleteGeneration,
   upscaleGeneration,
+  remixGeneration,
+  remixing,
   error: generateError,
 } = useGenerate()
 const toast = useToast()
@@ -231,6 +233,28 @@ async function handleUpscale(gen: Generation) {
   }
 }
 
+async function handleRemix(gen: Generation) {
+  const result = await remixGeneration(gen)
+  if (result) {
+    generations.value.unshift(result)
+    toast.add({
+      title: 'Remix Created',
+      description: result.type === 'video'
+        ? 'Your remixed video is generating!'
+        : 'A remixed image has been created!',
+      color: 'success',
+      icon: 'i-lucide-shuffle',
+    })
+  } else if (generateError.value) {
+    toast.add({
+      title: 'Remix Failed',
+      description: generateError.value,
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  }
+}
+
 const filters = [
   { label: 'All', value: 'all', icon: 'i-lucide-layout-grid' },
   { label: 'Images', value: 'images', icon: 'i-lucide-image' },
@@ -322,6 +346,7 @@ const filters = [
           @upscale="handleUpscale"
           @delete="handleDelete"
           @retry="handleRetry"
+          @remix="handleRemix"
         />
       </div>
 

@@ -3,10 +3,21 @@ import type { Generation } from '~/types/generation'
 
 defineOptions({ inheritAttrs: false })
 
-const { isOpen, currentItem, currentIndex, items, hasNext, hasPrev, counter, next, prev, close } =
-  useGalleryViewer()
+const {
+  isOpen,
+  currentItem,
+  currentIndex,
+  items,
+  hasNext,
+  hasPrev,
+  counter,
+  loadingMore,
+  next,
+  prev,
+  close,
+} = useGalleryViewer()
 
-const { deleteGeneration, upscaleGeneration, error: generateError } = useGenerate()
+const { deleteGeneration, upscaleGeneration, remixGeneration, remixing: remixingRef, error: generateError } = useGenerate()
 const toast = useToast()
 
 // ── Video Controls State ──────────────────────────────────
@@ -233,6 +244,30 @@ function handleInfo() {
   navigateTo(`/gallery/${currentItem.value.id}`)
 }
 
+async function handleRemix() {
+  if (!currentItem.value || remixingRef.value) return
+  const result = await remixGeneration(currentItem.value)
+  if (result) {
+    toast.add({
+      title: 'Remix Started',
+      description: result.type === 'video'
+        ? 'Your remixed video is generating. Check the gallery soon!'
+        : 'A remixed image has been created!',
+      color: 'success',
+      icon: 'i-lucide-shuffle',
+    })
+    close()
+    navigateTo(`/gallery/${result.id}`)
+  } else if (generateError.value) {
+    toast.add({
+      title: 'Remix Failed',
+      description: generateError.value,
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
+  }
+}
+
 function handleUseAsSource() {
   if (!currentItem.value) return
   close()
@@ -322,7 +357,14 @@ onUnmounted(() => {
               class="text-white hover:bg-white/10 rounded-full"
               @click="close"
             />
-            <span class="text-white/70 text-sm font-mono tabular-nums">{{ counter }}</span>
+            <span class="text-white/70 text-sm font-mono tabular-nums flex items-center gap-2">
+              {{ counter }}
+              <UIcon
+                v-if="loadingMore"
+                name="i-lucide-loader-2"
+                class="size-3.5 animate-spin text-primary"
+              />
+            </span>
           </div>
           <div class="flex items-center gap-1.5">
             <UTooltip text="View details">
@@ -362,6 +404,20 @@ onUnmounted(() => {
               />
             </UTooltip>
             <UTooltip
+              v-if="currentItem.status === 'done'"
+              text="Remix"
+            >
+              <UButton
+                icon="i-lucide-shuffle"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                class="text-white hover:bg-white/10 rounded-full"
+                :loading="remixingRef"
+                @click="handleRemix"
+              />
+            </UTooltip>
+            <UTooltip
               v-if="currentItem.type === 'image' && currentItem.status === 'done'"
               text="Upscale to 2K"
             >
@@ -397,7 +453,7 @@ onUnmounted(() => {
             color="neutral"
             variant="ghost"
             size="xl"
-            class="hidden sm:flex absolute left-2 z-10 text-white hover:bg-white/10 rounded-full size-12"
+            class="hidden sm:flex absolute left-2 z-10 text-white/60 hover:text-white hover:bg-white/10 rounded-full size-12 transition-colors"
             @click="prev"
           />
 
@@ -510,7 +566,7 @@ onUnmounted(() => {
             color="neutral"
             variant="ghost"
             size="xl"
-            class="hidden sm:flex absolute right-2 z-10 text-white hover:bg-white/10 rounded-full size-12"
+            class="hidden sm:flex absolute right-2 z-10 text-white/60 hover:text-white hover:bg-white/10 rounded-full size-12 transition-colors"
             @click="next"
           />
         </div>
