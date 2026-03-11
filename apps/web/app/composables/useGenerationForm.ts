@@ -126,16 +126,14 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
               matches = true
             }
           } else {
-            if (val.includes(labelLower) || snippetLower.includes(val)) {
+            // Match strategies (strictest first):
+            // 1. Exact label match
+            // 2. Label is contained in the preset value (e.g. "bouncy" in "natural & bouncy")
+            // 3. Full preset value is contained in label (e.g. "medium" matches "Medium")
+            // We intentionally do NOT word-split and match against snippets, because
+            // common words like "natural" appear in many snippets and cause false positives.
+            if (val === labelLower || val.includes(labelLower) || labelLower.includes(val)) {
               matches = true
-            } else {
-              const valWords = val.split(/[\s,]+/).filter((w) => w.length > 2)
-              for (const word of valWords) {
-                if (labelLower === word || snippetLower.includes(word)) {
-                  matches = true
-                  break
-                }
-              }
             }
           }
 

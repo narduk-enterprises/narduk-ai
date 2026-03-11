@@ -37,7 +37,11 @@ function formatKey(key: string | number) {
     >
       <!-- Chat Bubble -->
       <div
-        v-if="msg.parsedResponse?.message || (!msg.parsedResponse && msg.content)"
+        v-if="
+          msg.parsedResponse?.message ||
+          (!msg.parsedResponse && msg.content) ||
+          (msg.role === 'assistant' && msg.content)
+        "
         class="p-4 rounded-2xl whitespace-pre-wrap text-sm md:text-base leading-relaxed"
         :class="[
           msg.role === 'user'
@@ -45,7 +49,7 @@ function formatKey(key: string | number) {
             : 'bg-elevated text-default border border-default rounded-tl-sm shadow-sm',
         ]"
       >
-        {{ msg.parsedResponse ? msg.parsedResponse.message : msg.content }}
+        {{ msg.parsedResponse?.message || msg.content?.replace(/<[^>]+>/g, '') || '' }}
       </div>
 
       <!-- Generated Prompt Card -->
