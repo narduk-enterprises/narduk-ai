@@ -65,9 +65,9 @@ for (const [type, name] of Object.entries(cached.presets)) {
 
 The plan said “Enforce single-select per category” but the real requirement is single-select per **(attributeKey, appliesTo)** scope (so scene:lighting and style:lighting are independent). The current `usePromptTags` implements this correctly (tagScope = `JSON.stringify(tag.appliesTo?.sort() ?? [])`). The implementation plan’s snippet showed only `attributeKey`; the codebase is ahead of the plan. No change needed; document this in the plan.
 
-**3. useQuickModifiers.ts is dead code**
+**3. useQuickModifiers.ts is dead code** — ✅ **Resolved on PR #3**
 
-No remaining imports of `useQuickModifiers`; all flows use `usePromptTags`. The plan lists “useQuickModifiers.ts → usePromptTags.ts” as REWRITE but both files exist. Removing or deprecating `useQuickModifiers.ts` avoids confusion and prevents accidental use.
+On branch refactor/prompt-generation-v3, useQuickModifiers.ts has been removed; only usePromptTags remains. (Previously: The plan listed “useQuickModifiers.ts → usePromptTags.ts” as REWRITE but both files exist. Removing or deprecating `useQuickModifiers.ts` avoids confusion and prevents accidental use.
 
 **4. Generation type omits lineage / promptElements**
 
@@ -182,4 +182,4 @@ No remaining imports of `useQuickModifiers`; all flows use `usePromptTags`. The 
 
 ## Summary
 
-- The audit and plan are largely complete and the current implementation (usePromptTags, usePromptCompiler, useGenerationForm, useGenerationDispatch, dual-write, Feeling Lucky with singleton elements) matches the intent. The main fix needed is **useFeelingLucky preset resolution by (type, name)**. Other items are documentation, dead-code cleanup, and small safeguards (load gate, type, migration order). No fundamental design change is required; the prompt_tags abstraction and “never prune” behavior are sound.
+- The audit and plan are largely complete and the current implementation (usePromptTags, usePromptCompiler, useGenerationForm, useGenerationDispatch, dual-write, Feeling Lucky with singleton elements) matches the intent. On **PR #3**, useFeelingLucky (type, name) resolution and removal of useQuickModifiers are done, and all 7 Copilot findings are addressed. Remaining items are documentation and small safeguards (load gate, Generation type when lineage is used, migration order). No fundamental design change is required; the prompt_tags abstraction and “never prune” behavior are sound.
