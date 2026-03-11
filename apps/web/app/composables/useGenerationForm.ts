@@ -101,9 +101,7 @@ export function useGenerationForm() {
         )
 
         const successes = settled
-          .filter(
-            (r): r is PromiseFulfilledResult<Generation | null> => r.status === 'fulfilled',
-          )
+          .filter((r): r is PromiseFulfilledResult<Generation | null> => r.status === 'fulfilled')
           .map((r) => r.value)
           .filter((v): v is Generation => v !== null)
 

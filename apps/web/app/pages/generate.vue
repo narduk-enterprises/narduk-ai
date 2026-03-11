@@ -396,7 +396,13 @@ function editResult(gen: Generation) {
           :loading="generating"
           :disabled="isGenerateDisabled"
           block
-          :label="generating ? 'Generating...' : (imageCount > 1 && activeTab === 't2i' ? `Generate ${imageCount} Images` : 'Generate')"
+          :label="
+            generating
+              ? 'Generating...'
+              : imageCount > 1 && activeTab === 't2i'
+                ? `Generate ${imageCount} Images`
+                : 'Generate'
+          "
           class="rounded-xl shadow-lg hover:shadow-primary/20 transition-shadow"
           @click="handleGenerate"
         />
@@ -429,7 +435,9 @@ function editResult(gen: Generation) {
         </div>
 
         <!-- Done: Batch Grid (multiple results) -->
-        <template v-else-if="latestResults.length > 1 && latestResults.every(r => r.status === 'done')">
+        <template
+          v-else-if="latestResults.length > 1 && latestResults.every((r) => r.status === 'done')"
+        >
           <div
             class="grid gap-4"
             :class="{
@@ -452,7 +460,9 @@ function editResult(gen: Generation) {
                 loading="lazy"
               />
               <!-- Quick Actions Overlay -->
-              <div class="absolute bottom-0 inset-x-0 p-2 bg-linear-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div
+                class="absolute bottom-0 inset-x-0 p-2 bg-linear-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              >
                 <div class="flex justify-center gap-1.5">
                   <UTooltip text="Animate">
                     <UButton
@@ -643,11 +653,7 @@ function editResult(gen: Generation) {
         </div>
 
         <!-- Image Count (T2I only) -->
-        <UFormField
-          v-if="activeTab === 't2i'"
-          label="Images"
-          class="w-full sm:w-auto"
-        >
+        <UFormField v-if="activeTab === 't2i'" label="Images" class="w-full sm:w-auto">
           <div class="flex gap-1">
             <UButton
               v-for="count in imageCounts"
