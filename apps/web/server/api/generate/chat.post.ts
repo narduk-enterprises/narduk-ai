@@ -65,6 +65,13 @@ export default defineEventHandler(async (event) => {
         chatModel,
       )
       log.info('Chat completion streaming started', { userId: user.id })
+
+      // Cloudflare edge nodes buffer plain text streams by default.
+      // We must explicitly disable caching and transformations.
+      setResponseHeader(event, 'Cache-Control', 'no-cache, no-transform')
+      setResponseHeader(event, 'Content-Type', 'text/plain; charset=utf-8')
+      setResponseHeader(event, 'Connection', 'keep-alive')
+
       return sendStream(event, stream)
     } else {
       const responseContent = await grokChat(
