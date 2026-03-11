@@ -120,4 +120,6 @@ INSERT INTO `quick_modifiers` (`id`, `category`, `label`, `snippet`, `sort_order
 ('tattoo-facial', 'tattoos piercings', 'Facial Piercing', 'nose ring, lip ring, facial piercings', 3, 1, '2026-03-11T00:00:00Z'),
 ('tattoo-small', 'tattoos piercings', 'Small Tattoos', 'small subtle tattoos', 4, 1, '2026-03-11T00:00:00Z'),
 ('tattoo-sleeves', 'tattoos piercings', 'Tattoo Sleeves', 'full tattoo sleeves, heavily tattooed arms', 5, 1, '2026-03-11T00:00:00Z'),
-('tattoo-fullbody', 'tattoos piercings', 'Full Body Tattoos', 'full body tattoos, covered in ink', 6, 1, '2026-03-11T00:00:00Z');
+('tattoo-fullbody', 'tattoos piercings', 'Full Body Tattoos', 'full body tattoos, covered in ink', 6, 1, '2026-03-11T00:00:00Z')
+ON CONFLICT (id) DO NOTHING;
+
