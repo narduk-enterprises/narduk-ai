@@ -459,10 +459,7 @@ const resolutions = ['480p', '720p']
               icon="i-lucide-refresh-cw"
               size="sm"
               class="rounded-full"
-              @click="
-                prompt = latestResult!.prompt
-                handleGenerate()
-              "
+              @click="handleRetry"
             >
               Retry
             </UButton>
@@ -472,10 +469,7 @@ const resolutions = ['480p', '720p']
               icon="i-lucide-trash-2"
               size="sm"
               class="rounded-full"
-              @click="
-                deleteGeneration(latestResult!.id)
-                latestResult = null
-              "
+              @click="handleDismiss"
             >
               Dismiss
             </UButton>
