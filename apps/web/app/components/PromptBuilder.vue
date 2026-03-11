@@ -73,7 +73,7 @@ async function composeDraft() {
     content: `You are a prompt engineering expert. The user is selecting components to generate an image/video prompt.
 Compose them into a single, cohesive, highly-detailed generation prompt. 
 Whenever the user talks to you, refine the prompt based on their request.
-Return JSON ONLY, matching exactly: { "message": "friendly chat reply to the user explaining what you did", "prompt": "the updated full generation prompt string" }.
+Return JSON ONLY, matching exactly: { "message": "friendly chat reply to the user explaining what you did", "prompt": "the updated full generation prompt string", "suggested_title": "A short, catchy title for this prompt" }.
 Make the prompt vivid, specific, and ready to use for image generation. Do not include category prefixes in the final prompt.`,
   }
 
@@ -93,6 +93,9 @@ Make the prompt vivid, specific, and ready to use for image generation. Do not i
 
     const parsed = JSON.parse(res.content)
     currentPromptDraft.value = parsed.prompt || ''
+    if (parsed.suggested_title && !saveTitle.value) {
+      saveTitle.value = parsed.suggested_title
+    }
     chatLog.value.push({ role: 'assistant', text: parsed.message || 'Draft created.' })
 
     // Store assistant's original raw JSON reply in the internal message array for context
@@ -128,6 +131,9 @@ async function sendChatMessage() {
 
     const parsed = JSON.parse(res.content)
     if (parsed.prompt) currentPromptDraft.value = parsed.prompt
+    if (parsed.suggested_title && !saveTitle.value) {
+      saveTitle.value = parsed.suggested_title
+    }
     chatLog.value.push({ role: 'assistant', text: parsed.message || 'Updated the prompt.' })
     chatMessages.value.push({ role: 'assistant', content: res.content })
   } catch (e) {
