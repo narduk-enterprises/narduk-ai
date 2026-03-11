@@ -6,9 +6,9 @@
  * tables below the re-export.
  */
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
-import { users } from '#layer/server/database/schema'
+import { users } from '../../../../layers/narduk-nuxt-layer/server/database/schema'
 
-export * from '#layer/server/database/schema'
+export * from '../../../../layers/narduk-nuxt-layer/server/database/schema'
 
 // ─── App-Specific Tables ────────────────────────────────────
 
@@ -39,6 +39,25 @@ export const generations = sqliteTable(
     index('generations_user_id_idx').on(table.userId),
     index('generations_status_idx').on(table.status),
     index('generations_xai_request_id_idx').on(table.xaiRequestId),
+  ],
+)
+
+export const promptElements = sqliteTable(
+  'prompt_elements',
+  {
+    id: text('id').primaryKey().notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(), // 'person' | 'scene' | 'framing' | 'action'
+    name: text('name').notNull(),
+    content: text('content').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('prompt_elements_user_id_idx').on(table.userId),
+    index('prompt_elements_type_idx').on(table.type),
   ],
 )
 

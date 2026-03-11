@@ -59,6 +59,11 @@ function handleReset() {
       <p class="text-muted mt-1">Default preferences for new generations.</p>
     </div>
 
+    <!-- Prompt Library Management -->
+    <div class="glass-card p-6">
+      <PromptElementManagement />
+    </div>
+
     <!-- Video Defaults -->
     <div class="glass-card p-6 space-y-6">
       <h2 class="font-display text-lg font-semibold flex items-center gap-2">

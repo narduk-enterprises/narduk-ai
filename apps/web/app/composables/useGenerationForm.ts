@@ -29,22 +29,7 @@ export function useGenerationForm() {
   const resolution = ref(defaultResolution.value)
   const sourceGenerationId = ref((route.query.source as string) || '')
 
-  // ─── Chat State ─────────────────────────────────────────────
-
-  const chatMessages = ref<Array<{ role: 'system' | 'user' | 'assistant'; content: string }>>([
-    {
-      role: 'system',
-      content:
-        'You are Grok, an expert AI assistant specialized in writing prompts for image and video generation models. Help the user brainstorm and refine their ideas into detailed, vivid, and stylistic prompts. Be concise but highly descriptive when suggesting prompts.',
-    },
-    {
-      role: 'assistant',
-      content:
-        'Hi! I can help you craft the perfect prompt for your next image or video. What are you thinking of creating?',
-    },
-  ])
-  const chatInput = ref('')
-  const isChatting = ref(false)
+  // ─── Chat State Removed (Moved to useChatForm) ──────────────
 
   // ─── Generation Results ─────────────────────────────────────
 
@@ -238,41 +223,7 @@ export function useGenerationForm() {
     }
   }
 
-  // ─── Chat Actions ───────────────────────────────────────────
-
-  async function sendChatMessage() {
-    if (!chatInput.value.trim() || isChatting.value) return
-
-    const userText = chatInput.value
-    chatInput.value = ''
-    error.value = null
-
-    chatMessages.value.push({ role: 'user', content: userText })
-    isChatting.value = true
-
-    try {
-      const result = await $fetch<{ content: string }>('/api/generate/chat', {
-        method: 'POST',
-        body: {
-          messages: chatMessages.value,
-        },
-      })
-      if (result.content) {
-        chatMessages.value.push({ role: 'assistant', content: result.content })
-      }
-    } catch (e) {
-      const err = e as { data?: { message?: string }; message?: string }
-      error.value = err.data?.message || err.message || 'Failed to get chat response'
-    } finally {
-      isChatting.value = false
-    }
-  }
-
-  function useMessageAsPrompt(text: string) {
-    prompt.value = text
-    error.value = null
-    activeTab.value = 't2i' // Switch to default generation tab
-  }
+  // ─── Chat Actions Removed (Moved to useChatForm) ────────────
 
   return {
     // Form state
@@ -282,11 +233,6 @@ export function useGenerationForm() {
     duration,
     resolution,
     sourceGenerationId,
-
-    // Chat
-    chatMessages,
-    chatInput,
-    isChatting,
 
     // Results
     latestResult,
@@ -317,9 +263,5 @@ export function useGenerationForm() {
     handleImageUpload,
     removeEnhanceImage,
     enhanceImageBase64,
-
-    // Chat Actions
-    sendChatMessage,
-    useMessageAsPrompt,
   }
 }

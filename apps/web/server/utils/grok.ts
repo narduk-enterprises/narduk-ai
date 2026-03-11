@@ -21,6 +21,7 @@ export async function grokChat(
   apiKey: string,
   messages: GrokChatMessage[],
   model?: string,
+  responseFormat?: { type: 'json_object' | 'text' },
 ): Promise<string> {
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
@@ -32,6 +33,7 @@ export async function grokChat(
       model: model || 'grok-3-mini',
       messages,
       temperature: 0.7,
+      ...(responseFormat && { response_format: responseFormat }),
     }),
   })
 

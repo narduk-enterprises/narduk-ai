@@ -4,6 +4,10 @@ import { appSettings } from '../../database/schema'
 import { grokChat, type GrokChatMessage } from '../../utils/grok'
 
 const bodySchema = z.object({
+  chatMode: z
+    .enum(['general', 'person', 'scene', 'framing', 'action'])
+    .optional()
+    .default('general'),
   messages: z
     .array(
       z.object({
@@ -31,6 +35,7 @@ export default defineEventHandler(async (event) => {
   log.info('AUDIT: Chat generation request', {
     action: 'chat_completion',
     userId: user.id,
+    mode: body.chatMode,
     messageCount: body.messages.length,
   })
 
@@ -56,6 +61,7 @@ export default defineEventHandler(async (event) => {
       config.xaiApiKey,
       body.messages as GrokChatMessage[],
       chatModel,
+      { type: 'json_object' },
     )
     log.info('Chat completion successful', { userId: user.id })
     return { content: responseContent }
