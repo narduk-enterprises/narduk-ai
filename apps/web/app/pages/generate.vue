@@ -43,7 +43,7 @@ const {
   enhanceImageBase64,
 } = useGenerationForm()
 
-const { elements, groupedByType, fetchElements, createElement, composeElements } =
+const { elements, groupedByType, fetchElements, createElement, composeElements, remixPrompt } =
   usePromptElements()
 
 const isComposeModalOpen = ref(false)
@@ -64,6 +64,19 @@ function toggleComposeSelection(type: string, content: string) {
 
 const composing = ref(false)
 const composedResult = ref<string | null>(null)
+const remixing = ref(false)
+
+async function handleRemix() {
+  if (!prompt.value.trim() || remixing.value) return
+  remixing.value = true
+  try {
+    prompt.value = await remixPrompt(prompt.value)
+  } catch (e) {
+    console.error('Remix failed:', e)
+  } finally {
+    remixing.value = false
+  }
+}
 
 async function composeWithGrok() {
   composing.value = true
@@ -204,6 +217,18 @@ const resolutions = ['480p', '720p']
                 @click="openComposeModal"
               >
                 Compose
+              </UButton>
+              <UButton
+                variant="ghost"
+                color="neutral"
+                size="xs"
+                icon="i-lucide-shuffle"
+                :loading="remixing"
+                :disabled="!prompt.trim() || generating || remixing"
+                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-[10px]"
+                @click="handleRemix"
+              >
+                Remix
               </UButton>
               <UButton
                 variant="ghost"

@@ -3,8 +3,6 @@ import { eq } from 'drizzle-orm'
 import { generations, appSettings } from '../../database/schema'
 
 const bodySchema = z.object({
-
-
   prompt: z.string().min(1).max(20_000),
 
   aspectRatio: z.string().optional(),

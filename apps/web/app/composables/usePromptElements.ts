@@ -116,6 +116,30 @@ export function usePromptElements() {
     return (parsed.prompt || parsed.message || res.content) as string
   }
 
+  async function remixPrompt(currentPrompt: string) {
+    if (!currentPrompt.trim()) throw new Error('No prompt to remix')
+
+    const res = await $fetch<{ content: string }>('/api/generate/chat', {
+      method: 'POST',
+      body: {
+        chatMode: 'general',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a creative prompt remixer. The user will give you an image/video generation prompt. Create a fresh variation that keeps the same general theme and mood but changes specific details — swap out some visual elements, shift the atmosphere, alter the composition, or add unexpected twists. Return JSON: { "message": "one-line summary of what you changed", "prompt": "the remixed prompt" }. Make meaningful creative changes, not just synonym swaps.',
+          },
+          {
+            role: 'user',
+            content: `Remix this prompt:\n\n${currentPrompt}`,
+          },
+        ],
+      },
+    })
+    const parsed = JSON.parse(res.content)
+    return (parsed.prompt || parsed.message || res.content) as string
+  }
+
   const groupedByType = computed(() => {
     const groups: Record<string, PromptElement[]> = {
       person: [],
@@ -141,5 +165,6 @@ export function usePromptElements() {
     updateElement,
     deleteElement,
     composeElements,
+    remixPrompt,
   }
 }
