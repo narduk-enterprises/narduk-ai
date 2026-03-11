@@ -19,7 +19,7 @@ function isLandscape(gen: Generation): boolean {
 </script>
 
 <template>
-  <div v-if="generations.length" class="space-y-4">
+  <div v-if="generations.length" class="space-y-4 min-w-0">
     <div class="flex items-center justify-between">
       <h2 class="text-lg font-display font-semibold">Recent</h2>
       <UButton variant="link" to="/gallery" size="sm" trailing-icon="i-lucide-arrow-right">
@@ -30,10 +30,8 @@ function isLandscape(gen: Generation): boolean {
       v-slot="{ item }"
       :items="generations"
       :ui="{
-        viewport: 'overflow-visible',
-        item: 'snap-start shrink-0 pl-3',
-        container:
-          'flex overflow-x-auto snap-x snap-mandatory scroll-smooth hide-scrollbar -ml-3 py-2',
+        item: 'min-w-0 shrink-0 grow-0 basis-auto ps-4',
+        container: 'flex items-start -ms-4',
       }"
       arrows
       class="w-full"
@@ -115,13 +113,3 @@ function isLandscape(gen: Generation): boolean {
     </UCarousel>
   </div>
 </template>
-
-<style scoped>
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.hide-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
-}
-</style>
