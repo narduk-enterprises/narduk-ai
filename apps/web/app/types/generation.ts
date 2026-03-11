@@ -14,6 +14,7 @@ export interface Generation {
   mediaUrl: string | null
   thumbnailUrl: string | null
   duration: number | null
+  generationTimeMs: number | null
   aspectRatio: string | null
   resolution: string | null
   metadata: string | null

@@ -91,6 +91,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const now = new Date().toISOString()
+    const generationTimeMs = Date.now() - new Date(gen.createdAt).getTime()
     await db
       .update(generations)
       .set({
@@ -99,6 +100,7 @@ export default defineEventHandler(async (event) => {
         mediaUrl: `/api/media/${r2Key}`,
         thumbnailUrl: result.video.coverImg,
         duration: result.video.duration,
+        generationTimeMs,
         metadata: JSON.stringify(result),
         updatedAt: now,
       })
@@ -116,6 +118,7 @@ export default defineEventHandler(async (event) => {
       r2Key,
       mediaUrl: `/api/media/${r2Key}`,
       duration: result.video.duration,
+      generationTimeMs,
     }
   }
 

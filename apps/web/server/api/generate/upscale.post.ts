@@ -80,12 +80,14 @@ export default defineEventHandler(async (event) => {
   }
 
   // Call Grok Image Edit API with 2K resolution
+  const startTimeMs = Date.now()
   const result = await grokEditImage(config.xaiApiKey, {
     prompt: source.prompt || 'Enhance this image with higher resolution and sharper details.',
     model: imageModel,
     imageUrl: dataUrl,
     resolution: '2k',
   })
+  const generationTimeMs = Date.now() - startTimeMs
 
   const imageData = result.data?.[0]
   const imageUrl = imageData?.url
@@ -121,6 +123,7 @@ export default defineEventHandler(async (event) => {
       upscaled: true,
       resolution: '2k',
     }),
+    generationTimeMs,
     createdAt: now,
     updatedAt: now,
   }

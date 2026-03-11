@@ -198,6 +198,9 @@ function handleUpscale() {
       <div class="flex items-center justify-between pt-1">
         <span class="text-xs text-dimmed">
           {{ new Date(generation.createdAt).toLocaleDateString() }}
+          <span v-if="generation.generationTimeMs" class="ml-1 opacity-75">
+            ({{ (generation.generationTimeMs / 1000).toFixed(1) }}s)
+          </span>
         </span>
         <div
           class="flex gap-1 opacity-100 md:opacity-0 transition-opacity duration-200 md:group-hover:opacity-100"

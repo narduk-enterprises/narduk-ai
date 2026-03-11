@@ -86,11 +86,13 @@ export default defineEventHandler(async (event) => {
   }
 
   // Call Grok Image Edit API
+  const startTimeMs = Date.now()
   const result = await grokEditImage(config.xaiApiKey, {
     prompt: body.prompt,
     model: imageModel,
     imageUrl: dataUrl,
   })
+  const generationTimeMs = Date.now() - startTimeMs
   const imageData = result.data?.[0]
   const imageUrl = imageData?.url
   if (!imageUrl) {
@@ -124,6 +126,7 @@ export default defineEventHandler(async (event) => {
     presets: body.presets ? JSON.stringify(body.presets) : null,
     userPromptId: body.userPromptId || null,
     metadata: JSON.stringify({ revised_prompt: imageData.revised_prompt }),
+    generationTimeMs,
     createdAt: now,
     updatedAt: now,
   }

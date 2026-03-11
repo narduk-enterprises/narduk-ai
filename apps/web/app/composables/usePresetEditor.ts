@@ -265,9 +265,11 @@ export function usePresetEditor() {
       const fullBodyPrompt = `Full body portrait photograph of a person: ${attrs}. Standing pose facing the viewer, plain white background, studio lighting, clean and simple, fashion lookbook style, no distractions, high quality, photorealistic.`
       const headshotPrompt = `Professional headshot portrait of a person: ${attrs}. Close-up face and shoulders, plain white background, studio lighting, sharp focus, high quality, photorealistic.`
 
+      const presets = state.name ? { [presetMode]: state.name } : undefined
+
       const [fullBodyResult, headshotResult] = await Promise.allSettled([
-        generateImage(fullBodyPrompt, { aspectRatio: '9:16' }),
-        generateImage(headshotPrompt, { aspectRatio: '1:1' }),
+        generateImage(fullBodyPrompt, { aspectRatio: '9:16', presets }),
+        generateImage(headshotPrompt, { aspectRatio: '1:1', presets }),
       ])
 
       if (fullBodyResult.status === 'fulfilled' && fullBodyResult.value?.mediaUrl) {
@@ -278,15 +280,18 @@ export function usePresetEditor() {
       }
     } else if (presetMode === 'scene') {
       const prompt = `A cinematic wide-angle photograph of a scene: ${attrs}. Cinematic composition, ultra-detailed environment, atmospheric, high quality, photorealistic, no people.`
-      const result = await generateImage(prompt, { aspectRatio: '16:9' }).catch(() => null)
+      const presets = state.name ? { [presetMode]: state.name } : undefined
+      const result = await generateImage(prompt, { aspectRatio: '16:9', presets }).catch(() => null)
       if (result?.mediaUrl) previewImageUrl.value = result.mediaUrl
     } else if (presetMode === 'framing') {
       const prompt = `A demonstration of camera framing and composition: ${attrs}. Show the framing technique with a generic subject in a neutral environment, cinematic quality, photorealistic.`
-      const result = await generateImage(prompt, { aspectRatio: '16:9' }).catch(() => null)
+      const presets = state.name ? { [presetMode]: state.name } : undefined
+      const result = await generateImage(prompt, { aspectRatio: '16:9', presets }).catch(() => null)
       if (result?.mediaUrl) previewImageUrl.value = result.mediaUrl
     } else if (presetMode === 'action') {
       const prompt = `A dynamic photograph of a person performing an action: ${attrs}. Dramatic lighting, high energy, motion captured, photorealistic, high quality.`
-      const result = await generateImage(prompt, { aspectRatio: '9:16' }).catch(() => null)
+      const presets = state.name ? { [presetMode]: state.name } : undefined
+      const result = await generateImage(prompt, { aspectRatio: '9:16', presets }).catch(() => null)
       if (result?.mediaUrl) previewImageUrl.value = result.mediaUrl
     }
 

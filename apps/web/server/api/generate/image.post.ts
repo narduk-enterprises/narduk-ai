@@ -48,11 +48,13 @@ export default defineEventHandler(async (event) => {
   }
 
   // Call Grok Imagine API
+  const startTimeMs = Date.now()
   const result = await grokGenerateImage(config.xaiApiKey, {
     prompt: body.prompt,
     model: imageModel,
     aspectRatio: body.aspectRatio,
   })
+  const generationTimeMs = Date.now() - startTimeMs
 
   const imageData = result.data?.[0]
   const imageUrl = imageData?.url
@@ -88,6 +90,7 @@ export default defineEventHandler(async (event) => {
     presets: body.presets ? JSON.stringify(body.presets) : null,
     userPromptId: body.userPromptId || null,
     metadata: JSON.stringify({ revised_prompt: imageData.revised_prompt }),
+    generationTimeMs,
     createdAt: now,
     updatedAt: now,
   }

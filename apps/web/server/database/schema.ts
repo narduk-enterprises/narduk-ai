@@ -29,6 +29,7 @@ export const generations = sqliteTable(
     mediaUrl: text('media_url'),
     thumbnailUrl: text('thumbnail_url'),
     duration: integer('duration'),
+    generationTimeMs: integer('generation_time_ms'),
     aspectRatio: text('aspect_ratio'),
     resolution: text('resolution'),
     metadata: text('metadata'), // JSON blob

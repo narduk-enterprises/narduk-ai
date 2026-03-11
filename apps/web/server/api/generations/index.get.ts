@@ -70,6 +70,7 @@ export default defineEventHandler(async (event) => {
             const buffer = await downloadMedia(result.video.url)
             await uploadToR2(event, r2Key, buffer, 'video/mp4')
 
+            const generationTimeMs = Date.now() - new Date(gen.createdAt).getTime()
             await db
               .update(generations)
               .set({
@@ -77,6 +78,7 @@ export default defineEventHandler(async (event) => {
                 r2Key,
                 mediaUrl: `/api/media/${r2Key}`,
                 duration: result.video.duration,
+                generationTimeMs,
                 metadata: JSON.stringify(result),
                 updatedAt: now,
               })
@@ -85,6 +87,7 @@ export default defineEventHandler(async (event) => {
             gen.r2Key = r2Key
             gen.mediaUrl = `/api/media/${r2Key}`
             gen.duration = result.video.duration
+            gen.generationTimeMs = generationTimeMs
             gen.metadata = JSON.stringify(result)
             gen.updatedAt = now
           } else if (result.status === 'failed') {

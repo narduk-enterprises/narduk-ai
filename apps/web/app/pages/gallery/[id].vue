@@ -155,6 +155,18 @@ const errorMessage = computed(() => {
     return null
   }
 })
+
+const parsedPresets = computed(() => {
+  if (!generation.value?.presets) return null
+  try {
+    const raw = JSON.parse(generation.value.presets) as Record<string, string>
+    return Object.entries(raw).map(
+      ([key, val]) => `${key.charAt(0).toUpperCase() + key.slice(1)}: ${val}`,
+    )
+  } catch {
+    return null
+  }
+})
 </script>
 
 <template>
@@ -334,6 +346,25 @@ const errorMessage = computed(() => {
                 </dd>
               </div>
             </dl>
+          </div>
+
+          <!-- Presets -->
+          <div class="glass-card p-5" v-if="parsedPresets?.length">
+            <h3 class="text-sm font-semibold text-muted mb-4 uppercase tracking-wider">
+              Presets Used
+            </h3>
+            <div class="flex flex-wrap gap-2">
+              <UBadge
+                v-for="preset in parsedPresets"
+                :key="preset"
+                color="primary"
+                variant="subtle"
+                size="sm"
+                class="font-medium"
+              >
+                {{ preset }}
+              </UBadge>
+            </div>
           </div>
 
           <!-- Source Image (If Applicable) -->
