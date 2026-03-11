@@ -1,4 +1,4 @@
-CREATE TABLE `quick_modifiers` (
+CREATE TABLE IF NOT EXISTS `quick_modifiers` (
 	`id` text PRIMARY KEY NOT NULL,
 	`category` text NOT NULL,
 	`label` text NOT NULL,
@@ -9,4 +9,4 @@ CREATE TABLE `quick_modifiers` (
 	`updated_at` text NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX `quick_modifiers_usage_idx` ON `quick_modifiers` (`usage_count`);
+CREATE INDEX IF NOT EXISTS `quick_modifiers_usage_idx` ON `quick_modifiers` (`usage_count`);
