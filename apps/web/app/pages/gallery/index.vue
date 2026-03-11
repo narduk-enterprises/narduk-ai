@@ -17,7 +17,6 @@ const {
   deleteGeneration,
   upscaleGeneration,
   remixGeneration,
-  remixing,
   error: generateError,
 } = useGenerate()
 const toast = useToast()

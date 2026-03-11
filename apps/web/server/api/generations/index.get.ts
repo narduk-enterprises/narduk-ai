@@ -11,7 +11,7 @@ const querySchema = z.object({
   mode: z.string().optional(),
 })
 
-const STALE_TIMEOUT_MS = 10 * 60 * 1000
+
 
 /**
  * GET /api/generations — List user's generations (newest first).

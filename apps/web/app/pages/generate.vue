@@ -99,6 +99,18 @@ function handlePromptKeydown(e: KeyboardEvent) {
   }
 }
 
+function handleRetry() {
+  if (!latestResult.value) return
+  prompt.value = latestResult.value.prompt
+  handleGenerate()
+}
+
+function handleDismiss() {
+  if (!latestResult.value) return
+  deleteGeneration(latestResult.value.id)
+  latestResult.value = null
+}
+
 const modes = [
   { value: 't2i', label: 'Text → Image', icon: 'i-lucide-image' },
   { value: 't2v', label: 'Text → Video', icon: 'i-lucide-video' },
@@ -447,10 +459,7 @@ const resolutions = ['480p', '720p']
               icon="i-lucide-refresh-cw"
               size="sm"
               class="rounded-full"
-              @click="
-                prompt = latestResult!.prompt
-                handleGenerate()
-              "
+              @click="prompt = latestResult!.prompt; handleGenerate()"
             >
               Retry
             </UButton>
@@ -460,10 +469,7 @@ const resolutions = ['480p', '720p']
               icon="i-lucide-trash-2"
               size="sm"
               class="rounded-full"
-              @click="
-                deleteGeneration(latestResult!.id)
-                latestResult = null
-              "
+              @click="deleteGeneration(latestResult!.id); latestResult = null"
             >
               Dismiss
             </UButton>
