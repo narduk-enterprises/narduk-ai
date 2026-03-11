@@ -106,6 +106,7 @@ const CATEGORY_ORDER = [
   'season',
   'color_palette',
   // Framing
+  'framing',
   'shot_type',
   'camera_angle',
   'lens',
@@ -202,7 +203,7 @@ export async function getQuickModifiersByCategory(
     return {
       attributeKey: key,
       appliesTo: parseAppliesTo(meta?.appliesTo || null),
-      selectionMode: (meta?.selectionMode || 'single') as 'single' | 'multi',
+      selectionMode: (['single', 'multi'].includes(meta?.selectionMode || '') ? meta!.selectionMode : 'single') as 'single' | 'multi',
       category: meta?.category || key,
       label: formatLabel(key),
       icon: CATEGORY_ICONS[key] || 'i-lucide-tag',

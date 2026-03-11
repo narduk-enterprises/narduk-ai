@@ -42,7 +42,7 @@ export function useGenerationForm() {
   const activePresetBlocks = computed(() => {
     return activePresetIds.value
       .map((id) => allElements.value.find((el) => el.id === id))
-      .filter((el): el is PromptElement => el !== null)
+      .filter((el): el is PromptElement => el != null)
       .map((el) => ({ type: el.type, content: el.content }))
   })
 

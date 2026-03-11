@@ -1,7 +1,20 @@
-import type { PromptTag } from '~/types/promptTag'
+/** Raw DB shape from /api/admin/quick-modifiers — NOT the parsed PromptTag type */
+interface QuickModifierRow {
+  id: string
+  category: string
+  attributeKey: string | null
+  appliesTo: string | null
+  selectionMode: string
+  label: string
+  snippet: string
+  sortOrder: number
+  enabled: number
+  usageCount: number
+  updatedAt: string
+}
 
 export function useAdminQuickModifiers() {
-  const { data: modifiers, refresh, status } = useFetch<PromptTag[]>('/api/admin/quick-modifiers')
+  const { data: modifiers, refresh, status } = useFetch<QuickModifierRow[]>('/api/admin/quick-modifiers')
 
   const toast = useToast()
   const saving = ref(false)

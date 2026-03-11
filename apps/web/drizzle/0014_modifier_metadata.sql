@@ -38,6 +38,11 @@ UPDATE quick_modifiers SET applies_to = '["style"]' WHERE attribute_key IN
 UPDATE quick_modifiers SET applies_to = '["scene","style"]' WHERE attribute_key IN
   ('lighting','color_palette');
 
+-- Broad framing key (any modifiers directly using category='framing' that
+-- weren't split into granular keys above) — scope to framing preset type
+UPDATE quick_modifiers SET applies_to = '["framing"]'
+  WHERE attribute_key = 'framing' AND applies_to IS NULL;
+
 -- Global modifiers (mood, camera, detail, quality) stay NULL — they apply to everything
 
 -- Multi-select categories (categories where multiple selections make sense)

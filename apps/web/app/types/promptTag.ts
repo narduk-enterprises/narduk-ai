@@ -7,7 +7,7 @@
  * - Admin: useAdminQuickModifiers
  */
 
-export type PresetType = 'person' | 'scene' | 'framing' | 'action' | 'style'
+export type PresetType = 'person' | 'scene' | 'framing' | 'action' | 'style' | 'prompt'
 
 export interface PromptTag {
   id: string

@@ -1,7 +1,7 @@
-import type { PromptTag } from '~/types/promptTag'
+import type { PresetType, PromptTag } from '~/types/promptTag'
 
 interface PresetBlock {
-  type: string // preset type: 'person' | 'scene' | 'style' | 'framing' | 'action'
+  type: PresetType
   content: string
 }
 
@@ -32,9 +32,9 @@ export function usePromptCompiler(deps: {
    * - If tag.appliesTo is null/empty → global tag, matches any preset type
    * - If tag.appliesTo is a list → only matches if presetType is included
    */
-  function tagAppliesToPreset(tag: PromptTag, presetType: string): boolean {
+  function tagAppliesToPreset(tag: PromptTag, presetType: PresetType): boolean {
     if (!tag.appliesTo || tag.appliesTo.length === 0) return true
-    return tag.appliesTo.includes(presetType as any)
+    return tag.appliesTo.includes(presetType)
   }
 
   /**

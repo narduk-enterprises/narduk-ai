@@ -74,7 +74,9 @@ export function usePromptTags() {
             attributeKey:
               (m.attributeKey as string) || (m.attribute_key as string) || (m.category as string),
             appliesTo: parseAppliesTo(m.appliesTo || m.applies_to),
-            selectionMode: ((m.selectionMode as string) || (m.selection_mode as string) || 'single') as 'single' | 'multi',
+            selectionMode: ((m.selectionMode as string) ||
+              (m.selection_mode as string) ||
+              'single') as 'single' | 'multi',
             label: m.label as string,
             snippet: m.snippet as string,
             sortOrder: (m.sortOrder as number) || (m.sort_order as number) || 0,
@@ -107,11 +109,11 @@ export function usePromptTags() {
     // This means scene:lighting and style:lighting are independent slots —
     // selecting a scene lighting tag doesn't evict a style lighting tag.
     if (tag.selectionMode === 'single') {
-      const tagScope = JSON.stringify(tag.appliesTo?.sort() ?? [])
+      const tagScope = JSON.stringify([...(tag.appliesTo ?? [])].sort())
       const sameSlotSiblings = allTagsList.value
         .filter((t) => {
           if (t.attributeKey !== tag.attributeKey) return false
-          const tScope = JSON.stringify(t.appliesTo?.sort() ?? [])
+          const tScope = JSON.stringify([...(t.appliesTo ?? [])].sort())
           return tScope === tagScope
         })
         .map((t) => t.id)

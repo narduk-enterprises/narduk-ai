@@ -389,9 +389,10 @@ export function compilationPipelineDescription(): string {
   return `PROMPT COMPILATION ALGORITHM:
 The final prompt sent to the image/video generator is assembled as follows:
 1. All active preset attributes are rendered as "Key: value" lines
-2. For each line, if an active Quick Modifier matches that category key → the modifier's snippet REPLACES the preset value
-3. If a recognized modifier category has NO active modifier → that line is PRUNED from the output
-4. Any modifier snippets that didn't match a preset key are appended as a comma-separated list at the end
-5. The user's free-text prompt is inserted between the preset lines and the unconsumed modifier snippets
-You can suggest toggling specific modifiers by their ID, or changing preset attribute values, to improve the final prompt composition.`
+2. For each preset line, if a selected Quick Modifier tag matches that attribute key AND its appliesTo scope includes the preset type → the tag's snippet REPLACES the preset value
+3. Original preset lines are NEVER pruned — if no tag matches, the original value is kept
+4. The user's free-text prompt is inserted after the preset lines
+5. Any tag snippets that didn't match a preset attribute key are appended as a comma-separated list at the end
+6. Tags are scoped by (presetType, attributeKey) — e.g. scene:lighting and style:lighting are independent
+You can suggest toggling specific modifiers by their attribute key (e.g. {"lighting": "golden hour", "camera_angle": "low angle"}), or changing preset attribute values, to improve the final prompt composition.`
 }
