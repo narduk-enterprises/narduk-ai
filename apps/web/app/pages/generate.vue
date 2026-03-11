@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Generation } from '~/types/generation'
+
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({
@@ -52,11 +54,17 @@ const {
 
 const { elements, fetchElements, remixPrompt } = usePromptElements()
 
+const galleryViewer = useGalleryViewer()
 const isComposeModalOpen = ref(false)
 const isLibraryModalOpen = ref(false)
 
 function openComposeModal() {
   isComposeModalOpen.value = true
+}
+
+function openRecentViewer(gen: Generation) {
+  const idx = recentGenerations.value.findIndex((g: Generation) => g.id === gen.id)
+  galleryViewer.open(recentGenerations.value, idx >= 0 ? idx : 0)
 }
 
 function handleUseBuilderPrompt(newPrompt: string) {
@@ -429,7 +437,7 @@ const resolutions = ['480p', '720p']
       <!-- Recent Generations -->
       <RecentImagesCarousel
         :generations="recentGenerations"
-        @click="(gen) => navigateTo(`/gallery/${gen.id}`)"
+        @click="openRecentViewer"
         @use-as-source="useGenerationAsSource"
         @upscale="(gen) => upscaleGeneration(gen.id)"
       />
@@ -534,5 +542,8 @@ const resolutions = ['480p', '720p']
 
     <!-- Prompt Library Modal -->
     <PromptLibraryModal v-model:open="isLibraryModalOpen" @use-prompt="handleUseBuilderPrompt" />
+
+    <!-- Gallery Viewer -->
+    <GalleryViewer />
   </div>
 </template>

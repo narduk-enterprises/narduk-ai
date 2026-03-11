@@ -19,6 +19,7 @@ const {
   error: generateError,
 } = useGenerate()
 const toast = useToast()
+const galleryViewer = useGalleryViewer()
 
 const route = useRoute()
 const generations = ref<Generation[]>([])
@@ -40,8 +41,8 @@ const offset = ref(0)
 const isFinished = ref(false)
 const loadingMore = ref(false)
 
-const searchQuery = ref('')
-const debouncedSearchQuery = ref('')
+const searchQuery = ref((route.query.search as string) || '')
+const debouncedSearchQuery = ref((route.query.search as string) || '')
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
 
 watch(searchQuery, (newVal) => {
@@ -193,6 +194,18 @@ function handleRetry(gen: Generation) {
   navigateTo({ path: '/generate', query: { prompt: gen.prompt, mode: gen.mode } })
 }
 
+function openViewer(gen: Generation) {
+  const idx = filteredGenerations.value.findIndex((g) => g.id === gen.id)
+  galleryViewer.open(filteredGenerations.value, idx >= 0 ? idx : 0, loadMore)
+}
+
+// Sync items to viewer when generations list changes
+watch(filteredGenerations, (newList) => {
+  if (galleryViewer.isOpen.value) {
+    galleryViewer.updateItems(newList)
+  }
+})
+
 async function handleUpscale(gen: Generation) {
   const result = await upscaleGeneration(gen.id)
   if (result) {
@@ -258,7 +271,7 @@ const filters = [
         <UInput
           v-model="searchQuery"
           icon="i-lucide-search"
-          placeholder="Search prompts..."
+          placeholder="Search prompts & presets..."
           size="sm"
         />
       </div>
@@ -295,14 +308,12 @@ const filters = [
 
     <!-- Grid -->
     <div v-else class="space-y-8">
-      <div
-        class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 stagger-children items-start"
-      >
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
         <GenerationCard
           v-for="gen in filteredGenerations"
           :key="gen.id"
           :generation="gen"
-          @click="navigateTo(`/gallery/${gen.id}`)"
+          @click="openViewer(gen)"
           @use-as-source="handleUseAsSource"
           @upscale="handleUpscale"
           @delete="handleDelete"
@@ -323,5 +334,8 @@ const filters = [
         </p>
       </div>
     </div>
+
+    <!-- Gallery Viewer -->
+    <GalleryViewer />
   </div>
 </template>

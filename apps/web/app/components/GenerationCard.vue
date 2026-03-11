@@ -27,21 +27,8 @@ const statusColors: Record<string, string> = {
   expired: 'neutral',
 }
 
-const aspectClass = computed(() => {
-  const ratio = props.generation.aspectRatio
-  if (!ratio) return props.generation.type === 'video' ? 'aspect-video' : 'aspect-square'
-
-  const map: Record<string, string> = {
-    '1:1': 'aspect-square',
-    '16:9': 'aspect-video',
-    '9:16': 'aspect-[9/16]',
-    '4:3': 'aspect-[4/3]',
-    '3:4': 'aspect-[3/4]',
-    '3:2': 'aspect-[3/2]',
-    '2:3': 'aspect-[2/3]',
-  }
-  return map[ratio] || (props.generation.type === 'video' ? 'aspect-video' : 'aspect-square')
-})
+// Fixed card height — all cards use the same 4:5 container ratio.
+// The original aspect ratio is preserved on the detail page.
 
 const errorSummary = computed(() => {
   if (props.generation.status !== 'failed' && props.generation.status !== 'expired') return null
@@ -62,7 +49,9 @@ const parsedPresets = computed(() => {
   if (!props.generation.presets) return null
   try {
     const raw = JSON.parse(props.generation.presets) as Record<string, string>
-    return Object.values(raw).filter(Boolean)
+    return Object.entries(raw)
+      .filter(([_, val]) => Boolean(val))
+      .map(([key, val]) => ({ type: key, name: val }))
   } catch {
     return null
   }
@@ -86,18 +75,15 @@ function handleUpscale() {
 </script>
 
 <template>
-  <NuxtLink
-    :to="`/gallery/${generation.id}`"
-    class="glow-card group block cursor-pointer overflow-hidden"
-  >
+  <div class="glow-card group block cursor-pointer overflow-hidden" @click="emit('click')">
     <!-- Media Preview -->
-    <div :class="['relative w-full overflow-hidden bg-elevated/50', aspectClass]">
+    <div class="relative w-full overflow-hidden bg-elevated/50 aspect-4/5">
       <template v-if="generation.status === 'done' && generation.mediaUrl">
         <NuxtImg
           v-if="generation.type === 'image'"
           :src="generation.mediaUrl"
           :alt="generation.prompt"
-          class="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+          class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           placeholder
           loading="lazy"
         />
@@ -107,7 +93,7 @@ function handleUpscale() {
           loop
           muted
           playsinline
-          class="h-full w-full object-contain"
+          class="h-full w-full object-cover"
         />
       </template>
       <div v-else class="flex h-full w-full items-center justify-center">
@@ -168,16 +154,21 @@ function handleUpscale() {
       </div>
 
       <div v-if="parsedPresets?.length" class="flex flex-wrap gap-1.5 pt-0.5 pb-1">
-        <UBadge
+        <NuxtLink
           v-for="preset in parsedPresets"
-          :key="preset"
-          color="primary"
-          variant="subtle"
-          size="xs"
-          class="font-medium px-1.5 py-0.5 text-[10px] leading-tight"
+          :key="preset.name"
+          :to="{ path: '/gallery', query: { search: preset.name } }"
+          @click.stop
         >
-          {{ preset }}
-        </UBadge>
+          <UBadge
+            color="primary"
+            variant="subtle"
+            size="xs"
+            class="font-medium px-1.5 py-0.5 text-[10px] leading-tight cursor-pointer hover:bg-primary/20 transition-colors"
+          >
+            {{ preset.name }}
+          </UBadge>
+        </NuxtLink>
       </div>
 
       <div class="relative group/prompt">
@@ -202,6 +193,17 @@ function handleUpscale() {
             ({{ (generation.generationTimeMs / 1000).toFixed(1) }}s)
           </span>
         </span>
+        <UTooltip text="View details">
+          <UButton
+            size="sm"
+            variant="ghost"
+            color="neutral"
+            icon="i-lucide-info"
+            class="touch-target"
+            :to="`/gallery/${generation.id}`"
+            @click.stop
+          />
+        </UTooltip>
         <div
           class="flex gap-1 opacity-100 md:opacity-0 transition-opacity duration-200 md:group-hover:opacity-100"
         >
@@ -257,5 +259,5 @@ function handleUpscale() {
         </div>
       </div>
     </div>
-  </NuxtLink>
+  </div>
 </template>

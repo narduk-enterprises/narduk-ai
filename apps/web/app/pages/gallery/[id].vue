@@ -160,9 +160,13 @@ const parsedPresets = computed(() => {
   if (!generation.value?.presets) return null
   try {
     const raw = JSON.parse(generation.value.presets) as Record<string, string>
-    return Object.entries(raw).map(
-      ([key, val]) => `${key.charAt(0).toUpperCase() + key.slice(1)}: ${val}`,
-    )
+    return Object.entries(raw)
+      .filter(([_, val]) => Boolean(val))
+      .map(([key, val]) => ({
+        type: key,
+        name: val,
+        label: `${key.charAt(0).toUpperCase() + key.slice(1)}: ${val}`,
+      }))
   } catch {
     return null
   }
@@ -354,16 +358,20 @@ const parsedPresets = computed(() => {
               Presets Used
             </h3>
             <div class="flex flex-wrap gap-2">
-              <UBadge
+              <NuxtLink
                 v-for="preset in parsedPresets"
-                :key="preset"
-                color="primary"
-                variant="subtle"
-                size="sm"
-                class="font-medium"
+                :key="preset.name"
+                :to="{ path: '/gallery', query: { search: preset.name } }"
               >
-                {{ preset }}
-              </UBadge>
+                <UBadge
+                  color="primary"
+                  variant="subtle"
+                  size="sm"
+                  class="font-medium cursor-pointer hover:bg-primary/20 transition-colors"
+                >
+                  {{ preset.label }}
+                </UBadge>
+              </NuxtLink>
             </div>
           </div>
 

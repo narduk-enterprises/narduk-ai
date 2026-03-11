@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { eq, desc, like, and } from 'drizzle-orm'
+import { eq, desc, like, and, or } from 'drizzle-orm'
 import { generations } from '../../database/schema'
 
 const querySchema = z.object({
@@ -29,7 +29,12 @@ export default defineEventHandler(async (event) => {
   const filters: any[] = [eq(generations.userId, user.id)]
 
   if (search && search.trim()) {
-    filters.push(like(generations.prompt, `%${search.trim()}%`))
+    filters.push(
+      or(
+        like(generations.prompt, `%${search.trim()}%`),
+        like(generations.presets, `%${search.trim()}%`),
+      ),
+    )
   }
   if (type) {
     filters.push(eq(generations.type, type))

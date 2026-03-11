@@ -271,6 +271,7 @@ watch([() => JSON.stringify(mergedState.value), () => JSON.stringify(editableOve
 
 // ── Generation ───────────────────────────────────────────
 const { generateImage: callGenerateImage, fetchGenerations } = useGenerate()
+const galleryViewer = useGalleryViewer()
 
 const allGenerations = ref<Generation[]>([])
 const isGeneratingImage = ref(false)
@@ -296,6 +297,11 @@ const presetGenerations = computed(() => {
     }
   })
 })
+
+function openPresetViewer(item: Generation) {
+  const idx = presetGenerations.value.findIndex(g => g.id === item.id)
+  galleryViewer.open(presetGenerations.value, idx >= 0 ? idx : 0)
+}
 
 async function handleGenerateImage() {
   if (!mergedState.value || !preset.value) return
@@ -731,19 +737,16 @@ function presetThumb(metadata: string | null | undefined) {
               class="w-full relative"
             >
               <div
-                class="relative group rounded-xl overflow-hidden ring-1 ring-default shadow-card bg-elevated my-2 hover:ring-primary/50 transition-all duration-300"
+                class="relative group rounded-xl overflow-hidden ring-1 ring-default shadow-card bg-elevated my-2 hover:ring-primary/50 transition-all duration-300 cursor-pointer"
+                @click="openPresetViewer(item)"
               >
-                <NuxtLink
-                  v-if="item.mediaUrl"
-                  :to="`/gallery/${item.id}`"
-                  class="block h-48 w-auto"
-                >
+                <div v-if="item.mediaUrl" class="block h-48 w-auto">
                   <MediaPlayer
                     :src="item.mediaUrl || ''"
                     :type="item.type"
                     class="h-full w-auto object-cover"
                   />
-                </NuxtLink>
+                </div>
                 <div
                   class="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
                 ></div>
@@ -903,5 +906,6 @@ function presetThumb(metadata: string | null | undefined) {
         </div>
       </template>
     </UModal>
+    <GalleryViewer />
   </div>
 </template>
