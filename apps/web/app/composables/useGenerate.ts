@@ -205,7 +205,7 @@ export function useGenerate() {
     limit = 50,
     offset = 0,
     search?: string,
-    filters?: { type?: string, mode?: string },
+    filters?: { type?: string; mode?: string },
   ): Promise<Generation[]> {
     return await $fetch<Generation[]>('/api/generations', {
       query: {
