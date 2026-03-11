@@ -8,6 +8,7 @@ const bodySchema = z.object({
 
   instructions: z.string().max(1000).optional(),
   imageBase64: z.string().optional(),
+  mediaType: z.enum(['image', 'video']).default('image'),
 })
 
 /**
@@ -55,6 +56,7 @@ export default defineEventHandler(async (event) => {
       body.instructions,
       promptEnhanceModel,
       body.imageBase64,
+      body.mediaType,
     )
     log.info('Prompt enhanced successfully', { userId: user.id })
     return { enhancedPrompt }

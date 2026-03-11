@@ -19,6 +19,7 @@ const {
   remixGeneration,
   error: generateError,
 } = useGenerate()
+const remixingId = ref<string | null>(null)
 const toast = useToast()
 const galleryViewer = useGalleryViewer()
 
@@ -233,25 +234,37 @@ async function handleUpscale(gen: Generation) {
 }
 
 async function handleRemix(gen: Generation) {
-  const result = await remixGeneration(gen)
-  if (result) {
-    generations.value.unshift(result)
-    toast.add({
-      title: 'Remix Created',
-      description:
-        result.type === 'video'
-          ? 'Your remixed video is generating!'
-          : 'A remixed image has been created!',
-      color: 'success',
-      icon: 'i-lucide-shuffle',
-    })
-  } else if (generateError.value) {
-    toast.add({
-      title: 'Remix Failed',
-      description: generateError.value,
-      color: 'error',
-      icon: 'i-lucide-alert-circle',
-    })
+  if (remixingId.value) return
+  remixingId.value = gen.id
+  toast.add({
+    title: 'Remixing…',
+    description: 'Creating a fresh variation of your prompt.',
+    color: 'info',
+    icon: 'i-lucide-shuffle',
+  })
+  try {
+    const result = await remixGeneration(gen)
+    if (result) {
+      generations.value.unshift(result)
+      toast.add({
+        title: 'Remix Created',
+        description:
+          result.type === 'video'
+            ? 'Your remixed video is generating!'
+            : 'A remixed image has been created!',
+        color: 'success',
+        icon: 'i-lucide-shuffle',
+      })
+    } else if (generateError.value) {
+      toast.add({
+        title: 'Remix Failed',
+        description: generateError.value,
+        color: 'error',
+        icon: 'i-lucide-alert-circle',
+      })
+    }
+  } finally {
+    remixingId.value = null
   }
 }
 
@@ -341,6 +354,7 @@ const filters = [
           v-for="gen in filteredGenerations"
           :key="gen.id"
           :generation="gen"
+          :remixing="remixingId === gen.id"
           @click="openViewer(gen)"
           @use-as-source="handleUseAsSource"
           @upscale="handleUpscale"

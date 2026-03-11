@@ -191,6 +191,10 @@ export function useGenerationForm() {
     return (latestResult.value?.type ?? 'image') as 'image' | 'video'
   })
 
+  const currentMediaType = computed((): 'image' | 'video' => {
+    return activeTab.value === 't2v' || activeTab.value === 'i2v' ? 'video' : 'image'
+  })
+
   const latestResultError = computed(() => {
     if (!latestResult.value?.metadata) return null
     try {
@@ -282,6 +286,7 @@ export function useGenerationForm() {
           prompt: prompt.value,
           instructions: enhanceInstructions.value || undefined,
           imageBase64: enhanceImageBase64.value || undefined,
+          mediaType: currentMediaType.value,
         },
       })
       if (result.enhancedPrompt) {
@@ -384,6 +389,7 @@ export function useGenerationForm() {
     isGenerateDisabled,
     resultBadgeColor,
     latestMediaType,
+    currentMediaType,
     latestResultError,
 
     // Actions

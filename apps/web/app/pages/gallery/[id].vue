@@ -15,6 +15,7 @@ const {
   error: generateError,
 } = useGenerate()
 const toast = useToast()
+const galleryViewer = useGalleryViewer()
 
 const generation = ref<Generation | null>(null)
 const sourceGeneration = ref<Generation | null>(null)
@@ -220,7 +221,29 @@ const parsedPresets = computed(() => {
           <!-- Primary Media -->
           <div class="glass-card p-2 sm:p-4">
             <template v-if="generation.status === 'done' && generation.mediaUrl">
-              <MediaPlayer :src="generation.mediaUrl" :type="mediaType" :alt="generation.prompt" />
+              <div
+                class="relative overflow-hidden rounded-2xl neon-border bg-elevated/30 cursor-pointer"
+                @click="galleryViewer.open([generation], 0)"
+              >
+                <NuxtImg
+                  v-if="mediaType === 'image'"
+                  :src="generation.mediaUrl"
+                  :alt="generation.prompt"
+                  class="max-h-[60vh] w-full object-contain transition-transform duration-300 hover:scale-[1.02]"
+                  placeholder
+                  loading="lazy"
+                />
+                <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
+                <video
+                  v-else
+                  :src="generation.mediaUrl"
+                  controls
+                  class="max-h-[60vh] w-full bg-black"
+                  preload="metadata"
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
             </template>
             <div
               v-else-if="generation.status === 'pending'"
@@ -432,5 +455,7 @@ const parsedPresets = computed(() => {
         </div>
       </div>
     </template>
+
+    <GalleryViewer />
   </div>
 </template>

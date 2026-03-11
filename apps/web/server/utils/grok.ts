@@ -70,10 +70,17 @@ export async function grokEnhancePrompt(
   instructions?: string,
   model?: string,
   imageBase64?: string,
+  mediaType: 'image' | 'video' = 'image',
 ): Promise<string> {
+  const isVideo = mediaType === 'video'
+  const mediaLabel = isVideo ? 'video' : 'image'
+  const videoGuidance = isVideo
+    ? ' Since the user is generating a VIDEO prompt for Grok Imagine, emphasize motion, temporal progression, camera movement, pacing, and dynamic action in addition to visual details.'
+    : ''
+
   const systemContent = instructions
-    ? `You are an expert prompt engineer for AI image and video generation. Your task is to take an original image creation prompt and modify it so that the new generated image will match the original image as closely as possible, while carefully applying the changes requested by the user. Do not change the core style, subject, lighting, or composition unless the user instructions explicitly ask for it.\n\nUser Instructions: ${instructions}\n\nReturn ONLY the new modified prompt text, with no introductory or conversational filler. Do not wrap in quotes.`
-    : 'You are an expert prompt engineer for AI image and video generation. Your task is to take a simple user prompt and enhance it into a highly detailed, cinematic, and descriptive prompt that will produce stunning results. Focus on adding details about lighting, camera angle, atmosphere, style, and subject specifics. Return ONLY the enhanced prompt text, with no introductory or conversational filler. Do not wrap in quotes.'
+    ? `You are an expert prompt engineer for AI ${mediaLabel} generation.${videoGuidance} Your task is to take an original ${mediaLabel} creation prompt and modify it so that the new generated ${mediaLabel} will match the original as closely as possible, while carefully applying the changes requested by the user. Do not change the core style, subject, lighting, or composition unless the user instructions explicitly ask for it.\n\nUser Instructions: ${instructions}\n\nReturn ONLY the new modified prompt text, with no introductory or conversational filler. Do not wrap in quotes.`
+    : `You are an expert prompt engineer for AI ${mediaLabel} generation.${videoGuidance} Your task is to take a simple user prompt and enhance it into a highly detailed, cinematic, and descriptive prompt that will produce stunning results. Focus on adding details about lighting, camera angle, atmosphere, style, and subject specifics.${isVideo ? ' Also include details about motion dynamics, temporal pacing, and camera movement to optimize for video generation.' : ''} Return ONLY the enhanced prompt text, with no introductory or conversational filler. Do not wrap in quotes.`
 
   const userContent = imageBase64
     ? [
@@ -298,9 +305,23 @@ export async function grokPollVideo(
   if (!res.ok) {
     const text = await res.text()
     console.error(`[grokPollVideo] API error (${res.status}):`, text)
+
+    // 400 errors from xAI often contain actionable info (e.g. content moderation rejection).
+    // Parse the body and return as a failed response so callers can persist the real error.
+    if (res.status === 400) {
+      const errorMsg = parseXaiError(text)
+      return {
+        status: 'failed',
+        error: {
+          code: 'content_moderation',
+          message: errorMsg || 'Video rejected by content moderation.',
+        },
+      }
+    }
+
     throw createError({
       statusCode: res.status,
-      message: 'Failed to poll Grok video status.',
+      message: parseXaiError(text) || 'Failed to poll Grok video status.',
     })
   }
 

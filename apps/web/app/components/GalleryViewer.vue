@@ -252,10 +252,16 @@ function handleInfo() {
 
 async function handleRemix() {
   if (!currentItem.value || remixingRef.value) return
+  toast.add({
+    title: 'Remixing…',
+    description: 'Creating a fresh variation of your prompt.',
+    color: 'info',
+    icon: 'i-lucide-shuffle',
+  })
   const result = await remixGeneration(currentItem.value)
   if (result) {
     toast.add({
-      title: 'Remix Started',
+      title: 'Remix Created',
       description:
         result.type === 'video'
           ? 'Your remixed video is generating. Check the gallery soon!'
@@ -562,6 +568,27 @@ onUnmounted(() => {
             <UIcon name="i-lucide-alert-triangle" class="size-12 text-error" />
             <p class="text-white/60">Generation {{ currentItem.status }}</p>
           </div>
+
+          <!-- Remix Overlay -->
+          <Transition
+            enter-active-class="transition-opacity duration-200"
+            enter-from-class="opacity-0"
+            leave-active-class="transition-opacity duration-200"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+          >
+            <div
+              v-if="remixingRef"
+              class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm"
+            >
+              <div class="relative">
+                <UIcon name="i-lucide-shuffle" class="size-14 text-primary animate-spin" />
+                <div class="absolute inset-0 animate-glow-pulse rounded-full" />
+              </div>
+              <p class="mt-4 text-lg font-medium text-white">Remixing your creation…</p>
+              <p class="mt-1 text-sm text-white/60">Generating a fresh variation</p>
+            </div>
+          </Transition>
 
           <!-- Next Button (Desktop) -->
           <UButton

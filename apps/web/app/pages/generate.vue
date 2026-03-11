@@ -31,6 +31,7 @@ const {
   isGenerateDisabled,
   resultBadgeColor,
   latestMediaType,
+  currentMediaType,
   latestResultError,
   loadUserImages,
   handleGenerate,
@@ -79,7 +80,7 @@ async function handleRemix() {
   if (!prompt.value.trim() || remixing.value) return
   remixing.value = true
   try {
-    prompt.value = await remixPrompt(prompt.value)
+    prompt.value = await remixPrompt(prompt.value, currentMediaType.value)
   } catch (e) {
     console.error('Remix failed:', e)
   } finally {
@@ -599,7 +600,11 @@ const resolutions = ['480p', '720p']
     </UModal>
 
     <!-- Prompt Builder Modal -->
-    <PromptBuilder v-model:open="isComposeModalOpen" @use-prompt="handleUseBuilderPrompt" />
+    <PromptBuilder
+      v-model:open="isComposeModalOpen"
+      :media-type="currentMediaType"
+      @use-prompt="handleUseBuilderPrompt"
+    />
 
     <!-- Prompt Library Modal -->
     <PromptLibraryModal v-model:open="isLibraryModalOpen" @use-prompt="handleUseBuilderPrompt" />

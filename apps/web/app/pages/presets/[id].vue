@@ -303,6 +303,33 @@ function openPresetViewer(item: Generation) {
   galleryViewer.open(presetGenerations.value, idx >= 0 ? idx : 0)
 }
 
+function openPreviewInViewer() {
+  const url = headshotUrl.value || previewImageUrl.value
+  if (!url) return
+  const syntheticItem: Generation = {
+    id: 'preview',
+    userId: '',
+    type: 'image',
+    mode: 't2i',
+    prompt: displayName.value + ' preview',
+    sourceGenerationId: null,
+    status: 'done',
+    xaiRequestId: null,
+    r2Key: null,
+    mediaUrl: url,
+    thumbnailUrl: null,
+    duration: null,
+    generationTimeMs: null,
+    aspectRatio: null,
+    resolution: null,
+    metadata: null,
+    presets: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  galleryViewer.open([syntheticItem], 0)
+}
+
 async function handleGenerateImage() {
   if (!mergedState.value || !preset.value) return
   isGeneratingImage.value = true
@@ -647,7 +674,13 @@ function presetThumb(metadata: string | null | undefined) {
                 <div
                   class="size-16 rounded-xl overflow-hidden ring-1 ring-primary/20 cursor-zoom-in"
                 >
-                  <MediaPlayer :src="headshotUrl || previewImageUrl!" type="image" alt="Preview" />
+                  <NuxtImg
+                    :src="(headshotUrl || previewImageUrl)!"
+                    alt="Preview"
+                    class="size-full object-contain"
+                    loading="lazy"
+                    @click="openPreviewInViewer"
+                  />
                 </div>
               </div>
 
@@ -656,7 +689,13 @@ function presetThumb(metadata: string | null | undefined) {
                 <div
                   class="rounded-xl overflow-hidden ring-1 ring-primary/20 cursor-zoom-in shadow-card"
                 >
-                  <MediaPlayer :src="headshotUrl || previewImageUrl!" type="image" alt="Preview" />
+                  <NuxtImg
+                    :src="(headshotUrl || previewImageUrl)!"
+                    alt="Preview"
+                    class="size-full object-contain"
+                    loading="lazy"
+                    @click="openPreviewInViewer"
+                  />
                 </div>
               </div>
 
@@ -741,9 +780,18 @@ function presetThumb(metadata: string | null | undefined) {
                 @click="openPresetViewer(item)"
               >
                 <div v-if="item.mediaUrl" class="block h-48 w-auto">
-                  <MediaPlayer
-                    :src="item.mediaUrl || ''"
-                    :type="item.type"
+                  <NuxtImg
+                    v-if="item.type === 'image'"
+                    :src="item.mediaUrl"
+                    :alt="item.prompt"
+                    class="h-full w-auto object-cover"
+                    loading="lazy"
+                  />
+                  <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
+                  <video
+                    v-else
+                    :src="item.mediaUrl"
+                    preload="metadata"
                     class="h-full w-auto object-cover"
                   />
                 </div>

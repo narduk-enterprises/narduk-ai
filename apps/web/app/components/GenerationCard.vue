@@ -3,6 +3,7 @@ import type { Generation } from '~/types/generation'
 
 const props = defineProps<{
   generation: Generation
+  remixing?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -258,6 +259,8 @@ function handleRemix() {
               color="primary"
               icon="i-lucide-shuffle"
               class="touch-target"
+              :loading="props.remixing"
+              :disabled="props.remixing"
               @click.stop.prevent="handleRemix"
             />
           </UTooltip>

@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
     const errorMeta = JSON.stringify({
       error: {
         code: 'timeout',
-        message: 'Generation timed out after 15 minutes. The API did not return a result in time.',
+        message: 'Generation timed out after 5 minutes. The API did not return a result in time.',
       },
     })
     await db

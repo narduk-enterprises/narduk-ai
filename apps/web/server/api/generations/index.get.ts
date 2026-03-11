@@ -68,7 +68,7 @@ export default defineEventHandler(async (event) => {
               error: {
                 code: 'timeout',
                 message:
-                  'Generation timed out after 15 minutes. The API did not return a result in time.',
+                  'Generation timed out after 5 minutes. The API did not return a result in time.',
               },
             })
             await db

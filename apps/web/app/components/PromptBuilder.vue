@@ -5,6 +5,13 @@ import { usePromptLibrary } from '../composables/usePromptLibrary'
 
 const isModalOpen = defineModel<boolean>('open', { default: false })
 
+const props = withDefaults(
+  defineProps<{
+    mediaType?: 'image' | 'video'
+  }>(),
+  { mediaType: 'image' },
+)
+
 const emit = defineEmits<{
   (e: 'use-prompt', prompt: string, presets: Record<string, string>, promptId?: string): void
 }>()
@@ -101,9 +108,16 @@ async function composeDraft() {
     .map(([key, val]) => `${key}: ${val}`)
     .join('\n')
 
+  const isVideo = props.mediaType === 'video'
   const systemMsg = {
     role: 'system' as const,
-    content: `You are a prompt engineering expert. The user is selecting components to generate an image/video prompt.
+    content: isVideo
+      ? `You are a prompt engineering expert. The user is selecting components to generate a VIDEO prompt for Grok Imagine.
+Compose them into a single, cohesive, highly-detailed video generation prompt. Emphasize motion, temporal progression, camera movement, pacing, and dynamic action rather than static composition.
+Whenever the user talks to you, refine the prompt based on their request.
+Return JSON ONLY, matching exactly: { "message": "friendly chat reply to the user explaining what you did", "prompt": "the updated full generation prompt string", "suggested_title": "A short, catchy title for this prompt" }.
+Make the prompt vivid, specific, and ready to use for video generation. Do not include category prefixes in the final prompt.`
+      : `You are a prompt engineering expert. The user is selecting components to generate an image/video prompt.
 Compose them into a single, cohesive, highly-detailed generation prompt. 
 Whenever the user talks to you, refine the prompt based on their request.
 Return JSON ONLY, matching exactly: { "message": "friendly chat reply to the user explaining what you did", "prompt": "the updated full generation prompt string", "suggested_title": "A short, catchy title for this prompt" }.

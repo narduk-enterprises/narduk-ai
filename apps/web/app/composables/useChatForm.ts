@@ -30,6 +30,7 @@ export function useChatForm() {
   const { elements, fetchElements } = usePromptElements()
 
   const chatMode = ref<ChatMode>('general')
+  const mediaType = ref<'image' | 'video'>('image')
   const chatMessages = ref<ChatMessage[]>([])
   const chatInput = ref('')
   const isChatting = ref(false)
@@ -48,10 +49,16 @@ export function useChatForm() {
           ? 'Hi! I can help you craft the perfect prompt for your next image or video. You can reference any of your saved Prompt Elements here. What are you thinking of creating?'
           : `Hi! Let's design a ${mode} together. What kind of ${mode} do you have in mind?`
 
+      const baseSystemPrompt = SYSTEM_PROMPTS[mode]
+      const mediaContext =
+        mode === 'general' && mediaType.value === 'video'
+          ? '\n\nIMPORTANT: The user is currently creating a VIDEO prompt for Grok Imagine. Optimize all prompts for video generation — emphasize motion, temporal progression, camera movement, pacing, and cinematic dynamics rather than static composition.'
+          : ''
+
       chatMessages.value = [
         {
           role: 'system',
-          content: SYSTEM_PROMPTS[mode],
+          content: `${baseSystemPrompt}${mediaContext}`,
         },
         {
           role: 'assistant',
@@ -140,6 +147,7 @@ export function useChatForm() {
     elements,
     fetchElements,
     chatMode,
+    mediaType,
     chatMessages,
     chatInput,
     isChatting,

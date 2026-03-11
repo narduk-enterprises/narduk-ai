@@ -102,7 +102,10 @@ export function usePromptElements() {
     }
   }
 
-  async function composeElements(components: Record<string, string | null>) {
+  async function composeElements(
+    components: Record<string, string | null>,
+    mediaType: 'image' | 'video' = 'image',
+  ) {
     const parts = ['person', 'scene', 'framing', 'action', 'style']
       .map((t) => {
         const content = components[t]
@@ -113,6 +116,11 @@ export function usePromptElements() {
 
     if (!parts.length) throw new Error('No components selected')
 
+    const isVideo = mediaType === 'video'
+    const systemContent = isVideo
+      ? 'You are a prompt engineering expert. The user will provide prompt components (person, scene, framing, action). Compose them into a single, detailed, cohesive video generation prompt for Grok Imagine. Emphasize motion, temporal progression, camera movement, pacing, and dynamic action rather than static composition. Return JSON: { "message": "brief note", "prompt": "the assembled prompt" }. The prompt should be vivid, specific, and ready to use for video generation. Do not include category labels in the prompt — weave them together naturally.'
+      : 'You are a prompt engineering expert. The user will provide prompt components (person, scene, framing, action). Compose them into a single, detailed, cohesive image generation prompt. Return JSON: { "message": "brief note", "prompt": "the assembled prompt" }. The prompt should be vivid, specific, and ready to use for image generation. Do not include category labels in the prompt — weave them together naturally.'
+
     const res = await $fetch<{ content: string }>('/api/generate/chat', {
       method: 'POST',
       body: {
@@ -120,8 +128,7 @@ export function usePromptElements() {
         messages: [
           {
             role: 'system',
-            content:
-              'You are a prompt engineering expert. The user will provide prompt components (person, scene, framing, action). Compose them into a single, detailed, cohesive image generation prompt. Return JSON: { "message": "brief note", "prompt": "the assembled prompt" }. The prompt should be vivid, specific, and ready to use for image generation. Do not include category labels in the prompt — weave them together naturally.',
+            content: systemContent,
           },
           {
             role: 'user',
@@ -134,8 +141,13 @@ export function usePromptElements() {
     return (parsed.prompt || parsed.message || res.content) as string
   }
 
-  async function remixPrompt(currentPrompt: string) {
+  async function remixPrompt(currentPrompt: string, mediaType: 'image' | 'video' = 'image') {
     if (!currentPrompt.trim()) throw new Error('No prompt to remix')
+
+    const isVideo = mediaType === 'video'
+    const systemContent = isVideo
+      ? 'You are a creative prompt remixer. The user will give you a video generation prompt for Grok Imagine. Create a fresh variation that keeps the same general theme and mood but changes specific details — swap out visual elements, shift the atmosphere, alter camera movements, change the pacing or motion dynamics, or add unexpected twists. Return JSON: { "message": "one-line summary of what you changed", "prompt": "the remixed prompt" }. Make meaningful creative changes, not just synonym swaps. Keep the result optimized for video generation.'
+      : 'You are a creative prompt remixer. The user will give you an image/video generation prompt. Create a fresh variation that keeps the same general theme and mood but changes specific details — swap out some visual elements, shift the atmosphere, alter the composition, or add unexpected twists. Return JSON: { "message": "one-line summary of what you changed", "prompt": "the remixed prompt" }. Make meaningful creative changes, not just synonym swaps.'
 
     const res = await $fetch<{ content: string }>('/api/generate/chat', {
       method: 'POST',
@@ -144,8 +156,7 @@ export function usePromptElements() {
         messages: [
           {
             role: 'system',
-            content:
-              'You are a creative prompt remixer. The user will give you an image/video generation prompt. Create a fresh variation that keeps the same general theme and mood but changes specific details — swap out some visual elements, shift the atmosphere, alter the composition, or add unexpected twists. Return JSON: { "message": "one-line summary of what you changed", "prompt": "the remixed prompt" }. Make meaningful creative changes, not just synonym swaps.',
+            content: systemContent,
           },
           {
             role: 'user',
