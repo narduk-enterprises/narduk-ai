@@ -365,11 +365,29 @@ const resolutions = ['480p', '720p']
 
         <!-- Done -->
         <template v-else-if="latestResult.status === 'done' && latestResult.mediaUrl">
-          <MediaPlayer
-            :src="latestResult.mediaUrl"
-            :type="latestMediaType"
-            :alt="latestResult.prompt"
-          />
+          <div
+            class="relative overflow-hidden rounded-2xl neon-border bg-elevated/30 cursor-pointer"
+            @click="galleryViewer.open([latestResult!], 0)"
+          >
+            <NuxtImg
+              v-if="latestMediaType === 'image'"
+              :src="latestResult.mediaUrl!"
+              :alt="latestResult.prompt"
+              class="max-h-[60vh] w-full object-contain transition-transform duration-300 hover:scale-[1.02]"
+              placeholder
+              loading="lazy"
+            />
+            <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
+            <video
+              v-else
+              :src="latestResult.mediaUrl!"
+              controls
+              class="max-h-[60vh] w-full bg-black"
+              preload="metadata"
+            >
+              Your browser does not support the video tag.
+            </video>
+          </div>
           <div class="flex items-start gap-3 group w-full">
             <p class="text-sm text-muted flex-1">{{ latestResult.prompt }}</p>
             <CopyPromptButton
