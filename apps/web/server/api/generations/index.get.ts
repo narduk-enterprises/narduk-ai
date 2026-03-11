@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { eq, desc, like, and, or } from 'drizzle-orm'
 import { generations } from '../../database/schema'
+import { GENERATION_STALE_TIMEOUT_MS } from '../../utils/constants'
 
 const querySchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(50),
@@ -64,12 +65,12 @@ export default defineEventHandler(async (event) => {
         try {
           // Staleness check first
           const ageMs = Date.now() - new Date(gen.createdAt).getTime()
-          if (ageMs > STALE_TIMEOUT_MS) {
+          if (ageMs > GENERATION_STALE_TIMEOUT_MS) {
             const errorMeta = JSON.stringify({
               error: {
                 code: 'timeout',
                 message:
-                  'Generation timed out after 10 minutes. The API did not return a result in time.',
+                  'Generation timed out after 15 minutes. The API did not return a result in time.',
               },
             })
             await db

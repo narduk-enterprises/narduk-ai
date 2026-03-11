@@ -17,7 +17,13 @@ const {
   close,
 } = useGalleryViewer()
 
-const { deleteGeneration, upscaleGeneration, remixGeneration, remixing: remixingRef, error: generateError } = useGenerate()
+const {
+  deleteGeneration,
+  upscaleGeneration,
+  remixGeneration,
+  remixing: remixingRef,
+  error: generateError,
+} = useGenerate()
 const toast = useToast()
 
 // ── Video Controls State ──────────────────────────────────
@@ -250,9 +256,10 @@ async function handleRemix() {
   if (result) {
     toast.add({
       title: 'Remix Started',
-      description: result.type === 'video'
-        ? 'Your remixed video is generating. Check the gallery soon!'
-        : 'A remixed image has been created!',
+      description:
+        result.type === 'video'
+          ? 'Your remixed video is generating. Check the gallery soon!'
+          : 'A remixed image has been created!',
       color: 'success',
       icon: 'i-lucide-shuffle',
     })
@@ -403,10 +410,7 @@ onUnmounted(() => {
                 @click="handleEditImage"
               />
             </UTooltip>
-            <UTooltip
-              v-if="currentItem.status === 'done'"
-              text="Remix"
-            >
+            <UTooltip v-if="currentItem.status === 'done'" text="Remix">
               <UButton
                 icon="i-lucide-shuffle"
                 color="neutral"
@@ -462,7 +466,7 @@ onUnmounted(() => {
             <NuxtImg
               :src="mediaUrl"
               :alt="currentItem.prompt"
-              class="max-h-[calc(100vh-10rem)] max-w-full object-contain select-none"
+              class="w-full h-full object-contain select-none"
               placeholder
             />
           </div>
@@ -480,7 +484,7 @@ onUnmounted(() => {
               :muted="isMuted"
               loop
               playsinline
-              class="max-h-[calc(100vh-10rem)] max-w-full object-contain select-none cursor-pointer"
+              class="w-full h-full object-contain select-none cursor-pointer"
               @click="handleVideoClick"
               @timeupdate="handleTimeUpdate"
               @loadedmetadata="handleLoadedMetadata"

@@ -251,10 +251,7 @@ function handleRemix() {
               @click.stop.prevent="handleUseAsSource"
             />
           </UTooltip>
-          <UTooltip
-            v-if="generation.status === 'done'"
-            text="Remix"
-          >
+          <UTooltip v-if="generation.status === 'done'" text="Remix">
             <UButton
               size="sm"
               variant="ghost"

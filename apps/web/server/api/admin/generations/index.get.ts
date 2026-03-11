@@ -1,7 +1,6 @@
 import { desc } from 'drizzle-orm'
 import { generations } from '../../../database/schema'
-
-const STALE_TIMEOUT_MS = 10 * 60 * 1000
+import { GENERATION_STALE_TIMEOUT_MS } from '../../../utils/constants'
 
 /**
  * GET /api/admin/generations — List ALL generations across all users (admin only).
@@ -20,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const enriched = rows.map((gen) => {
     const ageMs = Date.now() - new Date(gen.createdAt).getTime()
     const ageMinutes = Math.round(ageMs / 60000)
-    const isStale = gen.status === 'pending' && ageMs > STALE_TIMEOUT_MS
+    const isStale = gen.status === 'pending' && ageMs > GENERATION_STALE_TIMEOUT_MS
 
     let errorInfo: string | null = null
     if (gen.metadata) {

@@ -52,6 +52,8 @@ const {
   handleSourceImageUpload,
 } = useGenerationForm()
 
+const { deleteGeneration } = useGenerate()
+
 const { elements, fetchElements, remixPrompt } = usePromptElements()
 
 const galleryViewer = useGalleryViewer()
@@ -340,7 +342,12 @@ const resolutions = ['480p', '720p']
             <div class="absolute inset-0 animate-glow-pulse rounded-full" />
           </div>
           <p class="text-muted">
-            Generating your {{ latestResult.type }}... This may take up to 2 minutes.
+            Generating your {{ latestResult.type }}...
+            {{
+              latestResult.type === 'video'
+                ? 'Videos may take several minutes.'
+                : 'This should take a moment.'
+            }}
           </p>
         </div>
 
@@ -422,14 +429,44 @@ const resolutions = ['480p', '720p']
         <!-- Failed -->
         <div
           v-else-if="latestResult.status === 'failed' || latestResult.status === 'expired'"
-          class="rounded-xl border border-error/20 bg-error/5 p-5 flex items-start gap-3"
+          class="rounded-xl border border-error/20 bg-error/5 p-5 space-y-4"
         >
-          <UIcon name="i-lucide-alert-triangle" class="size-6 text-error shrink-0 mt-0.5" />
-          <div>
-            <p class="font-medium text-error">Generation {{ latestResult.status }}</p>
-            <p class="text-sm text-muted mt-1">
-              {{ latestResultError || 'Something went wrong. Please try again.' }}
-            </p>
+          <div class="flex items-start gap-3">
+            <UIcon name="i-lucide-alert-triangle" class="size-6 text-error shrink-0 mt-0.5" />
+            <div>
+              <p class="font-medium text-error">Generation {{ latestResult.status }}</p>
+              <p class="text-sm text-muted mt-1">
+                {{ latestResultError || 'Something went wrong. Please try again.' }}
+              </p>
+            </div>
+          </div>
+          <div class="flex gap-2 pl-9">
+            <UButton
+              variant="outline"
+              color="warning"
+              icon="i-lucide-refresh-cw"
+              size="sm"
+              class="rounded-full"
+              @click="
+                prompt = latestResult!.prompt
+                handleGenerate()
+              "
+            >
+              Retry
+            </UButton>
+            <UButton
+              variant="ghost"
+              color="error"
+              icon="i-lucide-trash-2"
+              size="sm"
+              class="rounded-full"
+              @click="
+                deleteGeneration(latestResult!.id)
+                latestResult = null
+              "
+            >
+              Dismiss
+            </UButton>
           </div>
         </div>
       </div>

@@ -1,7 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { generations } from '../../database/schema'
-
-const STALE_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
+import { GENERATION_STALE_TIMEOUT_MS } from '../../utils/constants'
 
 /**
  * GET /api/cron/sync-jobs
@@ -43,11 +42,11 @@ export default defineEventHandler(async (event) => {
     videoJobs.map(async (gen) => {
       try {
         const ageMs = Date.now() - new Date(gen.createdAt).getTime()
-        if (ageMs > STALE_TIMEOUT_MS) {
+        if (ageMs > GENERATION_STALE_TIMEOUT_MS) {
           const errorMeta = JSON.stringify({
             error: {
               code: 'timeout',
-              message: 'Generation timed out after 10 minutes.',
+              message: 'Generation timed out after 15 minutes.',
             },
           })
           await db

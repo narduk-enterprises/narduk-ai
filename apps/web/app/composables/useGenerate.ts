@@ -164,10 +164,12 @@ export function useGenerate() {
     const requestId = generation.value.xaiRequestId
     let delay = 5000
     const maxDelay = 30000
+    let consecutiveErrors = 0
 
     const executePoll = async () => {
       try {
         const result = await $fetch<Generation>(`/api/generate/poll/${requestId}`)
+        consecutiveErrors = 0
         generation.value = result
 
         if (result.status === 'done' || result.status === 'failed' || result.status === 'expired') {
@@ -181,7 +183,20 @@ export function useGenerate() {
         const nextTimeout = setTimeout(executePoll, delay)
         pollingIntervals.value.set(requestId, nextTimeout)
       } catch {
-        pollingIntervals.value.delete(requestId)
+        consecutiveErrors++
+        // Allow up to 3 consecutive network errors before giving up
+        if (consecutiveErrors >= 3) {
+          pollingIntervals.value.delete(requestId)
+          error.value =
+            'Lost connection while checking video status. The video may still be generating — check your gallery in a few minutes.'
+          generation.value = { ...generation.value, status: 'failed' as const }
+          onComplete?.(generation.value)
+        } else {
+          // Retry with backoff on transient errors
+          delay = Math.min(delay * 2, maxDelay)
+          const nextTimeout = setTimeout(executePoll, delay)
+          pollingIntervals.value.set(requestId, nextTimeout)
+        }
       }
     }
 
@@ -258,10 +273,10 @@ export function useGenerate() {
     try {
       // Step 1: Get a remixed prompt from Grok
       const remixInstructions =
-        'Creatively remix this prompt — change several elements such as the setting, '
-        + 'time of day, lighting, color palette, camera angle, mood, or artistic style. '
-        + 'Keep the core subject/character but reimagine the scene in a fresh and surprising way. '
-        + 'Return ONLY the remixed prompt.'
+        'Creatively remix this prompt — change several elements such as the setting, ' +
+        'time of day, lighting, color palette, camera angle, mood, or artistic style. ' +
+        'Keep the core subject/character but reimagine the scene in a fresh and surprising way. ' +
+        'Return ONLY the remixed prompt.'
 
       const { enhancedPrompt } = await $fetch<{ enhancedPrompt: string }>(
         '/api/generate/enhance-prompt',

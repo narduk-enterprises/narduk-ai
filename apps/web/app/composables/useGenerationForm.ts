@@ -144,8 +144,33 @@ export function useGenerationForm() {
     latestResult.value = result
     _pollingRef.value = result
     const genRef = _pollingRef as Ref<Generation>
+    const toast = useToast()
     pollGeneration(genRef, (completed) => {
       latestResult.value = completed
+      if (completed.status === 'failed' || completed.status === 'expired') {
+        const errorMsg = (() => {
+          if (!completed.metadata) return null
+          try {
+            const meta = JSON.parse(completed.metadata)
+            return meta.error?.message || (typeof meta.error === 'string' ? meta.error : null)
+          } catch {
+            return null
+          }
+        })()
+        toast.add({
+          title: completed.status === 'expired' ? 'Video Expired' : 'Video Generation Failed',
+          description: errorMsg || 'Something went wrong. Please try again.',
+          color: 'error',
+          icon: 'i-lucide-alert-triangle',
+        })
+      } else if (completed.status === 'done') {
+        toast.add({
+          title: 'Video Ready!',
+          description: 'Your video has finished generating.',
+          color: 'success',
+          icon: 'i-lucide-check-circle',
+        })
+      }
       loadUserImages()
     })
   }

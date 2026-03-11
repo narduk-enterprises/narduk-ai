@@ -239,9 +239,10 @@ async function handleRemix(gen: Generation) {
     generations.value.unshift(result)
     toast.add({
       title: 'Remix Created',
-      description: result.type === 'video'
-        ? 'Your remixed video is generating!'
-        : 'A remixed image has been created!',
+      description:
+        result.type === 'video'
+          ? 'Your remixed video is generating!'
+          : 'A remixed image has been created!',
       color: 'success',
       icon: 'i-lucide-shuffle',
     })
