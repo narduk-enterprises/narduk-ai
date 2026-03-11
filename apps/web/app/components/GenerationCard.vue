@@ -58,6 +58,16 @@ const errorSummary = computed(() => {
   }
 })
 
+const parsedPresets = computed(() => {
+  if (!props.generation.presets) return null
+  try {
+    const raw = JSON.parse(props.generation.presets) as Record<string, string>
+    return Object.values(raw).filter(Boolean)
+  } catch {
+    return null
+  }
+})
+
 function handleUseAsSource() {
   emit('use-as-source', props.generation)
 }
@@ -155,6 +165,19 @@ function handleUpscale() {
         <span class="text-xs text-dimmed">{{
           modeLabels[generation.mode] || generation.mode
         }}</span>
+      </div>
+
+      <div v-if="parsedPresets?.length" class="flex flex-wrap gap-1.5 pt-0.5 pb-1">
+        <UBadge
+          v-for="preset in parsedPresets"
+          :key="preset"
+          color="primary"
+          variant="subtle"
+          size="xs"
+          class="font-medium px-1.5 py-0.5 text-[10px] leading-tight"
+        >
+          {{ preset }}
+        </UBadge>
       </div>
 
       <div class="relative group/prompt">

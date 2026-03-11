@@ -17,6 +17,7 @@ export interface Generation {
   aspectRatio: string | null
   resolution: string | null
   metadata: string | null
+  presets: string | null
   createdAt: string
   updatedAt: string
 }

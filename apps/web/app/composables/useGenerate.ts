@@ -14,7 +14,12 @@ export function useGenerate() {
    */
   async function generateImage(
     prompt: string,
-    options?: { aspectRatio?: string; promptElements?: string[]; userPromptId?: string },
+    options?: {
+      aspectRatio?: string
+      promptElements?: string[]
+      presets?: Record<string, string>
+      userPromptId?: string
+    },
   ): Promise<Generation | null> {
     generating.value = true
     error.value = null
@@ -25,6 +30,7 @@ export function useGenerate() {
           prompt,
           aspectRatio: options?.aspectRatio,
           promptElements: options?.promptElements,
+          presets: options?.presets,
           userPromptId: options?.userPromptId,
         },
       })
@@ -43,7 +49,11 @@ export function useGenerate() {
   async function editImage(
     prompt: string,
     sourceGenerationId: string,
-    options?: { promptElements?: string[]; userPromptId?: string },
+    options?: {
+      promptElements?: string[]
+      presets?: Record<string, string>
+      userPromptId?: string
+    },
   ): Promise<Generation | null> {
     generating.value = true
     error.value = null
@@ -54,6 +64,7 @@ export function useGenerate() {
           prompt,
           sourceGenerationId,
           promptElements: options?.promptElements,
+          presets: options?.presets,
           userPromptId: options?.userPromptId,
         },
       })
@@ -76,6 +87,7 @@ export function useGenerate() {
       aspectRatio?: string
       resolution?: string
       promptElements?: string[]
+      presets?: Record<string, string>
       userPromptId?: string
     },
   ): Promise<Generation | null> {
@@ -90,6 +102,7 @@ export function useGenerate() {
           aspectRatio: options?.aspectRatio || '16:9',
           resolution: options?.resolution || '720p',
           promptElements: options?.promptElements,
+          presets: options?.presets,
           userPromptId: options?.userPromptId,
         },
       })
@@ -112,6 +125,7 @@ export function useGenerate() {
       duration?: number
       resolution?: string
       promptElements?: string[]
+      presets?: Record<string, string>
       userPromptId?: string
     },
   ): Promise<Generation | null> {
@@ -126,6 +140,7 @@ export function useGenerate() {
           duration: options?.duration || 6,
           resolution: options?.resolution || '720p',
           promptElements: options?.promptElements,
+          presets: options?.presets,
           userPromptId: options?.userPromptId,
         },
       })

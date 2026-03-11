@@ -32,6 +32,7 @@ export function useGenerationForm() {
 
   // Storage for builder context
   const activePromptElements = ref<string[]>([])
+  const activePresets = ref<Record<string, string>>({})
   const activeUserPromptId = ref<string | null>(null)
 
   function setBuilderContext(
@@ -41,6 +42,7 @@ export function useGenerationForm() {
   ) {
     prompt.value = newPrompt
     activePromptElements.value = Object.values(presets).filter(Boolean) as string[]
+    activePresets.value = presets
     activeUserPromptId.value = promptId || null
   }
 
@@ -72,6 +74,7 @@ export function useGenerationForm() {
       const result = await generateImage(prompt.value, {
         aspectRatio: aspectRatio.value,
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
+        presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
         userPromptId: activeUserPromptId.value || undefined,
       })
       if (result) {
@@ -84,6 +87,7 @@ export function useGenerationForm() {
         aspectRatio: aspectRatio.value,
         resolution: resolution.value,
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
+        presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
         userPromptId: activeUserPromptId.value || undefined,
       })
       if (result) {
@@ -98,6 +102,7 @@ export function useGenerationForm() {
         duration: duration.value,
         resolution: resolution.value,
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
+        presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
         userPromptId: activeUserPromptId.value || undefined,
       })
       if (result) {
@@ -110,6 +115,7 @@ export function useGenerationForm() {
       }
       const result = await editImage(prompt.value, sourceGenerationId.value, {
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
+        presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
         userPromptId: activeUserPromptId.value || undefined,
       })
       if (result) {
@@ -120,6 +126,7 @@ export function useGenerationForm() {
 
     // Clear builder state after successful dispatch so subsequent generations aren't falsely tagged unless specifically re-selected.
     activePromptElements.value = []
+    activePresets.value = {}
     activeUserPromptId.value = null
   }
 

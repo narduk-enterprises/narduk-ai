@@ -12,7 +12,7 @@ const bodySchema = z.object({
     .default('16:9'),
   resolution: z.enum(['480p', '720p']).optional().default('720p'),
   promptElements: z.array(z.string()).optional(),
-  presets: z.record(z.string()).optional(),
+  presets: z.record(z.string(), z.string()).optional(),
   userPromptId: z.string().optional(),
 })
 

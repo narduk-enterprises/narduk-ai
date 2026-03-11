@@ -6,7 +6,7 @@ const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
   aspectRatio: z.string().optional(),
   promptElements: z.array(z.string()).optional(),
-  presets: z.record(z.string()).optional(),
+  presets: z.record(z.string(), z.string()).optional(),
   userPromptId: z.string().optional(),
 })
 
