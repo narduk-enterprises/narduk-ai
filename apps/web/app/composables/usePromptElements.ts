@@ -17,9 +17,10 @@ export interface PresetMetadata {
 }
 
 export function usePromptElements() {
-  const elements = ref<PromptElement[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  // Singleton state via useState — all consumers share the same fetched data
+  const elements = useState<PromptElement[]>('prompt-elements', () => [])
+  const loading = useState<boolean>('prompt-elements-loading', () => false)
+  const error = useState<string | null>('prompt-elements-error', () => null)
 
   async function fetchElements() {
     loading.value = true
