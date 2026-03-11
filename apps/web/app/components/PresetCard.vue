@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PromptElement, PresetMetadata } from '~/composables/usePromptElements'
-import { PRESET_ATTRIBUTES } from '~/composables/usePresetEditor'
+import { PRESET_ATTRIBUTES } from '~/utils/presetSchemas'
 
 const props = defineProps<{
   preset: PromptElement
@@ -56,16 +56,51 @@ const cardDescription = computed(() => {
 const isModalOpen = ref(false)
 
 /**
- * Parse all attributes from preset.content (Key: value format)
- * and fall back to the schema-defined attributes for the preset type.
- */
-/**
- * Parse characteristics from content, optionally excluding name/description.
+ * Parse characteristics from structured attributes (preferred) or content (fallback).
+ * Optionally excluding name/description.
  */
 function parseChars(excludeKeys: string[] = []) {
   const chars: { label: string; value: string }[] = []
 
-  // Parse from content lines ("Key: value" format)
+  // Prefer structured attributes JSON if available
+  if (props.preset.attributes && typeof props.preset.attributes === 'object') {
+    const schema = PRESET_ATTRIBUTES[props.preset.type]
+    const attrs = props.preset.attributes
+
+    // Use schema ordering if available
+    if (schema) {
+      for (const attr of schema) {
+        if (excludeKeys.includes(attr)) continue
+        const val = attrs[attr]
+        if (val) {
+          chars.push({
+            label: attr.charAt(0).toUpperCase() + attr.slice(1).replaceAll('_', ' '),
+            value: val,
+          })
+        }
+      }
+      // Add any extra keys not in the schema
+      for (const [key, val] of Object.entries(attrs)) {
+        if (!val || excludeKeys.includes(key)) continue
+        if (schema.includes(key)) continue // already added above
+        chars.push({
+          label: key.charAt(0).toUpperCase() + key.slice(1).replaceAll('_', ' '),
+          value: val,
+        })
+      }
+    } else {
+      for (const [key, val] of Object.entries(attrs)) {
+        if (!val || excludeKeys.includes(key)) continue
+        chars.push({
+          label: key.charAt(0).toUpperCase() + key.slice(1).replaceAll('_', ' '),
+          value: val,
+        })
+      }
+    }
+    return chars
+  }
+
+  // Fallback: parse from content lines ("Key: value" format)
   const lines = props.preset.content.split('\n')
   const contentMap = new Map<string, string>()
   for (const line of lines) {

@@ -35,6 +35,7 @@ export const generations = sqliteTable(
     metadata: text('metadata'), // JSON blob
     promptElements: text('prompt_elements'), // JSON array
     presets: text('presets'), // JSON blob: Record<string, string>
+    lineage: text('lineage'), // JSON blob: { presetIds, modifierIds, userPrompt, compiledPrompt, attributes }
     userPromptId: text('user_prompt_id').references(() => userPrompts.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -73,6 +74,7 @@ export const promptElements = sqliteTable(
     type: text('type').notNull(), // 'person' | 'scene' | 'framing' | 'action' | 'style' | 'prompt'
     name: text('name').notNull(),
     content: text('content').notNull(),
+    attributes: text('attributes'), // JSON: Record<string, string | null> — structured preset data
     metadata: text('metadata'), // JSON blob: { headshotUrl?, fullBodyUrl?, ... }
     chatHistory: text('chat_history'), // JSON blob: serialized ChatMessage[]
     createdAt: text('created_at').notNull(),

@@ -209,6 +209,29 @@ function handlePromptKeydown(e: KeyboardEvent) {
   }
 }
 
+// ── Prompt Parser ──────────────────────────────────────────
+const { parsing: promptParsing, parsePrompt } = usePromptParser()
+
+async function handleParsePrompt() {
+  if (!prompt.value.trim() || promptParsing.value) return
+  const result = await parsePrompt(prompt.value)
+  if (!result) return
+
+  // Auto-select matched modifiers
+  if (result.matchedModifierIds.length) {
+    for (const modId of result.matchedModifierIds) {
+      if (!isModifierSelected(modId)) {
+        toggleModifier(modId)
+      }
+    }
+  }
+
+  // Set remaining text as the prompt
+  if (result.remainingPrompt) {
+    prompt.value = result.remainingPrompt
+  }
+}
+
 function handleRetry() {
   if (!latestResult.value) return
   prompt.value = latestResult.value.prompt
@@ -385,6 +408,18 @@ function editResult(gen: Generation) {
                 @click="openComposeModal"
               >
                 Compose
+              </UButton>
+              <UButton
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                icon="i-lucide-scan-text"
+                :loading="promptParsing"
+                :disabled="!prompt.trim() || generating || promptParsing"
+                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
+                @click="handleParsePrompt"
+              >
+                Parse
               </UButton>
               <UButton
                 variant="ghost"

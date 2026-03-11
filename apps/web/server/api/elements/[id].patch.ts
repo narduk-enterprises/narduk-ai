@@ -6,6 +6,7 @@ const bodySchema = z.object({
   type: z.enum(['person', 'scene', 'framing', 'action', 'style', 'prompt']).optional(),
   name: z.string().min(1).max(100).optional(),
   content: z.string().min(1).max(2000).optional(),
+  attributes: z.string().max(20000).nullish(),
   metadata: z.string().max(10000).nullish(),
   chatHistory: z.string().max(100000).nullish(),
 })
@@ -29,6 +30,7 @@ export default defineEventHandler(async (event) => {
     !body.type &&
     !body.name &&
     !body.content &&
+    body.attributes === undefined &&
     body.metadata === undefined &&
     body.chatHistory === undefined
   ) {
@@ -44,6 +46,7 @@ export default defineEventHandler(async (event) => {
       ...(body.type && { type: body.type }),
       ...(body.name && { name: body.name }),
       ...(body.content && { content: body.content }),
+      ...(body.attributes !== undefined && { attributes: body.attributes ?? null }),
       ...(body.metadata !== undefined && { metadata: body.metadata ?? null }),
       ...(body.chatHistory !== undefined && { chatHistory: body.chatHistory ?? null }),
       updatedAt: now,

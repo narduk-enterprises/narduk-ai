@@ -312,11 +312,22 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
 
     if (activeTab.value === 't2i') {
       const count = imageCount.value
+
+      // Build structured lineage for generation tracking
+      const lineage = JSON.stringify({
+        presetIds: activePromptElements.value,
+        modifierIds: activeModifiers.value.map((m: { id: string }) => m.id),
+        userPrompt: prompt.value,
+        compiledPrompt: compiled,
+        activePresets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
+      })
+
       const opts = {
         aspectRatio: aspectRatio.value,
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
         presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
         userPromptId: activeUserPromptId.value || undefined,
+        lineage,
       }
 
       if (count <= 1) {

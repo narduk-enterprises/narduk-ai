@@ -4,6 +4,7 @@ export interface PromptElement {
   type: 'person' | 'scene' | 'framing' | 'action' | 'style' | 'prompt'
   name: string
   content: string
+  attributes?: Record<string, string | null> | null
   metadata?: string | null
   chatHistory?: string | null
   createdAt: string
@@ -38,13 +39,14 @@ export function usePromptElements() {
     name: string,
     content: string,
     metadata?: string | null,
+    attributes?: string | null,
   ) {
     loading.value = true
     error.value = null
     try {
       const el = await $fetch<PromptElement>('/api/elements', {
         method: 'POST',
-        body: { type, name, content, metadata },
+        body: { type, name, content, metadata, attributes },
       })
       // Prepend to array since the API orders newest first
       elements.value.unshift(el)
@@ -79,6 +81,7 @@ export function usePromptElements() {
       type?: string
       name?: string
       content?: string
+      attributes?: string | null
       metadata?: string | null
       chatHistory?: string | null
     },

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PromptElement } from '~/composables/usePromptElements'
 import type { Generation } from '~/types/generation'
-import { PRESET_ATTRIBUTES } from '~/composables/usePresetEditor'
+import { PRESET_ATTRIBUTES } from '~/utils/presetSchemas'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -105,7 +105,7 @@ async function initPreset(el: PromptElement) {
 
     const schema = PRESET_ATTRIBUTES[el.type]
     const builderState = schema
-      ? Object.fromEntries(schema.map((a) => [a, parsed[a] || null]))
+      ? Object.fromEntries(schema.map((a: string) => [a, parsed[a] || null]))
       : parsed
 
     chatMessages.value.push({

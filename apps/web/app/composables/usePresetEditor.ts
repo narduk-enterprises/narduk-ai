@@ -1,101 +1,9 @@
 import type { ChatMessage } from './useChatForm'
 import type { PromptElement, PresetMetadata } from './usePromptElements'
+import { PRESET_ATTRIBUTES, attributesToContent } from '~/utils/presetSchemas'
 
 // ─── Constants ─────────────────────────────────────────────
 const MAX_CHAT_MESSAGES = 30
-export const PERSON_ATTRIBUTES = [
-  'name',
-  'description',
-  'age',
-  'gender',
-  'ethnicity',
-  'body_type',
-  'height',
-  'skin_tone',
-  'hair_color',
-  'hair_style',
-  'eye_color',
-  'face_shape',
-  'expression',
-  'breasts',
-  'clothing',
-  'accessories',
-  'makeup',
-  'tattoos_piercings',
-  'vibe',
-  'distinguishing_features',
-  'extended_detail',
-  'other',
-] as const
-
-export const SCENE_ATTRIBUTES = [
-  'name',
-  'description',
-  'setting',
-  'time_of_day',
-  'weather',
-  'season',
-  'lighting',
-  'color_palette',
-  'architecture',
-  'vegetation',
-  'props',
-  'atmosphere',
-  'depth',
-  'ground_surface',
-] as const
-
-export const FRAMING_ATTRIBUTES = [
-  'name',
-  'description',
-  'shot_type',
-  'camera_angle',
-  'camera_height',
-  'lens',
-  'focal_length',
-  'depth_of_field',
-  'focus_point',
-  'camera_movement',
-  'composition_rule',
-  'aspect_ratio',
-] as const
-
-export const ACTION_ATTRIBUTES = [
-  'name',
-  'description',
-  'primary_action',
-  'body_position',
-  'hand_placement',
-  'head_direction',
-  'facial_expression',
-  'motion_blur',
-  'energy_level',
-  'interaction',
-  'emotion',
-] as const
-
-export const STYLE_ATTRIBUTES = [
-  'name',
-  'description',
-  'art_medium',
-  'color_palette',
-  'lighting',
-  'brushwork_or_texture',
-  'influence_or_era',
-  'mood',
-  'level_of_detail',
-  'key_elements',
-] as const
-
-export type PersonAttribute = (typeof PERSON_ATTRIBUTES)[number]
-
-export const PRESET_ATTRIBUTES: Record<string, ReadonlyArray<string>> = {
-  person: PERSON_ATTRIBUTES,
-  scene: SCENE_ATTRIBUTES,
-  framing: FRAMING_ATTRIBUTES,
-  action: ACTION_ATTRIBUTES,
-  style: STYLE_ATTRIBUTES,
-}
 
 // ─── Composable ────────────────────────────────────────────
 export function usePresetEditor() {
@@ -184,13 +92,16 @@ export function usePresetEditor() {
 
   // ── Content / Metadata Builders ─────────────────────────
   function buildContentFromState(state: Record<string, string | null>): string {
-    return Object.entries(state)
-      .filter(([, v]) => v)
-      .map(
-        ([k, v]) =>
-          `${String(k).charAt(0).toUpperCase() + String(k).slice(1).replaceAll('_', ' ')}: ${v}`,
-      )
-      .join('\n')
+    return attributesToContent(state)
+  }
+
+  function buildAttributesJson(state: Record<string, string | null>): string {
+    // Strip null values for cleaner storage
+    const clean: Record<string, string> = {}
+    for (const [k, v] of Object.entries(state)) {
+      if (v) clean[k] = v
+    }
+    return JSON.stringify(clean)
   }
 
   function buildMetadata(): string | null {
@@ -235,16 +146,22 @@ export function usePresetEditor() {
       : null
     const name = nameFromState || lastAssistant?.parsedResponse?.suggested_name || `New ${mode}`
     const metadataStr = buildMetadata()
+    const attributesJson = buildAttributesJson(state)
 
     savingBuilder.value = true
     try {
       if (currentPresetId.value) {
-        // Update existing
-        await updateElement(currentPresetId.value, { name, content, metadata: metadataStr })
+        // Update existing — include attributes JSON
+        await updateElement(currentPresetId.value, {
+          name,
+          content,
+          metadata: metadataStr,
+          attributes: attributesJson,
+        })
       } else {
-        // Create new
+        // Create new — include attributes JSON
         const payloadType = mode as 'person' | 'scene' | 'framing' | 'action' | 'style'
-        const created = await createElement(payloadType, name, content, metadataStr)
+        const created = await createElement(payloadType, name, content, metadataStr, attributesJson)
         currentPresetId.value = created?.id ?? null
       }
       toast.add({

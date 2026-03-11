@@ -96,11 +96,17 @@ export function useChatForm() {
             .join('\n')
         : ''
 
+      // Schema registry context — gives the agent full attribute schema awareness
+      const schemaContext = `\n\n${schemaToPromptContext()}`
+
+      // Pipeline algorithm context — lets the agent understand and debug compilation
+      const pipelineContext = `\n\n${compilationPipelineDescription()}`
+
       // Replace the default system message with our enhanced one
       const payloadMessages = [...chatMessages.value]
       payloadMessages[0] = {
         role: 'system',
-        content: `${payloadMessages[0]?.content || ''}\n\n${elementsContext}${modifiersContext}`,
+        content: `${payloadMessages[0]?.content || ''}\n\n${elementsContext}${modifiersContext}${schemaContext}${pipelineContext}`,
       }
 
       chatMessages.value.push({
