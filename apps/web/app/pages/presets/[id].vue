@@ -282,6 +282,7 @@ watch(currentBuilderState, (state) => {
 const { elements, fetchElements } = usePromptElements()
 const presetSearch = ref('')
 const isMobilePresetsOpen = ref(false)
+const isDebugModalOpen = ref(false)
 
 onMounted(() => fetchElements())
 
@@ -490,6 +491,15 @@ function presetThumb(metadata: string | null | undefined) {
             <UButton
               color="neutral"
               variant="ghost"
+              icon="i-lucide-bug"
+              size="sm"
+              class="hidden sm:inline-flex"
+              title="Debug JSON"
+              @click="isDebugModalOpen = true"
+            />
+            <UButton
+              color="neutral"
+              variant="ghost"
               icon="i-lucide-library"
               size="sm"
               class="md:hidden"
@@ -693,5 +703,59 @@ function presetThumb(metadata: string | null | undefined) {
         </div>
       </template>
     </USlideover>
+    <UModal v-model:open="isDebugModalOpen">
+      <template #content>
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold font-display">Debug State</h3>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              class="-mr-2"
+              @click="isDebugModalOpen = false"
+            />
+          </div>
+          <div class="space-y-4 overflow-y-auto max-h-[70vh]">
+            <div>
+              <h4 class="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+                Preset Data
+              </h4>
+              <pre
+                class="text-xs bg-elevated p-3 rounded-xl border border-default overflow-x-auto"
+                >{{ JSON.stringify(preset, null, 2) }}</pre
+              >
+            </div>
+            <div>
+              <h4 class="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+                Merged State
+              </h4>
+              <pre
+                class="text-xs bg-elevated p-3 rounded-xl border border-default overflow-x-auto"
+                >{{ JSON.stringify(mergedState, null, 2) }}</pre
+              >
+            </div>
+            <div>
+              <h4 class="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+                Editable Overrides
+              </h4>
+              <pre
+                class="text-xs bg-elevated p-3 rounded-xl border border-default overflow-x-auto"
+                >{{ JSON.stringify(editableOverrides, null, 2) }}</pre
+              >
+            </div>
+            <div>
+              <h4 class="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+                Chat Context
+              </h4>
+              <pre
+                class="text-xs bg-elevated p-3 rounded-xl border border-default overflow-x-auto"
+                >{{ JSON.stringify(currentBuilderState, null, 2) }}</pre
+              >
+            </div>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

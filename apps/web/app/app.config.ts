@@ -5,4 +5,7 @@ export default defineAppConfig({
       neutral: 'zinc',
     },
   },
+  auth: {
+    redirectPath: '/generate',
+  },
 })
