@@ -58,6 +58,7 @@ const {
   imageCount,
   attachedPerson,
   modifierSnippets,
+  activeModifiers,
   attachPerson,
   detachPerson,
   compilePrompt,
@@ -73,13 +74,21 @@ const {
   isSelected: isModifierSelected,
   clearModifiers,
   compiledSnippets,
+  selectedModifiersList,
   fetchModifiers,
 } = useQuickModifiers()
 
-// Keep modifierSnippets in sync
+// Keep modifierSnippets and activeModifiers in sync
 watch(compiledSnippets, (val) => {
   modifierSnippets.value = val
 })
+watch(
+  selectedModifiersList,
+  (val) => {
+    activeModifiers.value = val
+  },
+  { immediate: true },
+)
 
 // Person presets for quick attachment
 const personElements = computed(() => elements.value.filter((el) => el.type === 'person'))

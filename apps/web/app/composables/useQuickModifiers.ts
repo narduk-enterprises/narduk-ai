@@ -67,6 +67,18 @@ export function useQuickModifiers() {
     return snippets.join(', ')
   })
 
+  const selectedModifiersList = computed(() => {
+    const list: QuickModifier[] = []
+    for (const cat of categories.value) {
+      for (const mod of cat.modifiers) {
+        if (selectedIds.value.has(mod.id)) {
+          list.push(mod)
+        }
+      }
+    }
+    return list
+  })
+
   return {
     categories,
     selectedIds,
@@ -76,5 +88,6 @@ export function useQuickModifiers() {
     isSelected,
     clearModifiers,
     compiledSnippets,
+    selectedModifiersList,
   }
 }

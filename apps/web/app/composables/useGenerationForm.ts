@@ -1,5 +1,6 @@
 import type { Generation } from '~/types/generation'
 import type { PromptElement } from './usePromptElements'
+import type { QuickModifier } from './useQuickModifiers'
 
 /**
  * useGenerationForm — encapsulates the generation page form state,
@@ -52,6 +53,7 @@ export function useGenerationForm() {
   const attachedPerson = ref<PromptElement | null>(null)
   /** Quick modifier snippets string — set by generate.vue from useQuickModifiers */
   const modifierSnippets = ref('')
+  const activeModifiers = ref<QuickModifier[]>([])
 
   function attachPerson(person: PromptElement) {
     attachedPerson.value = person
@@ -66,14 +68,50 @@ export function useGenerationForm() {
    */
   function compilePrompt(): string {
     const parts: string[] = []
+    const unconsumedSnippets: string[] = []
+
     if (attachedPerson.value) {
-      parts.push(attachedPerson.value.content)
+      const lines = attachedPerson.value.content.split('\n')
+      const consumedCategories = new Set<string>()
+
+      const outLines = lines.map((line) => {
+        // Use indexOf to safely parse attributes without regex backtracking
+        const idx = line.indexOf(':')
+        if (idx !== -1) {
+          const key = line.slice(0, idx).trim().toLowerCase()
+
+          // Find an active modifier matching this attribute key
+          const modifier = activeModifiers.value.find((m) => {
+            const cat = m.category.toLowerCase().replaceAll('-', ' ')
+            return cat === key.replaceAll('-', ' ') || cat === key.replaceAll(/\s+/g, '')
+          })
+
+          if (modifier) {
+            consumedCategories.add(modifier.category)
+            return `${line.slice(0, idx)}: ${modifier.snippet}`
+          }
+        }
+        return line
+      })
+
+      for (const m of activeModifiers.value) {
+        if (!consumedCategories.has(m.category)) {
+          unconsumedSnippets.push(m.snippet)
+        }
+      }
+
+      parts.push(outLines.join('\n'))
+    } else {
+      unconsumedSnippets.push(...activeModifiers.value.map((m) => m.snippet))
     }
+
     parts.push(prompt.value.trim())
-    if (modifierSnippets.value) {
-      parts.push(modifierSnippets.value)
+
+    if (unconsumedSnippets.length) {
+      parts.push(unconsumedSnippets.join(', '))
     }
-    return parts.filter(Boolean).join(', ')
+
+    return parts.filter(Boolean).join('\n\n')
   }
 
   // ─── Batch Count ────────────────────────────────────────────
@@ -585,6 +623,7 @@ export function useGenerationForm() {
     // Attached person & modifiers
     attachedPerson,
     modifierSnippets,
+    activeModifiers,
     attachPerson,
     detachPerson,
     compilePrompt,
