@@ -62,6 +62,8 @@ const {
   attachPerson,
   detachPerson,
   compilePrompt,
+  setModifierDependencies,
+  activePromptElements,
 } = useGenerationForm()
 
 const { deleteGeneration } = useGenerate()
@@ -73,10 +75,18 @@ const {
   toggleModifier,
   isSelected: isModifierSelected,
   clearModifiers,
-  compiledSnippets,
   selectedModifiersList,
   fetchModifiers,
+  allModifiersList,
+  addModifiers,
+  compiledSnippets,
 } = useQuickModifiers()
+
+// Wire up the form so it can auto-select modifiers when a preset is chosen
+setModifierDependencies(allModifiersList.value, addModifiers)
+watch(allModifiersList, (newList) => {
+  setModifierDependencies(newList, addModifiers)
+})
 
 // Keep modifierSnippets and activeModifiers in sync
 watch(compiledSnippets, (val) => {
@@ -142,6 +152,14 @@ const presetDropdownItems = computed(() => {
   }
 
   return [nestedItems]
+})
+
+const accordionItems = computed(() => {
+  return modifierCategories.value.map((cat, index) => ({
+    ...cat,
+    defaultOpen: cat.category === 'frequently-used' || index === 0,
+    modifiers: cat.modifiers,
+  }))
 })
 
 function openRecentViewer(gen: Generation) {
@@ -458,32 +476,52 @@ function editResult(gen: Generation) {
             </div>
           </div>
 
-          <!-- Quick Modifiers -->
-          <div v-for="cat in modifierCategories" :key="cat.category" class="space-y-1.5">
-            <span
-              class="text-[10px] font-semibold text-muted uppercase tracking-wider flex items-center gap-1"
-            >
-              <UIcon :name="cat.icon" class="size-3" />
-              {{ cat.label || cat.category }}
-            </span>
-            <div class="flex flex-wrap gap-1.5">
-              <UButton
-                v-for="mod in cat.modifiers"
-                :key="mod.id"
-                size="xs"
-                :variant="isModifierSelected(mod.id) ? 'solid' : 'outline'"
-                :color="isModifierSelected(mod.id) ? 'primary' : 'neutral'"
-                class="rounded-full"
-                :class="isModifierSelected(mod.id) ? 'shadow-sm shadow-primary/20' : ''"
-                @click="toggleModifier(mod.id)"
-              >
-                {{ mod.label }}
-              </UButton>
-            </div>
+          <!-- Quick Modifiers Accordion -->
+          <div v-if="modifierCategories.length" class="space-y-1.5 mt-4">
+            <UAccordion variant="ghost" size="sm" :items="accordionItems" multiple>
+              <template #default="{ item, open }">
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  class="border-b border-default/5 w-full rounded-none px-2 py-2"
+                  :ui="{ leadingIcon: 'text-muted' }"
+                  :icon="item.icon"
+                >
+                  <span
+                    class="text-xs font-semibold text-muted uppercase tracking-wider flex-1 text-left"
+                  >
+                    {{ item.label || item.category }}
+                  </span>
+                  <template #trailing>
+                    <UIcon
+                      name="i-lucide-chevron-right"
+                      class="w-4 h-4 ms-auto transform transition-transform duration-200"
+                      :class="[open && 'rotate-90']"
+                    />
+                  </template>
+                </UButton>
+              </template>
+              <template #body="{ item }">
+                <div class="flex flex-wrap gap-1.5 px-2 pb-3 pt-1">
+                  <UButton
+                    v-for="mod in item.modifiers"
+                    :key="mod.id"
+                    size="xs"
+                    :variant="isModifierSelected(mod.id) ? 'solid' : 'outline'"
+                    :color="isModifierSelected(mod.id) ? 'primary' : 'neutral'"
+                    class="rounded-full"
+                    :class="isModifierSelected(mod.id) ? 'shadow-sm shadow-primary/20' : ''"
+                    @click="toggleModifier(mod.id)"
+                  >
+                    {{ mod.label }}
+                  </UButton>
+                </div>
+              </template>
+            </UAccordion>
           </div>
 
           <!-- Clear All -->
-          <div v-if="attachedPerson || compiledSnippets" class="flex justify-end">
+          <div v-if="attachedPerson || modifierSnippets" class="flex justify-end">
             <UButton
               size="xs"
               variant="ghost"
@@ -498,7 +536,9 @@ function editResult(gen: Generation) {
 
         <!-- Compiled Prompt Preview -->
         <div
-          v-if="(attachedPerson || compiledSnippets) && compilePrompt()"
+          v-if="
+            (attachedPerson || modifierSnippets || activePromptElements.length > 0) && charCount > 0
+          "
           class="rounded-xl bg-muted/30 border border-default/10 p-3 space-y-1.5"
         >
           <div class="flex items-center justify-between">
@@ -705,9 +745,10 @@ function editResult(gen: Generation) {
             </div>
           </div>
           <div class="flex items-start gap-3 group w-full">
-            <p class="text-sm text-muted flex-1">{{ latestResult!.prompt }}</p>
+            <p class="text-sm text-muted flex-1">{{ latestResult?.prompt }}</p>
             <CopyPromptButton
-              :prompt="latestResult!.prompt"
+              v-if="latestResult"
+              :prompt="latestResult.prompt"
               class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
             />
           </div>

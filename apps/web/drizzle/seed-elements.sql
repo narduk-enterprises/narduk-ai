@@ -2,6 +2,10 @@
 -- Run: pnpm run db:seed:elements (after db:migrate)
 -- Safe to re-run (INSERT OR IGNORE with stable UUIDs)
 
+-- ─── Mock User (to satisfy foreign keys) ───────────────────
+INSERT OR IGNORE INTO users (id, email, password_hash, is_admin, created_at, updated_at)
+VALUES ('00000000-0000-0000-0000-000000000003', 'seed@example.com', 'seeded_pass', 1, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+
 -- ─── Persons ────────────────────────────────────────
 
 INSERT OR IGNORE INTO prompt_elements (id, user_id, type, name, content, metadata, created_at, updated_at)

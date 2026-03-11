@@ -70,6 +70,8 @@ function startEdit(mod: {
   snippet: string
   sortOrder: number
   enabled: number
+  usageCount: number
+  updatedAt: string
 }) {
   editingId.value = mod.id
   editForm.category = mod.category
@@ -244,6 +246,9 @@ const groupedModifiers = computed(() => {
                   <UBadge variant="subtle" color="neutral" size="xs">{{ mod.id }}</UBadge>
                   <UBadge v-if="!mod.enabled" variant="subtle" color="error" size="xs">
                     Disabled
+                  </UBadge>
+                  <UBadge variant="subtle" color="primary" size="xs">
+                    Uses: {{ mod.usageCount || 0 }}
                   </UBadge>
                 </div>
                 <p class="text-sm text-muted mt-0.5 font-mono">{{ mod.snippet }}</p>

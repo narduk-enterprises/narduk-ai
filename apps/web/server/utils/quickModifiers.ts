@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { quickModifiers } from '../database/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 
 export interface QuickModifier {
   id: string
@@ -9,6 +9,7 @@ export interface QuickModifier {
   snippet: string
   sortOrder: number
   enabled: number
+  usageCount: number
   updatedAt: string
 }
 
@@ -39,10 +40,20 @@ export async function getQuickModifiersByCategory(
   const rows = await db.select().from(quickModifiers).where(eq(quickModifiers.enabled, 1)).all()
 
   const grouped: Record<string, QuickModifier[]> = {}
+  const frequentlyUsed: QuickModifier[] = []
+
   for (const row of rows) {
     if (!grouped[row.category]) grouped[row.category] = []
     grouped[row.category]!.push(row)
+
+    if (row.usageCount > 0) {
+      frequentlyUsed.push(row)
+    }
   }
+
+  // Sort frequently used by usageCount descending, take top 15
+  frequentlyUsed.sort((a, b) => b.usageCount - a.usageCount)
+  const topUsed = frequentlyUsed.slice(0, 15)
 
   // Sort within each category by sortOrder
   for (const cat of Object.keys(grouped)) {
@@ -64,7 +75,7 @@ export async function getQuickModifiersByCategory(
   })
 
   // Return in sorted order
-  return allCategories.map((cat) => ({
+  const results: QuickModifiersByCategory[] = allCategories.map((cat) => ({
     category: cat,
     label: CATEGORY_ORDER.includes(cat)
       ? cat.charAt(0).toUpperCase() + cat.slice(1)
@@ -75,6 +86,36 @@ export async function getQuickModifiersByCategory(
     icon: CATEGORY_ICONS[cat] || 'i-lucide-tag',
     modifiers: grouped[cat]!,
   }))
+
+  if (topUsed.length > 0) {
+    results.unshift({
+      category: 'frequently-used',
+      label: 'Frequently Used',
+      icon: 'i-lucide-flame',
+      modifiers: topUsed,
+    })
+  }
+
+  return results
+}
+
+/**
+ * Update quick modifier usage counts
+ */
+export async function incrementQuickModifierUsage(event: H3Event, ids: string[]): Promise<void> {
+  const db = useDatabase(event)
+  if (!ids.length) return
+
+  // Can't do bulk dynamic updates easily in SQLite, so we do it in a transaction or individually.
+  const statements = ids.map((id) =>
+    db
+      .update(quickModifiers)
+      .set({ usageCount: sql`${quickModifiers.usageCount} + 1` })
+      .where(eq(quickModifiers.id, id)),
+  )
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- batch typing works tightly with an array literal
+  await db.batch(statements as any) // `as any` because batch typing works tightly with an array literal, dynamic arrays can mismatch
 }
 
 /**

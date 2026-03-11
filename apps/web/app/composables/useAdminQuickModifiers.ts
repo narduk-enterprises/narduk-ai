@@ -15,8 +15,8 @@ export function useAdminQuickModifiers() {
     category: string
     label: string
     snippet: string
-    sortOrder?: number
-    enabled?: number
+    sortOrder: number
+    enabled: number
   }) {
     saving.value = true
     try {

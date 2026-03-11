@@ -5,6 +5,7 @@ export interface QuickModifier {
   snippet: string
   sortOrder: number
   enabled: number
+  usageCount: number
   updatedAt: string
 }
 
@@ -79,6 +80,34 @@ export function useQuickModifiers() {
     return list
   })
 
+  async function recordUsage(ids: string[]) {
+    if (!ids.length) return
+    try {
+      await $fetch('/api/quick-modifiers/usage', {
+        method: 'POST',
+        body: { modifierIds: ids },
+      })
+    } catch (e) {
+      console.error('Failed to record quick modifier usage', e)
+    }
+  }
+
+  const allModifiersList = computed(() => {
+    const list: QuickModifier[] = []
+    for (const cat of categories.value) {
+      list.push(...cat.modifiers)
+    }
+    return list
+  })
+
+  function addModifiers(ids: string[]) {
+    const next = new Set(selectedIds.value)
+    for (const id of ids) {
+      next.add(id)
+    }
+    selectedIds.value = next
+  }
+
   return {
     categories,
     selectedIds,
@@ -89,5 +118,8 @@ export function useQuickModifiers() {
     clearModifiers,
     compiledSnippets,
     selectedModifiersList,
+    allModifiersList,
+    addModifiers,
+    recordUsage,
   }
 }

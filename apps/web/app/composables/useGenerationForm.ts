@@ -5,10 +5,9 @@ import type { QuickModifier } from './useQuickModifiers'
 /**
  * useGenerationForm — encapsulates the generation page form state,
  * mode switching, generation dispatch, result management, and polling.
- *
  * Extracted from generate.vue to keep the page as a thin orchestrator.
  */
-export function useGenerationForm() {
+export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>) {
   const route = useRoute()
   const { defaultAspectRatio, defaultDuration, defaultResolution } = useSettings()
   const {
@@ -46,6 +45,11 @@ export function useGenerationForm() {
     activePromptElements.value = Object.values(presets).filter(Boolean) as string[]
     activePresets.value = presets
     activeUserPromptId.value = promptId || null
+
+    // Auto-select modifiers for all loaded presets
+    for (const content of activePromptElements.value) {
+      autoSelectModifiersForPreset(content)
+    }
   }
 
   // ─── Attached Person & Quick Modifiers ───────────────────────
@@ -56,43 +60,122 @@ export function useGenerationForm() {
   const activeModifiers = ref<QuickModifier[]>([])
 
   function attachPerson(person: PromptElement) {
+    if (attachedPerson.value?.id === person.id) return
     attachedPerson.value = person
+    autoSelectModifiersForPreset(person.content)
   }
 
   function detachPerson() {
     attachedPerson.value = null
   }
 
+  function autoSelectModifiersForPreset(content: string) {
+    const lines = content.split('\n')
+    const modifiersToSelect = new Set<string>()
+
+    for (const line of lines) {
+      const idx = line.indexOf(':')
+      if (idx !== -1) {
+        const key = line.slice(0, idx).trim().toLowerCase().replaceAll('-', ' ')
+        // Match value exactly for auto-selection (assuming snippet == value)
+        const val = line.slice(idx + 1).trim()
+
+        // Find modifier matching this category and snippet
+        const modifier = modifierCategoriesList.value.find((m) => {
+          const modCat = m.category.toLowerCase().replaceAll('-', ' ')
+          return (
+            (modCat === key || modCat === key.replaceAll(/\s+/g, '')) &&
+            m.snippet.toLowerCase() === val.toLowerCase()
+          )
+        })
+
+        if (modifier) {
+          modifiersToSelect.add(modifier.id)
+        }
+      }
+    }
+
+    // Add these to active modifiers without clearing existing ones
+    // We emit an event or call a method on useQuickModifiers to add these IDs
+    if (modifiersToSelect.size > 0 && typeof onSelectModifiers !== 'undefined') {
+      onSelectModifiers(Array.from(modifiersToSelect))
+    }
+  }
+
+  // We need to receive the full list of modifiers from the page to do the matching
+  const modifierCategoriesList = ref<QuickModifier[]>([])
+
+  let onSelectModifiers: ((ids: string[]) => void) | undefined
+
+  function setModifierDependencies(
+    allModifiers: QuickModifier[],
+    onSelect: (ids: string[]) => void,
+  ) {
+    modifierCategoriesList.value = allModifiers
+    onSelectModifiers = onSelect
+  }
+
   /**
-   * Compile the final prompt: [person content] + [user prompt] + [modifier snippets]
+   * Compile the final prompt: [all active preset content] + [user prompt] + [unconsumed modifier snippets]
    */
   function compilePrompt(): string {
     const parts: string[] = []
     const unconsumedSnippets: string[] = []
+    const consumedCategories = new Set<string>()
 
-    if (attachedPerson.value) {
-      const lines = attachedPerson.value.content.split('\n')
-      const consumedCategories = new Set<string>()
+    // Combine all active preset contents (which may include the attached person)
+    const presetLines: string[] = []
+    if (activePromptElements.value && activePromptElements.value.length > 0) {
+      for (const content of activePromptElements.value) {
+        presetLines.push(...content.split('\n'))
+      }
+    }
 
-      const outLines = lines.map((line) => {
-        // Use indexOf to safely parse attributes without regex backtracking
-        const idx = line.indexOf(':')
-        if (idx !== -1) {
-          const key = line.slice(0, idx).trim().toLowerCase()
+    // Also include attachedPerson if it exists (legacy compatibility)
+    if (
+      attachedPerson.value &&
+      !activePromptElements.value.includes(attachedPerson.value.content)
+    ) {
+      presetLines.push(...attachedPerson.value.content.split('\n'))
+    }
 
-          // Find an active modifier matching this attribute key
-          const modifier = activeModifiers.value.find((m) => {
-            const cat = m.category.toLowerCase().replaceAll('-', ' ')
-            return cat === key.replaceAll('-', ' ') || cat === key.replaceAll(/\s+/g, '')
-          })
+    if (presetLines.length > 0) {
+      const outLines = presetLines
+        .map((line) => {
+          // Use indexOf to safely parse attributes without regex backtracking
+          const idx = line.indexOf(':')
+          if (idx !== -1) {
+            const key = line.slice(0, idx).trim().toLowerCase()
 
-          if (modifier) {
-            consumedCategories.add(modifier.category)
-            return `${line.slice(0, idx)}: ${modifier.snippet}`
+            // Normalize key for matching (e.g. "body type" -> "body type")
+            const normalizedKey = key.replaceAll('-', ' ')
+
+            // Find an active modifier matching this attribute key
+            const modifier = activeModifiers.value.find((m) => {
+              const cat = m.category.toLowerCase().replaceAll('-', ' ')
+              return cat === normalizedKey || cat === key.replaceAll(/\s+/g, '')
+            })
+
+            if (modifier) {
+              consumedCategories.add(modifier.category)
+              return `${line.slice(0, idx)}: ${modifier.snippet}`
+            }
+
+            // A better way is to rely on a passed-in list of categories, but since useQuickModifiers
+            // has all modifiers, we can assume if it's a known preset attribute, we want it pruned
+            // if no modifier is active.
+            //
+            // Let's implement the simpler rule: if it looks like a standard preset attribute (has a label)
+            // and we didn't explicitly select a modifier for it, PRUNE it to allow the base prompt to shine.
+            // Exclude structural/informational fields.
+            const structuralKeys = ['name', 'description']
+            if (!structuralKeys.includes(normalizedKey)) {
+              return null // prune line
+            }
           }
-        }
-        return line
-      })
+          return line
+        })
+        .filter((line): line is string => line !== null)
 
       for (const m of activeModifiers.value) {
         if (!consumedCategories.has(m.category)) {
@@ -223,6 +306,10 @@ export function useGenerationForm() {
         latestResults.value = [result]
         await loadUserImages()
       }
+    }
+
+    if (recordUsage && activeModifiers.value.length > 0) {
+      recordUsage(activeModifiers.value.map((m) => m.id))
     }
 
     // Clear builder state after successful dispatch so subsequent generations aren't falsely tagged unless specifically re-selected.
@@ -617,6 +704,7 @@ export function useGenerationForm() {
     resolution,
     sourceGenerationId,
     activePresets,
+    activePromptElements,
     setBuilderContext,
     imageCount,
 
@@ -668,5 +756,6 @@ export function useGenerationForm() {
     i2iInstructions,
     generatingI2IPrompt,
     generateI2IPrompt,
+    setModifierDependencies,
   }
 }

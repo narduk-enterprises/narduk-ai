@@ -116,12 +116,17 @@ export const systemPrompts = sqliteTable('system_prompts', {
   updatedAt: text('updated_at').notNull(),
 })
 
-export const quickModifiers = sqliteTable('quick_modifiers', {
-  id: text('id').primaryKey().notNull(),
-  category: text('category').notNull(), // lighting, mood, camera, detail, quality
-  label: text('label').notNull(),
-  snippet: text('snippet').notNull(),
-  sortOrder: integer('sort_order').notNull().default(0),
-  enabled: integer('enabled').notNull().default(1), // 0 = disabled, 1 = enabled
-  updatedAt: text('updated_at').notNull(),
-})
+export const quickModifiers = sqliteTable(
+  'quick_modifiers',
+  {
+    id: text('id').primaryKey().notNull(),
+    category: text('category').notNull(), // lighting, mood, camera, detail, quality
+    label: text('label').notNull(),
+    snippet: text('snippet').notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
+    enabled: integer('enabled').notNull().default(1), // 0 = disabled, 1 = enabled
+    usageCount: integer('usage_count').notNull().default(0),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [index('quick_modifiers_usage_idx').on(table.usageCount)],
+)
