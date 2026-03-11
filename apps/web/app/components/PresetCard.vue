@@ -6,9 +6,7 @@ const props = defineProps<{
 }>()
 
 defineEmits<{
-  edit: [preset: PromptElement]
   delete: [id: string]
-  use: [preset: PromptElement]
 }>()
 
 const parsedMeta = computed<PresetMetadata>(() => {
@@ -21,7 +19,7 @@ const parsedMeta = computed<PresetMetadata>(() => {
 })
 
 const previewUrl = computed(
-  () => parsedMeta.value.fullBodyUrl || parsedMeta.value.headshotUrl || null,
+  () => parsedMeta.value.headshotUrl || parsedMeta.value.fullBodyUrl || null,
 )
 
 const typeConfig: Record<string, { icon: string; label: string; color: string }> = {
@@ -33,12 +31,30 @@ const typeConfig: Record<string, { icon: string; label: string; color: string }>
 }
 
 const config = computed(() => typeConfig[props.preset.type] || typeConfig.prompt)
+
+const cardDescription = computed(() => {
+  // Try to extract description from content lines
+  const lines = props.preset.content.split('\n')
+  for (const line of lines) {
+    const lower = line.toLowerCase().trim()
+    if (lower.startsWith('description:')) {
+      return line.slice(line.indexOf(':') + 1).trim()
+    }
+  }
+  // Fallback: show first non-name line or truncated content
+  const meaningful = lines
+    .filter((l) => l.trim() && !l.toLowerCase().startsWith('name:'))
+    .slice(0, 2)
+    .map((l) => l.trim())
+    .join(' · ')
+  return meaningful || props.preset.content
+})
 </script>
 
 <template>
   <div
     class="preset-card group card-base overflow-hidden transition-all duration-300 hover:shadow-elevated hover:-translate-y-0.5 cursor-pointer"
-    @click="$emit('use', preset)"
+    @click="navigateTo(`/presets/${preset.id}`)"
   >
     <!-- Image / Placeholder -->
     <div class="relative aspect-4/5 overflow-hidden bg-elevated">
@@ -77,8 +93,8 @@ const config = computed(() => typeConfig[props.preset.type] || typeConfig.prompt
       <h3 class="font-display font-semibold text-default truncate text-sm">
         {{ preset.name }}
       </h3>
-      <p class="text-xs text-muted line-clamp-3 leading-relaxed">
-        {{ preset.content }}
+      <p class="text-xs text-muted line-clamp-2 leading-relaxed">
+        {{ cardDescription }}
       </p>
     </div>
 
@@ -89,21 +105,13 @@ const config = computed(() => typeConfig[props.preset.type] || typeConfig.prompt
       <UButton
         variant="ghost"
         color="primary"
-        icon="i-lucide-sparkles"
-        size="xs"
-        class="rounded-full flex-1"
-        @click.stop="$emit('use', preset)"
-      >
-        Use
-      </UButton>
-      <UButton
-        variant="ghost"
-        color="neutral"
         icon="i-lucide-pencil"
         size="xs"
-        class="rounded-full"
-        @click.stop="$emit('edit', preset)"
-      />
+        class="rounded-full flex-1"
+        @click.stop="navigateTo(`/presets/${preset.id}`)"
+      >
+        Edit
+      </UButton>
       <UButton
         variant="ghost"
         color="error"

@@ -4,7 +4,7 @@
  * Uses UApp directly with custom header/footer components.
  */
 const route = useRoute()
-const showFooter = computed(() => route.path !== '/chat')
+const showFooter = computed(() => route.path !== '/chat' && !route.path.startsWith('/presets/'))
 </script>
 
 <template>

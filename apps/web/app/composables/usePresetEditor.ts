@@ -1,0 +1,440 @@
+import type { ChatMessage } from './useChatForm'
+import type { PromptElement, PresetMetadata } from './usePromptElements'
+
+// ─── Constants ─────────────────────────────────────────────
+const MAX_CHAT_MESSAGES = 30
+export const PERSON_ATTRIBUTES = [
+  'name',
+  'description',
+  'age',
+  'gender',
+  'ethnicity',
+  'body_type',
+  'height',
+  'skin_tone',
+  'hair_color',
+  'hair_style',
+  'eye_color',
+  'face_shape',
+  'expression',
+  'clothing',
+  'accessories',
+  'makeup',
+  'tattoos_piercings',
+  'vibe',
+  'distinguishing_features',
+] as const
+
+export const SCENE_ATTRIBUTES = [
+  'name',
+  'description',
+  'setting',
+  'time_of_day',
+  'weather',
+  'season',
+  'lighting',
+  'color_palette',
+  'architecture',
+  'vegetation',
+  'props',
+  'atmosphere',
+  'depth',
+  'ground_surface',
+] as const
+
+export const FRAMING_ATTRIBUTES = [
+  'name',
+  'description',
+  'shot_type',
+  'camera_angle',
+  'camera_height',
+  'lens',
+  'focal_length',
+  'depth_of_field',
+  'focus_point',
+  'camera_movement',
+  'composition_rule',
+  'aspect_ratio',
+] as const
+
+export const ACTION_ATTRIBUTES = [
+  'name',
+  'description',
+  'primary_action',
+  'body_position',
+  'hand_placement',
+  'head_direction',
+  'facial_expression',
+  'motion_blur',
+  'energy_level',
+  'interaction',
+  'emotion',
+] as const
+
+export type PersonAttribute = (typeof PERSON_ATTRIBUTES)[number]
+
+export const PRESET_ATTRIBUTES: Record<string, readonly string[]> = {
+  person: PERSON_ATTRIBUTES,
+  scene: SCENE_ATTRIBUTES,
+  framing: FRAMING_ATTRIBUTES,
+  action: ACTION_ATTRIBUTES,
+}
+
+// ─── Composable ────────────────────────────────────────────
+export function usePresetEditor() {
+  const { updateElement, fetchElements, createElement } = usePromptElements()
+  const { generateImage, generating: generatingPreview } = useGenerate()
+  const toast = useToast()
+
+  // ── Reactive State ──────────────────────────────────────
+  const editableOverrides = reactive<Record<string, string | null>>({})
+  const previewImageUrl = ref<string | null>(null)
+  const headshotUrl = ref<string | null>(null)
+  const currentPresetId = ref<string | null>(null)
+  const presetType = ref<string | null>(null)
+  const savingBuilder = ref(false)
+
+  // ── Helpers ─────────────────────────────────────────────
+  function formatKey(key: string | number): string {
+    return String(key).replaceAll('_', ' ')
+  }
+
+  function clearOverrides() {
+    for (const key of Object.keys(editableOverrides)) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- clearing reactive object
+      delete editableOverrides[key]
+    }
+  }
+
+  // ── Builder State Computation ───────────────────────────
+  /**
+   * Derives the current builder state from chat messages.
+   * Pass in the chatMessages ref from useChatForm.
+   */
+  function computeBuilderState(
+    chatMessages: Ref<ChatMessage[]>,
+    mode: string,
+  ): Record<string, string | null> | null {
+    if (mode === 'general') return null
+    for (let i = chatMessages.value.length - 1; i >= 0; i--) {
+      const msg = chatMessages.value[i]
+      if (
+        msg &&
+        msg.role === 'assistant' &&
+        msg.parsedResponse?.builder_state &&
+        Object.keys(msg.parsedResponse.builder_state).length > 0
+      ) {
+        return msg.parsedResponse.builder_state
+      }
+    }
+    return null
+  }
+
+  /**
+   * Merges the raw builder state with PERSON_ATTRIBUTES schema and user edits.
+   */
+  function mergeBuilderState(
+    rawState: Record<string, string | null> | null,
+    mode: string,
+  ): Record<string, string | null> | null {
+    if (!rawState) return null
+
+    const schema = PRESET_ATTRIBUTES[mode]
+    if (!schema) {
+      // Unknown type — just overlay edits
+      return { ...rawState, ...editableOverrides }
+    }
+
+    const merged: Record<string, string | null> = {}
+    for (const attr of schema) {
+      merged[attr] = editableOverrides[attr] ?? rawState[attr] ?? null
+    }
+    // Include extra attributes Grok returned outside the schema
+    for (const [key, val] of Object.entries(rawState)) {
+      if (!(key in merged)) merged[key] = editableOverrides[key] ?? val
+    }
+    return merged
+  }
+
+  // ── Attribute Editing ───────────────────────────────────
+  function updateAttribute(key: string, value: string) {
+    if (value.trim()) {
+      editableOverrides[key] = value.trim()
+    } else {
+      editableOverrides[key] = null
+    }
+  }
+
+  // ── Content / Metadata Builders ─────────────────────────
+  function buildContentFromState(state: Record<string, string | null>): string {
+    return Object.entries(state)
+      .filter(([, v]) => v)
+      .map(
+        ([k, v]) =>
+          `${String(k).charAt(0).toUpperCase() + String(k).slice(1).replaceAll('_', ' ')}: ${v}`,
+      )
+      .join('\n')
+  }
+
+  function buildMetadata(): string | null {
+    const meta: PresetMetadata = {}
+    if (headshotUrl.value) meta.headshotUrl = headshotUrl.value
+    if (previewImageUrl.value) meta.fullBodyUrl = previewImageUrl.value
+    return Object.keys(meta).length > 0 ? JSON.stringify(meta) : null
+  }
+
+  // ── Load Preset ─────────────────────────────────────────
+  function loadPreset(element: PromptElement) {
+    currentPresetId.value = element.id
+    presetType.value = element.type
+    clearOverrides()
+    previewImageUrl.value = null
+    headshotUrl.value = null
+
+    // Restore images from metadata
+    if (element.metadata) {
+      try {
+        const meta = JSON.parse(element.metadata) as PresetMetadata
+        if (meta.fullBodyUrl) previewImageUrl.value = meta.fullBodyUrl
+        if (meta.headshotUrl) headshotUrl.value = meta.headshotUrl
+      } catch {
+        /* ignore invalid JSON */
+      }
+    }
+  }
+
+  // ── Save Preset ─────────────────────────────────────────
+  async function savePreset(
+    state: Record<string, string | null>,
+    mode: string,
+    chatMessages?: Ref<ChatMessage[]>,
+  ) {
+    const content = buildContentFromState(state)
+    if (!content) return
+
+    const nameFromState = state.name || null
+    const lastAssistant = chatMessages
+      ? [...chatMessages.value].reverse().find((m) => m.role === 'assistant')
+      : null
+    const name = nameFromState || lastAssistant?.parsedResponse?.suggested_name || `New ${mode}`
+    const metadataStr = buildMetadata()
+
+    savingBuilder.value = true
+    try {
+      if (currentPresetId.value) {
+        // Update existing
+        await updateElement(currentPresetId.value, { name, content, metadata: metadataStr })
+      } else {
+        // Create new
+        const payloadType = mode as 'person' | 'scene' | 'framing' | 'action'
+        const created = await createElement(payloadType, name, content, metadataStr)
+        currentPresetId.value = created?.id ?? null
+      }
+      toast.add({
+        title: 'Preset Saved',
+        description: `"${name}" has been saved.`,
+        icon: 'i-lucide-check-circle',
+        color: 'success',
+      })
+      await fetchElements()
+    } catch {
+      toast.add({
+        title: 'Failed to Save',
+        description: 'An error occurred while saving the preset.',
+        icon: 'i-lucide-alert-triangle',
+        color: 'error',
+      })
+    } finally {
+      savingBuilder.value = false
+    }
+  }
+
+  // ── Preview Generation ──────────────────────────────────
+  async function generatePreview(state: Record<string, string | null>, type?: string) {
+    const attrs = Object.entries(state)
+      .filter(([k, v]) => v && k !== 'name' && k !== 'description')
+      .map(([k, v]) => `${formatKey(k)}: ${v}`)
+      .join(', ')
+
+    const presetMode = type || presetType.value || 'person'
+
+    previewImageUrl.value = null
+    headshotUrl.value = null
+
+    if (presetMode === 'person') {
+      const fullBodyPrompt = `Full body portrait photograph of a person: ${attrs}. Standing pose facing the viewer, plain white background, studio lighting, clean and simple, fashion lookbook style, no distractions, high quality, photorealistic.`
+      const headshotPrompt = `Professional headshot portrait of a person: ${attrs}. Close-up face and shoulders, plain white background, studio lighting, sharp focus, high quality, photorealistic.`
+
+      const [fullBodyResult, headshotResult] = await Promise.allSettled([
+        generateImage(fullBodyPrompt, '9:16'),
+        generateImage(headshotPrompt, '1:1'),
+      ])
+
+      if (fullBodyResult.status === 'fulfilled' && fullBodyResult.value?.mediaUrl) {
+        previewImageUrl.value = fullBodyResult.value.mediaUrl
+      }
+      if (headshotResult.status === 'fulfilled' && headshotResult.value?.mediaUrl) {
+        headshotUrl.value = headshotResult.value.mediaUrl
+      }
+    } else if (presetMode === 'scene') {
+      const prompt = `A cinematic wide-angle photograph of a scene: ${attrs}. Cinematic composition, ultra-detailed environment, atmospheric, high quality, photorealistic, no people.`
+      const result = await generateImage(prompt, '16:9').catch(() => null)
+      if (result?.mediaUrl) previewImageUrl.value = result.mediaUrl
+    } else if (presetMode === 'framing') {
+      const prompt = `A demonstration of camera framing and composition: ${attrs}. Show the framing technique with a generic subject in a neutral environment, cinematic quality, photorealistic.`
+      const result = await generateImage(prompt, '16:9').catch(() => null)
+      if (result?.mediaUrl) previewImageUrl.value = result.mediaUrl
+    } else if (presetMode === 'action') {
+      const prompt = `A dynamic photograph of a person performing an action: ${attrs}. Dramatic lighting, high energy, motion captured, photorealistic, high quality.`
+      const result = await generateImage(prompt, '9:16').catch(() => null)
+      if (result?.mediaUrl) previewImageUrl.value = result.mediaUrl
+    }
+
+    if (!previewImageUrl.value && !headshotUrl.value) {
+      toast.add({
+        title: 'Preview Failed',
+        description: 'Could not generate preview images.',
+        icon: 'i-lucide-alert-triangle',
+        color: 'error',
+      })
+    }
+  }
+
+  // ── Debounced Auto-Save ─────────────────────────────────
+  let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+  const AUTO_SAVE_DELAY = 1500
+
+  function scheduleAutoSave(state: Record<string, string | null> | null) {
+    if (!currentPresetId.value || !state) return
+    // Don't save if content is empty/whitespace (brand new preset with no work)
+    const content = buildContentFromState(state)
+    if (!content || !content.trim()) return
+    if (autoSaveTimer) clearTimeout(autoSaveTimer)
+    autoSaveTimer = setTimeout(async () => {
+      const id = currentPresetId.value
+      if (!id || !state) return
+      const latestContent = buildContentFromState(state)
+      if (!latestContent || !latestContent.trim()) return
+      try {
+        const name = state.name || undefined
+        await updateElement(id, {
+          ...(name && { name }),
+          content: latestContent,
+          metadata: buildMetadata(),
+        })
+        await fetchElements()
+      } catch {
+        /* silent — auto-saves are best-effort */
+      }
+    }, AUTO_SAVE_DELAY)
+  }
+
+  // ── Chat History Persistence ────────────────────────────
+  let chatSaveTimer: ReturnType<typeof setTimeout> | null = null
+  const CHAT_SAVE_DELAY = 2000
+
+  function scheduleChatSave(messages: ChatMessage[]) {
+    if (!currentPresetId.value) return
+    if (chatSaveTimer) clearTimeout(chatSaveTimer)
+    chatSaveTimer = setTimeout(async () => {
+      const id = currentPresetId.value
+      if (!id) return
+      try {
+        // Cap messages: keep system + last N messages
+        const systemMsgs = messages.filter((m) => m.role === 'system')
+        const nonSystemMsgs = messages.filter((m) => m.role !== 'system')
+        const capped = [...systemMsgs, ...nonSystemMsgs.slice(-MAX_CHAT_MESSAGES)]
+        // Strip parsedResponse to save space (it's re-derived on load)
+        const serializable = capped.map((m) => ({
+          role: m.role,
+          content: m.content,
+        }))
+        await updateElement(id, { chatHistory: JSON.stringify(serializable) })
+      } catch {
+        /* silent — chat saves are best-effort */
+      }
+    }, CHAT_SAVE_DELAY)
+  }
+
+  function loadChatHistory(element: PromptElement): ChatMessage[] | null {
+    if (!element.chatHistory) return null
+    try {
+      const raw = JSON.parse(element.chatHistory) as Array<{ role: string; content: string }>
+      return raw.map((m) => {
+        const msg: ChatMessage = {
+          role: m.role as ChatMessage['role'],
+          content: m.content,
+        }
+        // Re-parse assistant JSON responses
+        if (m.role === 'assistant') {
+          try {
+            msg.parsedResponse = JSON.parse(m.content)
+          } catch {
+            msg.parsedResponse = { message: m.content, prompt: null }
+          }
+        }
+        return msg
+      })
+    } catch {
+      return null
+    }
+  }
+
+  async function clearChatHistory() {
+    if (!currentPresetId.value) return
+    try {
+      await updateElement(currentPresetId.value, { chatHistory: null })
+    } catch {
+      /* silent */
+    }
+  }
+
+  // ── Reset ───────────────────────────────────────────────
+  function resetState() {
+    clearOverrides()
+    previewImageUrl.value = null
+    headshotUrl.value = null
+    currentPresetId.value = null
+    presetType.value = null
+  }
+
+  // ── Fetch Single Preset ─────────────────────────────────
+  function fetchPresetById(id: string | Ref<string>) {
+    return useFetch<PromptElement>(() => `/api/elements/${unref(id)}`, {
+      key: `preset-${unref(id)}`,
+    })
+  }
+
+  return {
+    // State
+    editableOverrides,
+    previewImageUrl,
+    headshotUrl,
+    currentPresetId,
+    presetType,
+    savingBuilder,
+    generatingPreview,
+
+    // Computations
+    computeBuilderState,
+    mergeBuilderState,
+
+    // Actions
+    loadPreset,
+    savePreset,
+    updateAttribute,
+    generatePreview,
+    scheduleAutoSave,
+    scheduleChatSave,
+    loadChatHistory,
+    clearChatHistory,
+    resetState,
+    clearOverrides,
+
+    // Helpers
+    formatKey,
+    buildContentFromState,
+    buildMetadata,
+    fetchPresetById,
+  }
+}

@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import type { PromptElement } from '~/composables/usePromptElements'
-import { z } from 'zod'
-import type { FormSubmitEvent } from '#ui/types'
-
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({
@@ -14,7 +10,7 @@ useWebPageSchema({
   description: 'Browse and manage your prompt presets for AI generation.',
 })
 
-const { elements, loading, error, fetchElements, createElement, updateElement, deleteElement } =
+const { elements, groupedByType, loading, error, fetchElements, createElement, deleteElement } =
   usePromptElements()
 
 onMounted(fetchElements)
@@ -44,66 +40,51 @@ const filterCounts = computed(() => {
   return counts
 })
 
-// ── Create / Edit Modal ────────────────────────────────────
-const isModalOpen = ref(false)
+// Build ordered category sections for the "All" view
+const categorySections = computed(() => {
+  const order = ['person', 'scene', 'framing', 'action', 'prompt']
+  const labelMap: Record<string, string> = {
+    person: 'Persons',
+    scene: 'Scenes',
+    framing: 'Framing',
+    action: 'Actions',
+    prompt: 'Prompts',
+  }
+  const iconMap: Record<string, string> = {
+    person: 'i-lucide-user',
+    scene: 'i-lucide-image',
+    framing: 'i-lucide-camera',
+    action: 'i-lucide-activity',
+    prompt: 'i-lucide-file-text',
+  }
+  return order
+    .map((type) => ({
+      type,
+      label: labelMap[type] || type,
+      icon: iconMap[type] || 'i-lucide-file-text',
+      items: groupedByType.value[type] || [],
+    }))
+    .filter((s) => s.items.length > 0)
+})
+
+// ── Actions ────────────────────────────────────────────────
 const submitting = ref(false)
-const editingId = ref<string | null>(null)
-const isEditing = computed(() => editingId.value !== null)
 
-const schema = z.object({
-  type: z.enum(['person', 'scene', 'framing', 'action', 'prompt']),
-  name: z.string().min(1, 'Name is required').max(100),
-  content: z.string().min(1, 'Content is required').max(2000),
-})
-
-type Schema = z.infer<typeof schema>
-
-const state = reactive<Schema>({
-  type: 'person',
-  name: '',
-  content: '',
-})
-
-const typeOptions = [
-  { label: 'Person / Character', value: 'person' },
-  { label: 'Scene / Environment', value: 'scene' },
-  { label: 'Framing / Camera', value: 'framing' },
-  { label: 'Action / Pose', value: 'action' },
-  { label: 'Assembled Prompt', value: 'prompt' },
+const presetTypes = [
+  { label: 'Person', value: 'person', icon: 'i-lucide-user' },
+  { label: 'Scene', value: 'scene', icon: 'i-lucide-image' },
+  { label: 'Framing', value: 'framing', icon: 'i-lucide-camera' },
+  { label: 'Action', value: 'action', icon: 'i-lucide-activity' },
 ]
 
-function openCreate() {
-  editingId.value = null
-  state.type = 'person'
-  state.name = ''
-  state.content = ''
-  isModalOpen.value = true
-}
-
-function openEdit(el: PromptElement) {
-  editingId.value = el.id
-  state.type = el.type as Schema['type']
-  state.name = el.name
-  state.content = el.content
-  isModalOpen.value = true
-}
-
-async function onSubmit(event: FormSubmitEvent<Schema>) {
+async function handleCreate(type: string) {
   submitting.value = true
   try {
-    if (editingId.value) {
-      await updateElement(editingId.value, {
-        type: event.data.type,
-        name: event.data.name,
-        content: event.data.content,
-      })
-    } else {
-      await createElement(event.data.type, event.data.name, event.data.content)
+    const label = type.charAt(0).toUpperCase() + type.slice(1)
+    const created = await createElement(type, `New ${label}`, ' ')
+    if (created?.id) {
+      navigateTo(`/presets/${created.id}`)
     }
-    isModalOpen.value = false
-    editingId.value = null
-    state.name = ''
-    state.content = ''
   } catch (e) {
     console.error(e)
   } finally {
@@ -116,10 +97,6 @@ async function handleDelete(id: string) {
     await deleteElement(id)
   }
 }
-
-function handleUse(preset: PromptElement) {
-  navigateTo({ path: '/generate', query: { prompt: preset.content } })
-}
 </script>
 
 <template>
@@ -130,12 +107,22 @@ function handleUse(preset: PromptElement) {
         <h1 class="font-display text-3xl sm:text-4xl font-bold mb-2">Presets</h1>
         <p class="text-muted">Browse your prompt library and build faster</p>
       </div>
-      <UButton
-        icon="i-lucide-plus"
-        label="New Preset"
-        class="rounded-full self-start shadow-lg hover:shadow-primary/20 transition-shadow"
-        @click="openCreate"
-      />
+      <UDropdownMenu
+        :items="
+          presetTypes.map((t) => ({
+            label: t.label,
+            icon: t.icon,
+            onSelect: () => handleCreate(t.value),
+          }))
+        "
+      >
+        <UButton
+          icon="i-lucide-plus"
+          label="New Preset"
+          class="rounded-full self-start shadow-lg hover:shadow-primary/20 transition-shadow"
+          :loading="submitting"
+        />
+      </UDropdownMenu>
     </div>
 
     <!-- Filter Bar -->
@@ -196,71 +183,55 @@ function handleUse(preset: PromptElement) {
           generation workflow.
         </p>
       </div>
-      <UButton
-        icon="i-lucide-plus"
-        label="Create your first preset"
-        class="rounded-full"
-        @click="openCreate"
-      />
+      <UDropdownMenu
+        :items="
+          presetTypes.map((t) => ({
+            label: t.label,
+            icon: t.icon,
+            onSelect: () => handleCreate(t.value),
+          }))
+        "
+      >
+        <UButton
+          icon="i-lucide-plus"
+          label="Create your first preset"
+          class="rounded-full"
+          :loading="submitting"
+        />
+      </UDropdownMenu>
     </div>
 
-    <!-- Preset Grid -->
-    <div v-else class="preset-grid stagger-children">
-      <PresetCard
-        v-for="el in filteredElements"
-        :key="el.id"
-        :preset="el"
-        @edit="openEdit"
-        @delete="handleDelete"
-        @use="handleUse"
-      />
-    </div>
+    <!-- Preset Grid: grouped by category when viewing all, flat grid otherwise -->
+    <template v-else>
+      <!-- Grouped by category -->
+      <div v-if="activeFilter === 'all'" class="space-y-10">
+        <section v-for="section in categorySections" :key="section.type">
+          <div class="flex items-center gap-2 mb-4">
+            <UIcon :name="section.icon" class="size-5 text-muted" />
+            <h2 class="font-display text-lg font-semibold">{{ section.label }}</h2>
+            <UBadge variant="subtle" size="xs" class="ml-1">{{ section.items.length }}</UBadge>
+          </div>
+          <div class="preset-grid stagger-children">
+            <PresetCard
+              v-for="el in section.items"
+              :key="el.id"
+              :preset="el"
+              @delete="handleDelete"
+            />
+          </div>
+        </section>
+      </div>
 
-    <!-- Create / Edit Modal -->
-    <UModal v-model:open="isModalOpen">
-      <template #content>
-        <UCard>
-          <template #header>
-            <h3 class="font-display font-semibold text-lg flex items-center gap-2">
-              <UIcon
-                :name="isEditing ? 'i-lucide-pencil' : 'i-lucide-plus-circle'"
-                class="size-5 text-primary"
-              />
-              {{ isEditing ? 'Edit Preset' : 'New Preset' }}
-            </h3>
-          </template>
-
-          <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-            <UFormField label="Type" name="type">
-              <USelect v-model="state.type" :items="typeOptions" class="w-full" />
-            </UFormField>
-
-            <UFormField label="Name" name="name" description="A short, memorable title">
-              <UInput v-model="state.name" placeholder="e.g. Elf Ranger" class="w-full" />
-            </UFormField>
-
-            <UFormField label="Content" name="content" description="The actual prompt text snippet">
-              <UTextarea
-                v-model="state.content"
-                placeholder="A tall elegant elven ranger wearing a green cloak..."
-                :rows="3"
-                autoresize
-                class="w-full"
-              />
-            </UFormField>
-
-            <div class="flex justify-end gap-3 pt-4 border-t border-default/50 mt-6">
-              <UButton type="button" color="neutral" variant="ghost" @click="isModalOpen = false">
-                Cancel
-              </UButton>
-              <UButton type="submit" color="primary" icon="i-lucide-save" :loading="submitting">
-                {{ isEditing ? 'Update Preset' : 'Save Preset' }}
-              </UButton>
-            </div>
-          </UForm>
-        </UCard>
-      </template>
-    </UModal>
+      <!-- Flat grid for specific filter -->
+      <div v-else class="preset-grid stagger-children">
+        <PresetCard
+          v-for="el in filteredElements"
+          :key="el.id"
+          :preset="el"
+          @delete="handleDelete"
+        />
+      </div>
+    </template>
   </div>
 </template>
 

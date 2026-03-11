@@ -1,0 +1,1 @@
+ALTER TABLE `prompt_elements` ADD `chat_history` text;

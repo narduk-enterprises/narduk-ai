@@ -7,6 +7,7 @@ const bodySchema = z.object({
   name: z.string().min(1).max(100).optional(),
   content: z.string().min(1).max(2000).optional(),
   metadata: z.string().max(10000).nullish(),
+  chatHistory: z.string().max(100000).nullish(),
 })
 
 /**
@@ -24,7 +25,13 @@ export default defineEventHandler(async (event) => {
 
   const body = await readValidatedBody(event, bodySchema.parse)
 
-  if (!body.type && !body.name && !body.content && body.metadata === undefined) {
+  if (
+    !body.type &&
+    !body.name &&
+    !body.content &&
+    body.metadata === undefined &&
+    body.chatHistory === undefined
+  ) {
     throw createError({ statusCode: 400, message: 'No fields to update' })
   }
 
@@ -38,6 +45,7 @@ export default defineEventHandler(async (event) => {
       ...(body.name && { name: body.name }),
       ...(body.content && { content: body.content }),
       ...(body.metadata !== undefined && { metadata: body.metadata ?? null }),
+      ...(body.chatHistory !== undefined && { chatHistory: body.chatHistory ?? null }),
       updatedAt: now,
     })
     .where(and(eq(promptElements.id, id), eq(promptElements.userId, user.id)))

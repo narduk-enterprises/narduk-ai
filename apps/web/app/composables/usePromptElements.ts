@@ -5,6 +5,7 @@ export interface PromptElement {
   name: string
   content: string
   metadata?: string | null
+  chatHistory?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -74,7 +75,13 @@ export function usePromptElements() {
 
   async function updateElement(
     id: string,
-    updates: { type?: string; name?: string; content?: string; metadata?: string | null },
+    updates: {
+      type?: string
+      name?: string
+      content?: string
+      metadata?: string | null
+      chatHistory?: string | null
+    },
   ) {
     loading.value = true
     error.value = null
@@ -157,6 +164,7 @@ export function usePromptElements() {
       scene: [],
       framing: [],
       action: [],
+      prompt: [],
     }
     for (const el of elements.value) {
       if (groups[el.type]) {

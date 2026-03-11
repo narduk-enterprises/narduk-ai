@@ -53,6 +53,7 @@ export const promptElements = sqliteTable(
     name: text('name').notNull(),
     content: text('content').notNull(),
     metadata: text('metadata'), // JSON blob: { headshotUrl?, fullBodyUrl?, ... }
+    chatHistory: text('chat_history'), // JSON blob: serialized ChatMessage[]
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
