@@ -28,6 +28,7 @@ export function useGenerationForm() {
   const activePresets = ref<Record<string, string>>({}) // name-based, kept for dual-write
   const activeUserPromptId = ref<string | null>(null)
   const attachedPerson = ref<PromptElement | null>(null)
+  const attachedPresets = ref<Record<string, PromptElement | null>>({})
 
   // ─── Shared Composables ─────────────────────────────────────
 
@@ -136,30 +137,44 @@ export function useGenerationForm() {
     handleGenerate,
   })
 
-  // ─── Attached Person ────────────────────────────────────────
+  // ─── Attached Presets (generic for all types) ───────────────
 
-  function attachPerson(person: PromptElement) {
-    if (attachedPerson.value?.id === person.id) return
-    // Remove old person's ID before attaching new one
-    if (attachedPerson.value) {
-      const oldId = attachedPerson.value.id
-      activePresetIds.value = activePresetIds.value.filter((id) => id !== oldId)
+  function attachPreset(type: string, element: PromptElement) {
+    const current = type === 'person' ? attachedPerson.value : attachedPresets.value[type]
+    if (current?.id === element.id) return
+    // Remove old preset's ID before attaching new one
+    if (current) {
+      activePresetIds.value = activePresetIds.value.filter((id) => id !== current.id)
     }
-    attachedPerson.value = person
-    activePresets.value = { ...activePresets.value, person: person.name }
-    if (!activePresetIds.value.includes(person.id)) {
-      activePresetIds.value = [...activePresetIds.value, person.id]
+    if (type === 'person') {
+      attachedPerson.value = element
+    }
+    attachedPresets.value = { ...attachedPresets.value, [type]: element }
+    activePresets.value = { ...activePresets.value, [type]: element.name }
+    if (!activePresetIds.value.includes(element.id)) {
+      activePresetIds.value = [...activePresetIds.value, element.id]
     }
   }
 
-  function detachPerson() {
-    if (attachedPerson.value) {
-      const personId = attachedPerson.value.id
-      const { person: _, ...rest } = activePresets.value
+  function detachPreset(type: string) {
+    const current = type === 'person' ? attachedPerson.value : attachedPresets.value[type]
+    if (current) {
+      const { [type]: _, ...rest } = activePresets.value
       activePresets.value = rest
-      activePresetIds.value = activePresetIds.value.filter((id) => id !== personId)
+      activePresetIds.value = activePresetIds.value.filter((id) => id !== current.id)
     }
-    attachedPerson.value = null
+    if (type === 'person') {
+      attachedPerson.value = null
+    }
+    attachedPresets.value = { ...attachedPresets.value, [type]: null }
+  }
+
+  // Convenience aliases for backward compat
+  function attachPerson(person: PromptElement) {
+    attachPreset('person', person)
+  }
+  function detachPerson() {
+    detachPreset('person')
   }
 
   // ─── Builder Context (from PromptBuilder/Library/Parser) ────
@@ -257,10 +272,13 @@ export function useGenerationForm() {
     handleBuilderResult,
     imageCount,
 
-    // Attached person
+    // Attached presets
     attachedPerson,
+    attachedPresets,
     attachPerson,
     detachPerson,
+    attachPreset,
+    detachPreset,
 
     // Prompt tags (re-exported from singleton)
     tagCategories: tags.categories,

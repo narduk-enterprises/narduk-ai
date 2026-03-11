@@ -59,8 +59,11 @@ const {
   handleSourceImageUpload,
   imageCount,
   attachedPerson,
+  attachedPresets,
   attachPerson,
   detachPerson,
+  attachPreset,
+  detachPreset,
   compiledPrompt,
   // Tag API (from singleton usePromptTags, re-exported)
   tagCategories,
@@ -87,8 +90,30 @@ watch(tagCategories, (newVal) => {
   }
 })
 
-// Person presets for quick attachment
+// Preset type configuration for UI rendering
+const PRESET_TYPE_CONFIG: Record<string, { label: string; icon: string; order: number }> = {
+  person: { label: 'Person', icon: 'i-lucide-user', order: 0 },
+  scene: { label: 'Scene', icon: 'i-lucide-mountain', order: 1 },
+  style: { label: 'Style', icon: 'i-lucide-palette', order: 2 },
+  framing: { label: 'Framing', icon: 'i-lucide-frame', order: 3 },
+  action: { label: 'Action', icon: 'i-lucide-zap', order: 4 },
+}
+
+// Person presets for quick attachment (backward compat)
 const personElements = computed(() => elements.value.filter((el) => el.type === 'person'))
+
+// Non-person preset types that have elements
+const otherPresetTypes = computed(() => {
+  const types = ['scene', 'style', 'framing', 'action']
+  return types
+    .filter((t) => elements.value.some((el) => el.type === t))
+    .map((t) => ({
+      type: t,
+      ...(PRESET_TYPE_CONFIG[t] || { label: t, icon: 'i-lucide-box', order: 99 }),
+      elements: elements.value.filter((el) => el.type === t),
+    }))
+    .sort((a, b) => a.order - b.order)
+})
 
 function getPersonPreviewUrl(el: { metadata?: string | null }): string | null {
   if (!el.metadata) return null
@@ -471,9 +496,9 @@ function editResult(gen: Generation) {
           </div>
         </div>
 
-        <!-- Person Presets + Quick Modifiers -->
+        <!-- Person Presets + Other Presets + Quick Modifiers -->
         <div
-          v-if="personElements.length || tagCategories.length"
+          v-if="personElements.length || otherPresetTypes.length || tagCategories.length"
           class="space-y-3 border-t border-default/10 pt-4"
         >
           <!-- Person Presets -->
@@ -506,6 +531,34 @@ function editResult(gen: Generation) {
                   />
                 </template>
                 {{ person.name }}
+              </UButton>
+            </div>
+          </div>
+
+          <!-- Other Preset Types (Scene, Style, Framing, Action) -->
+          <div v-for="pt in otherPresetTypes" :key="pt.type" class="space-y-1.5">
+            <span
+              class="text-[10px] font-semibold text-muted uppercase tracking-wider flex items-center gap-1"
+            >
+              <UIcon :name="pt.icon" class="size-3" />
+              {{ pt.label }}
+            </span>
+            <div class="flex flex-wrap gap-1.5">
+              <UButton
+                v-for="el in pt.elements"
+                :key="el.id"
+                size="xs"
+                :variant="attachedPresets[pt.type]?.id === el.id ? 'solid' : 'outline'"
+                :color="attachedPresets[pt.type]?.id === el.id ? 'primary' : 'neutral'"
+                class="rounded-full"
+                :class="attachedPresets[pt.type]?.id === el.id ? 'shadow-sm shadow-primary/20' : ''"
+                @click="
+                  attachedPresets[pt.type]?.id === el.id
+                    ? detachPreset(pt.type)
+                    : attachPreset(pt.type, el)
+                "
+              >
+                {{ el.name }}
               </UButton>
             </div>
           </div>
