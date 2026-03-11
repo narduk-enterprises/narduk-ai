@@ -769,6 +769,7 @@ function presetThumb(metadata: string | null | undefined) {
               v-slot="{ item }"
               :items="presetGenerations"
               :ui="{
+                viewport: 'overflow-visible',
                 item: 'flex basis-auto',
                 container: 'gap-4',
               }"

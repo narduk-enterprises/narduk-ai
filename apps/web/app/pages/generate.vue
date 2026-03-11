@@ -37,6 +37,8 @@ const {
   latestResultError,
   loadUserImages,
   handleGenerate,
+  handleFeelingLucky,
+  feelingLucky,
   openEnhanceModal,
   enhanceCurrentPrompt,
   animateLatestImage,
@@ -405,23 +407,40 @@ function editResult(gen: Generation) {
         <!-- Error -->
         <UAlert v-if="error" color="error" icon="i-lucide-alert-triangle" :title="error" />
 
-        <!-- Generate Button -->
-        <UButton
-          size="lg"
-          icon="i-lucide-sparkles"
-          :loading="generating"
-          :disabled="isGenerateDisabled"
-          block
-          :label="
-            generating
-              ? 'Generating...'
-              : imageCount > 1 && activeTab === 't2i'
-                ? `Generate ${imageCount} Images`
-                : 'Generate'
-          "
-          class="rounded-xl shadow-lg hover:shadow-primary/20 transition-shadow"
-          @click="handleGenerate"
-        />
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+          <UButton
+            size="lg"
+            icon="i-lucide-sparkles"
+            :loading="generating && !feelingLucky"
+            :disabled="isGenerateDisabled || feelingLucky"
+            class="flex-1 rounded-xl shadow-lg hover:shadow-primary/20 transition-shadow"
+            :label="
+              generating && !feelingLucky
+                ? 'Generating...'
+                : imageCount > 1 && activeTab === 't2i'
+                  ? `Generate ${imageCount} Images`
+                  : 'Generate'
+            "
+            @click="handleGenerate"
+          />
+          <UTooltip
+            v-if="activeTab === 't2i' || activeTab === 't2v'"
+            text="Pick random presets and auto-generate"
+          >
+            <UButton
+              size="lg"
+              icon="i-lucide-dice-5"
+              color="neutral"
+              variant="outline"
+              :loading="feelingLucky"
+              :disabled="generating || feelingLucky"
+              class="rounded-xl shadow-lg hover:shadow-primary/20 transition-shadow min-w-[160px]"
+              :label="feelingLucky ? 'Rolling...' : 'Feeling Lucky'"
+              @click="handleFeelingLucky"
+            />
+          </UTooltip>
+        </div>
       </div>
 
       <!-- Result Display -->

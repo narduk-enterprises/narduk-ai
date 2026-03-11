@@ -30,6 +30,7 @@ function isLandscape(gen: Generation): boolean {
       v-slot="{ item }"
       :items="generations"
       :ui="{
+        viewport: 'overflow-visible',
         item: 'snap-start shrink-0 pl-3',
         container:
           'flex overflow-x-auto snap-x snap-mandatory scroll-smooth hide-scrollbar -ml-3 py-2',
