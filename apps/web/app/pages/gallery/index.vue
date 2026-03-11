@@ -115,9 +115,13 @@ onMounted(() => {
     },
     { rootMargin: '400px' },
   )
-  if (loadMoreTarget.value) {
-    observer.observe(loadMoreTarget.value)
-  }
+})
+
+// Re-observe whenever the sentinel element enters/leaves the DOM
+// (it lives inside a v-else block that unmounts during loading)
+watch(loadMoreTarget, (el, oldEl) => {
+  if (oldEl && observer) observer.unobserve(oldEl)
+  if (el && observer) observer.observe(el)
 })
 
 // Auto-refresh while any generations are pending

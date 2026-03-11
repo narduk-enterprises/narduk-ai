@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { PresetMetadata } from '../composables/usePromptElements'
 import { usePromptElements } from '../composables/usePromptElements'
 import { usePromptLibrary } from '../composables/usePromptLibrary'
 
@@ -65,6 +66,16 @@ function isElementSelected(el: { type: string; content: string }) {
 
 function handleComposeToggle(el: { type: string; content: string }) {
   composeSelection[el.type] = composeSelection[el.type] === el.content ? null : el.content
+}
+
+function getPreviewImageUrl(el: { metadata?: string | null }): string | null {
+  if (!el.metadata) return null
+  try {
+    const meta = JSON.parse(el.metadata) as PresetMetadata
+    return meta.headshotUrl || meta.fullBodyUrl || null
+  } catch {
+    return null
+  }
 }
 
 // Chat / Refine State
@@ -255,7 +266,7 @@ watch(
   <UModal
     v-model:open="isModalOpen"
     :ui="{
-      content: 'sm:max-w-3xl flex flex-col h-[85vh] sm:h-[600px] overflow-hidden bg-default',
+      content: 'sm:max-w-5xl flex flex-col h-[85vh] sm:h-[75vh] overflow-hidden bg-default',
       header: 'shrink-0',
       body: 'flex-1 overflow-hidden p-0',
       footer: 'shrink-0',
@@ -320,6 +331,16 @@ watch(
               :class="isElementSelected(el) ? 'shadow-md shadow-primary/20' : ''"
               @click="handleComposeToggle(el)"
             >
+              <template #leading>
+                <NuxtImg
+                  v-if="getPreviewImageUrl(el)"
+                  :src="getPreviewImageUrl(el)!"
+                  class="size-5 rounded-full object-cover ring-1 ring-default/20 -ml-0.5"
+                  width="20"
+                  height="20"
+                  loading="lazy"
+                />
+              </template>
               {{ el.name }}
             </UButton>
           </div>

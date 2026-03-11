@@ -59,9 +59,11 @@ const isModalOpen = ref(false)
  * Parse all attributes from preset.content (Key: value format)
  * and fall back to the schema-defined attributes for the preset type.
  */
-const parsedCharacteristics = computed(() => {
+/**
+ * Parse characteristics from content, optionally excluding name/description.
+ */
+function parseChars(excludeKeys: string[] = []) {
   const chars: { label: string; value: string }[] = []
-  const exclude = ['name', 'description']
 
   // Parse from content lines ("Key: value" format)
   const lines = props.preset.content.split('\n')
@@ -72,7 +74,6 @@ const parsedCharacteristics = computed(() => {
       const rawKey = line.slice(0, idx).trim()
       const val = line.slice(idx + 1).trim()
       if (val) {
-        // Normalize key to snake_case for matching
         const key = rawKey.toLowerCase().replaceAll(' ', '_')
         contentMap.set(key, val)
       }
@@ -83,7 +84,7 @@ const parsedCharacteristics = computed(() => {
   const schema = PRESET_ATTRIBUTES[props.preset.type]
   if (schema) {
     for (const attr of schema) {
-      if (exclude.includes(attr)) continue
+      if (excludeKeys.includes(attr)) continue
       const val = contentMap.get(attr)
       if (val) {
         chars.push({
@@ -97,7 +98,7 @@ const parsedCharacteristics = computed(() => {
 
   // Add any remaining attributes not in the schema
   for (const [key, val] of contentMap) {
-    if (exclude.includes(key)) continue
+    if (excludeKeys.includes(key)) continue
     chars.push({
       label: key.charAt(0).toUpperCase() + key.slice(1).replaceAll('_', ' '),
       value: val,
@@ -105,7 +106,13 @@ const parsedCharacteristics = computed(() => {
   }
 
   return chars
-})
+}
+
+/** Card preview: excludes name & description (shown separately) */
+const parsedCharacteristics = computed(() => parseChars(['name', 'description']))
+
+/** Modal view: ALL attributes including name & description */
+const allCharacteristics = computed(() => parseChars([]))
 
 /** Build a state object from content lines for generatePreview */
 function parseContentToState(): Record<string, string | null> {
@@ -251,7 +258,7 @@ function openModal() {
   <UModal
     v-model:open="isModalOpen"
     :ui="{
-      content: 'overflow-hidden flex flex-col max-h-[90vh]',
+      content: 'sm:max-w-3xl overflow-hidden flex flex-col max-h-[90vh]',
       body: 'p-0 sm:p-0 flex-1 overflow-hidden flex flex-col',
     }"
   >
@@ -342,25 +349,21 @@ function openModal() {
           </div>
         </div>
 
-        <div class="prose prose-sm dark:prose-invert text-dimmed mb-6 max-w-none text-base">
-          <p>{{ cardDescription }}</p>
-        </div>
-
         <!-- All Characteristics -->
-        <div v-if="parsedCharacteristics.length > 0" class="space-y-4">
+        <div v-if="allCharacteristics.length > 0" class="space-y-4">
           <h3
             class="text-xs font-semibold text-default uppercase tracking-widest border-b border-default pb-2"
           >
             Attributes
           </h3>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
             <div
-              v-for="c in parsedCharacteristics"
+              v-for="c in allCharacteristics"
               :key="c.label"
               class="bg-elevated p-3 rounded-xl border border-default hover:border-primary/30 transition-colors duration-200"
             >
               <span
-                class="text-[10px] text-muted block mb-0.5 uppercase tracking-wider font-medium"
+                class="text-[10px] text-primary block mb-0.5 uppercase tracking-wider font-medium"
                 >{{ c.label }}</span
               >
               <span class="text-sm text-default font-medium leading-tight">{{ c.value }}</span>
