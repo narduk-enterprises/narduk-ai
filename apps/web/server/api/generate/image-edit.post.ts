@@ -3,7 +3,7 @@ import { eq, and } from 'drizzle-orm'
 import { generations, appSettings } from '../../database/schema'
 
 const bodySchema = z.object({
-  prompt: z.string().min(1).max(2000),
+  prompt: z.string().min(1).max(10_000),
   sourceGenerationId: z.string().min(1),
 })
 

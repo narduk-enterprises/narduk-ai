@@ -4,7 +4,7 @@ import { appSettings } from '../../database/schema'
 import { grokEnhancePrompt } from '../../utils/grok'
 
 const bodySchema = z.object({
-  prompt: z.string().min(1).max(2000),
+  prompt: z.string().min(1).max(10_000),
   instructions: z.string().max(1000).optional(),
   imageBase64: z.string().optional(),
 })

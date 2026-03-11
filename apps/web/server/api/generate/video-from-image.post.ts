@@ -3,7 +3,7 @@ import { eq, and } from 'drizzle-orm'
 import { generations, appSettings } from '../../database/schema'
 
 const bodySchema = z.object({
-  prompt: z.string().min(1).max(2000),
+  prompt: z.string().min(1).max(10_000),
   sourceGenerationId: z.string().min(1),
   duration: z.number().int().min(1).max(15).optional().default(6),
   resolution: z.enum(['480p', '720p']).optional().default('720p'),
