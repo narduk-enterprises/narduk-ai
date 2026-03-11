@@ -6,7 +6,7 @@ import { grokEnhancePrompt } from '../../utils/grok'
 const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
 
-  instructions: z.string().max(1000).optional(),
+  instructions: z.string().max(20000).optional(),
   imageBase64: z.string().optional(),
   mediaType: z.enum(['image', 'video']).default('image'),
 })
