@@ -6,19 +6,21 @@ const querySchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(50),
   offset: z.coerce.number().min(0).default(0),
   search: z.string().optional(),
+  type: z.enum(['image', 'video']).optional(),
+  mode: z.string().optional(),
 })
 
 const STALE_TIMEOUT_MS = 10 * 60 * 1000
 
 /**
  * GET /api/generations — List user's generations (newest first).
- * Supports ?limit=N&offset=N query params.
+ * Supports ?limit=N&offset=N&type=image|video&mode=t2i|t2v|i2v|i2i query params.
  * Proactively refreshes status for any pending video generations from xAI.
  */
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Generations')
   const user = await requireAuth(event)
-  const { limit, offset, search } = querySchema.parse(getQuery(event))
+  const { limit, offset, search, type, mode } = querySchema.parse(getQuery(event))
 
   const db = useDatabase(event)
   const config = useRuntimeConfig(event)
@@ -28,6 +30,12 @@ export default defineEventHandler(async (event) => {
 
   if (search && search.trim()) {
     filters.push(like(generations.prompt, `%${search.trim()}%`))
+  }
+  if (type) {
+    filters.push(eq(generations.type, type))
+  }
+  if (mode) {
+    filters.push(eq(generations.mode, mode))
   }
 
   const baseQuery = db

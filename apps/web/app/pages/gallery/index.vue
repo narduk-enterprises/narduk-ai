@@ -25,6 +25,16 @@ const generations = ref<Generation[]>([])
 const loading = ref(true)
 const activeFilter = computed(() => (route.query.filter as string) || 'all')
 
+// Derive server-side filter params from activeFilter
+const serverFilters = computed(() => {
+  const f = activeFilter.value
+  if (f === 'images') return { type: 'image' }
+  if (f === 'videos') return { type: 'video' }
+  // mode-based filters (t2i, t2v, i2v, i2i)
+  if (f !== 'all') return { mode: f }
+  return {}
+})
+
 const limit = 24
 const offset = ref(0)
 const isFinished = ref(false)
@@ -45,12 +55,17 @@ watch(debouncedSearchQuery, () => {
   load()
 })
 
+// Re-load when filter changes
+watch(activeFilter, () => {
+  load()
+})
+
 async function load() {
   loading.value = true
   offset.value = 0
   isFinished.value = false
   try {
-    generations.value = await fetchGenerations(limit, offset.value, debouncedSearchQuery.value)
+    generations.value = await fetchGenerations(limit, offset.value, debouncedSearchQuery.value, serverFilters.value)
     if (generations.value.length < limit) {
       isFinished.value = true
     }
@@ -64,7 +79,7 @@ async function loadMore() {
   loadingMore.value = true
   offset.value += limit
   try {
-    const nextBatch = await fetchGenerations(limit, offset.value, debouncedSearchQuery.value)
+    const nextBatch = await fetchGenerations(limit, offset.value, debouncedSearchQuery.value, serverFilters.value)
     if (nextBatch.length < limit) {
       isFinished.value = true
     }
@@ -105,7 +120,7 @@ watch(
       refreshInterval = setInterval(async () => {
         try {
           // fetch only the first page for fast updates of pending items
-          const fresh = await fetchGenerations(limit, 0, debouncedSearchQuery.value)
+          const fresh = await fetchGenerations(limit, 0, debouncedSearchQuery.value, serverFilters.value)
 
           // update existing items in the generations array
           for (const item of fresh) {
@@ -139,16 +154,9 @@ onUnmounted(() => {
   }
 })
 
+// Server already filters by type/mode, so just sort here
 const filteredGenerations = computed(() => {
-  const list =
-    activeFilter.value === 'all'
-      ? generations.value
-      : activeFilter.value === 'images'
-        ? generations.value.filter((g) => g.type === 'image')
-        : activeFilter.value === 'videos'
-          ? generations.value.filter((g) => g.type === 'video')
-          : generations.value.filter((g) => g.mode === activeFilter.value)
-  return [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  return [...generations.value].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 })
 
 async function handleDelete(gen: Generation) {
