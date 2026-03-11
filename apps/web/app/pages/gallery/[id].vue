@@ -6,8 +6,15 @@ definePageMeta({ middleware: ['auth'] })
 const route = useRoute()
 const genId = route.params.id as string
 
-const { fetchGeneration, deleteGeneration, retryGeneration, pollGeneration, upscaleGeneration } =
-  useGenerate()
+const {
+  fetchGeneration,
+  deleteGeneration,
+  retryGeneration,
+  pollGeneration,
+  upscaleGeneration,
+  error: generateError,
+} = useGenerate()
+const toast = useToast()
 
 const generation = ref<Generation | null>(null)
 const sourceGeneration = ref<Generation | null>(null)
@@ -76,7 +83,20 @@ async function handleUpscale() {
   try {
     const result = await upscaleGeneration(generation.value.id)
     if (result) {
+      toast.add({
+        title: 'Upscaling Started',
+        description: 'Your image is being upscaled to 2K resolution.',
+        color: 'success',
+        icon: 'i-lucide-sparkles',
+      })
       await navigateTo(`/gallery/${result.id}`)
+    } else if (generateError.value) {
+      toast.add({
+        title: 'Upscale Failed',
+        description: generateError.value,
+        color: 'error',
+        icon: 'i-lucide-alert-circle',
+      })
     }
   } finally {
     upscaling.value = false

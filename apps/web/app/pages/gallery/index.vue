@@ -12,7 +12,13 @@ useWebPageSchema({
   description: 'Browse your AI-generated images and videos.',
 })
 
-const { fetchGenerations, deleteGeneration, upscaleGeneration } = useGenerate()
+const {
+  fetchGenerations,
+  deleteGeneration,
+  upscaleGeneration,
+  error: generateError,
+} = useGenerate()
+const toast = useToast()
 
 const route = useRoute()
 const generations = ref<Generation[]>([])
@@ -151,6 +157,20 @@ async function handleUpscale(gen: Generation) {
   const result = await upscaleGeneration(gen.id)
   if (result) {
     generations.value.unshift(result)
+    toast.add({
+      title: 'Upscaling Started',
+      description:
+        'Your image is being upscaled to 2K resolution. It will appear at the top of your gallery shortly.',
+      color: 'success',
+      icon: 'i-lucide-sparkles',
+    })
+  } else if (generateError.value) {
+    toast.add({
+      title: 'Upscale Failed',
+      description: generateError.value,
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+    })
   }
 }
 
@@ -224,12 +244,13 @@ const filters = [
 
     <!-- Grid -->
     <div v-else class="space-y-8">
-      <div class="columns-1 gap-5 sm:columns-2 lg:columns-3 stagger-children">
+      <div
+        class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 stagger-children items-start"
+      >
         <GenerationCard
           v-for="gen in filteredGenerations"
           :key="gen.id"
           :generation="gen"
-          class="break-inside-avoid mb-5"
           @click="navigateTo(`/gallery/${gen.id}`)"
           @use-as-source="handleUseAsSource"
           @upscale="handleUpscale"

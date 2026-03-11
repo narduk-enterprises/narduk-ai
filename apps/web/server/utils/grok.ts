@@ -72,7 +72,7 @@ export async function grokEnhancePrompt(
   imageBase64?: string,
 ): Promise<string> {
   const systemContent = instructions
-    ? `You are an expert prompt engineer for AI image and video generation. Your task is to take a simple user prompt and enhance it into a highly detailed, cinematic, and descriptive prompt that will produce stunning results. Look at the specific user instructions provided to guide your enhancement:\n\nUser Instructions: ${instructions}\n\nFocus on fulfilling the user instructions while adding details about lighting, camera angle, atmosphere, style, and subject specifics. Return ONLY the enhanced prompt text, with no introductory or conversational filler. Do not wrap in quotes.`
+    ? `You are an expert prompt engineer for AI image and video generation. Your task is to take an original image creation prompt and modify it so that the new generated image will match the original image as closely as possible, while carefully applying the changes requested by the user. Do not change the core style, subject, lighting, or composition unless the user instructions explicitly ask for it.\n\nUser Instructions: ${instructions}\n\nReturn ONLY the new modified prompt text, with no introductory or conversational filler. Do not wrap in quotes.`
     : 'You are an expert prompt engineer for AI image and video generation. Your task is to take a simple user prompt and enhance it into a highly detailed, cinematic, and descriptive prompt that will produce stunning results. Focus on adding details about lighting, camera angle, atmosphere, style, and subject specifics. Return ONLY the enhanced prompt text, with no introductory or conversational filler. Do not wrap in quotes.'
 
   const userContent = imageBase64
