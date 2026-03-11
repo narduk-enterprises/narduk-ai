@@ -10,6 +10,19 @@
 
 import type OpenAI from 'openai'
 
+/**
+ * Parse xAI error response body to extract a user-friendly error message.
+ * xAI returns: { "code": "...", "error": "human-readable message", ... }
+ */
+function parseXaiError(body: string): string | null {
+  try {
+    const parsed = JSON.parse(body)
+    return (parsed.error as string) || (parsed.message as string) || null
+  } catch {
+    return null
+  }
+}
+
 // ─── Chat Completions (OpenAI SDK / REST) ────────────────────
 
 export interface GrokChatMessage {
@@ -40,9 +53,10 @@ export async function grokChat(
   if (!res.ok) {
     const text = await res.text()
     console.error(`[grokChat] API error (${res.status}):`, text)
+    const errorMsg = parseXaiError(text) || 'Failed to chat with Grok API.'
     throw createError({
       statusCode: res.status,
-      message: 'Failed to chat with Grok API.',
+      message: errorMsg,
     })
   }
 
@@ -146,9 +160,10 @@ export async function grokGenerateImage(
   if (!res.ok) {
     const text = await res.text()
     console.error(`[grokGenerateImage] API error (${res.status}):`, text)
+    const errorMsg = parseXaiError(text) || 'Grok image generation failed.'
     throw createError({
       statusCode: res.status,
-      message: 'Grok image generation failed.',
+      message: errorMsg,
     })
   }
 
@@ -180,9 +195,10 @@ export async function grokEditImage(
   if (!res.ok) {
     const body = await res.text()
     console.error(`[grokEditImage] API error (${res.status}):`, body)
+    const errorMsg = parseXaiError(body) || 'Grok image edit API failed.'
     throw createError({
       statusCode: res.status,
-      message: 'Grok image edit API failed.',
+      message: errorMsg,
     })
   }
 
@@ -251,9 +267,10 @@ export async function grokStartVideo(
   if (!res.ok) {
     const text = await res.text()
     console.error(`[grokStartVideo] API error (${res.status}):`, text)
+    const errorMsg = parseXaiError(text) || 'Grok video API failed to start generation.'
     throw createError({
       statusCode: res.status,
-      message: 'Grok video API failed to start generation.',
+      message: errorMsg,
     })
   }
 
