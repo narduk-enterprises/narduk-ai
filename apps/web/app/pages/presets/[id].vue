@@ -482,7 +482,7 @@ function presetThumb(metadata: string | null | undefined) {
         <UForm
           :state="{ input: chatInput }"
           class="flex items-end gap-2"
-          @submit.prevent="sendChatMessage"
+          @submit.prevent="() => sendChatMessage()"
         >
           <UTextarea
             v-model="chatInput"
@@ -809,7 +809,7 @@ function presetThumb(metadata: string | null | undefined) {
         <UForm
           :state="{ input: chatInput }"
           class="flex items-end gap-2"
-          @submit.prevent="sendChatMessage"
+          @submit.prevent="() => sendChatMessage()"
         >
           <UTextarea
             v-model="chatInput"

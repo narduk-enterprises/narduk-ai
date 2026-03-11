@@ -80,6 +80,7 @@ const {
   fetchModifiers,
   allModifiersList,
   addModifiers,
+  setDynamicModifiers,
   compiledSnippets,
   searchQuery,
   filteredModifiers,
@@ -95,9 +96,9 @@ watch(modifierCategories, (newVal) => {
 })
 
 // Wire up the form so it can auto-select modifiers when a preset is chosen
-setModifierDependencies(allModifiersList.value, addModifiers)
+setModifierDependencies(allModifiersList.value, addModifiers, setDynamicModifiers)
 watch(allModifiersList, (newList) => {
-  setModifierDependencies(newList, addModifiers)
+  setModifierDependencies(newList, addModifiers, setDynamicModifiers)
 })
 
 // Keep modifierSnippets and activeModifiers in sync

@@ -24,11 +24,12 @@ const CATEGORY_ICONS: Record<string, string> = {
   lighting: 'i-lucide-sun',
   mood: 'i-lucide-drama',
   camera: 'i-lucide-camera',
+  framing: 'i-lucide-frame',
   detail: 'i-lucide-sparkles',
   quality: 'i-lucide-award',
 }
 
-const CATEGORY_ORDER = ['lighting', 'mood', 'camera', 'detail', 'quality']
+const CATEGORY_ORDER = ['lighting', 'mood', 'camera', 'framing', 'detail', 'quality']
 
 /**
  * Get all enabled quick modifiers, grouped by category.

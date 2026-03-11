@@ -14,6 +14,7 @@ export interface ChatMessage {
 export function useChatForm() {
   const { elements, fetchElements } = usePromptElements()
   const { prompts } = useSystemPrompts()
+  const { allModifiersList } = useQuickModifiers()
 
   const chatMode = ref<ChatMode>('general')
   const mediaType = ref<'image' | 'video'>('image')
@@ -60,14 +61,18 @@ export function useChatForm() {
     }
   }
 
-  async function sendChatMessage() {
+  async function sendChatMessage(contextString?: string) {
     if (!chatInput.value.trim() || isChatting.value) return
 
     const userText = chatInput.value
     chatInput.value = ''
     error.value = null
 
-    chatMessages.value.push({ role: 'user', content: userText })
+    const finalUserText = contextString
+      ? `${userText}\n\nCURRENT UI STATE:\n${contextString}`
+      : userText
+
+    chatMessages.value.push({ role: 'user', content: finalUserText })
     isChatting.value = true
 
     try {
@@ -80,11 +85,22 @@ export function useChatForm() {
             )}\n\nMake sure to deeply reference or combine these if the user asks for them.`
         : 'The user has no saved Prompt Elements yet.'
 
+      // Build Quick Modifiers Context
+      const modifiersContext = allModifiersList.value.length
+        ? `\n\nThe user's app supports the following "Quick Modifiers" that you can toggle by emitting their ID in your JSON <builder_state> response. Use them exactly as listed below:\n` +
+          allModifiersList.value
+            .map(
+              (m) =>
+                `- ID: ${m.id} (Category: ${m.category}, Label: ${m.label}) - INSERTS: "${m.snippet}"`,
+            )
+            .join('\n')
+        : ''
+
       // Replace the default system message with our enhanced one
       const payloadMessages = [...chatMessages.value]
       payloadMessages[0] = {
         role: 'system',
-        content: `${payloadMessages[0]?.content || ''}\n\n${elementsContext}`,
+        content: `${payloadMessages[0]?.content || ''}\n\n${elementsContext}${modifiersContext}`,
       }
 
       chatMessages.value.push({

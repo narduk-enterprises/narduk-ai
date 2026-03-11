@@ -18,9 +18,14 @@ export interface QuickModifierCategory {
 
 export function useQuickModifiers() {
   const categories = ref<QuickModifierCategory[]>([])
+  const dynamicCategory = ref<QuickModifierCategory | null>(null)
   const selectedIds = ref<Set<string>>(new Set())
   const loading = ref(false)
   const searchQuery = ref('')
+
+  const allCategories = computed(() => {
+    return dynamicCategory.value ? [dynamicCategory.value, ...categories.value] : categories.value
+  })
 
   const filteredModifiers = computed(() => {
     if (!searchQuery.value.trim()) return []
@@ -67,7 +72,7 @@ export function useQuickModifiers() {
   const compiledSnippets = computed(() => {
     if (!selectedIds.value.size) return ''
     const snippets: string[] = []
-    for (const cat of categories.value) {
+    for (const cat of allCategories.value) {
       for (const mod of cat.modifiers) {
         if (selectedIds.value.has(mod.id)) {
           snippets.push(mod.snippet)
@@ -79,7 +84,7 @@ export function useQuickModifiers() {
 
   const selectedModifiersList = computed(() => {
     const list: QuickModifier[] = []
-    for (const cat of categories.value) {
+    for (const cat of allCategories.value) {
       for (const mod of cat.modifiers) {
         if (selectedIds.value.has(mod.id)) {
           list.push(mod)
@@ -103,7 +108,7 @@ export function useQuickModifiers() {
 
   const allModifiersList = computed(() => {
     const list: QuickModifier[] = []
-    for (const cat of categories.value) {
+    for (const cat of allCategories.value) {
       list.push(...cat.modifiers)
     }
     return list
@@ -117,8 +122,22 @@ export function useQuickModifiers() {
     selectedIds.value = next
   }
 
+  function setDynamicModifiers(modifiers: QuickModifier[]) {
+    if (modifiers.length === 0) {
+      dynamicCategory.value = null
+      return
+    }
+    dynamicCategory.value = {
+      category: 'preset-attributes',
+      label: 'Preset Attributes',
+      icon: 'i-lucide-list',
+      modifiers,
+    }
+  }
+
   return {
-    categories,
+    categories: allCategories, // export the computed allCategories as categories to smoothly drop into the UI
+    dynamicCategory,
     selectedIds,
     loading,
     fetchModifiers,
@@ -129,6 +148,7 @@ export function useQuickModifiers() {
     selectedModifiersList,
     allModifiersList,
     addModifiers,
+    setDynamicModifiers,
     recordUsage,
     searchQuery,
     filteredModifiers,

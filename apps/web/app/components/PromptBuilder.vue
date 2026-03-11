@@ -3,6 +3,7 @@ import type { PresetMetadata } from '../composables/usePromptElements'
 import { usePromptElements } from '../composables/usePromptElements'
 import { usePromptLibrary } from '../composables/usePromptLibrary'
 import { useSystemPrompts } from '../composables/useSystemPrompts'
+import { useQuickModifiers } from '../composables/useQuickModifiers'
 
 const isModalOpen = defineModel<boolean>('open', { default: false })
 
@@ -20,6 +21,7 @@ const emit = defineEmits<{
 const { elements, groupedByType, fetchElements } = usePromptElements()
 const { savePrompt, loading: saving } = usePromptLibrary()
 const { prompts } = useSystemPrompts()
+const { allModifiersList } = useQuickModifiers()
 
 const step = ref<'presets' | 'refine'>('presets')
 const searchQuery = ref('')
@@ -117,9 +119,19 @@ async function composeDraft() {
   const isVideo = props.mediaType === 'video'
   const sysContent = isVideo ? prompts.value.compose_video : prompts.value.compose_image
 
+  const modifiersContext = allModifiersList.value.length
+    ? `\n\nYou can also suggest enhancements using Quick Modifiers if applicable. The user's app supports the following modifiers that you can toggle by emitting their ID in your JSON <builder_state> response:\n` +
+      allModifiersList.value
+        .map(
+          (m) =>
+            `- ID: ${m.id} (Category: ${m.category}, Label: ${m.label}) - INSERTS: "${m.snippet}"`,
+        )
+        .join('\n')
+    : ''
+
   const systemMsg = {
     role: 'system' as const,
-    content: sysContent || '',
+    content: (sysContent || '') + modifiersContext,
   }
 
   const userMsg = {
@@ -188,7 +200,10 @@ async function sendChatMessage() {
   chatLog.value.push({ role: 'user', text })
   chatting.value = true
 
-  const userMsg = { role: 'user' as const, content: text }
+  const stateContext = currentPromptDraft.value
+    ? `\n\nCURRENT PROMPT DRAFT:\n${currentPromptDraft.value}`
+    : ''
+  const userMsg = { role: 'user' as const, content: `${text}${stateContext}` }
   chatMessages.value.push(userMsg)
 
   try {

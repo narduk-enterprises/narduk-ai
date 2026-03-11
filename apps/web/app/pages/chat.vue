@@ -114,7 +114,7 @@ async function savePromptToLibrary(promptText: string) {
       <UForm
         :state="{ input: chatInput }"
         class="max-w-4xl mx-auto flex items-end gap-2"
-        @submit.prevent="sendChatMessage"
+        @submit.prevent="() => sendChatMessage()"
       >
         <UTextarea
           v-model="chatInput"

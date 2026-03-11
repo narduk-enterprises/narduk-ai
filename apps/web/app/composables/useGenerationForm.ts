@@ -47,8 +47,18 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
     activeUserPromptId.value = promptId || null
 
     // Auto-select modifiers for all loaded presets
+    const accumulatedDynamicMods: QuickModifier[] = []
+    const accumulatedSelect = new Set<string>()
+
     for (const content of activePromptElements.value) {
-      autoSelectModifiersForPreset(content)
+      autoSelectModifiersForPreset(content, accumulatedDynamicMods, accumulatedSelect)
+    }
+
+    if (onSetDynamicModifiers) {
+      onSetDynamicModifiers(accumulatedDynamicMods)
+    }
+    if (onSelectModifiers && accumulatedSelect.size > 0) {
+      onSelectModifiers(Array.from(accumulatedSelect))
     }
   }
 
@@ -67,11 +77,19 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
 
   function detachPerson() {
     attachedPerson.value = null
+    if (onSetDynamicModifiers) {
+      onSetDynamicModifiers([]) // Clear dynamic modifiers when detaching person
+    }
   }
 
-  function autoSelectModifiersForPreset(content: string) {
+  function autoSelectModifiersForPreset(
+    content: string,
+    accumulatedDynamicMods?: QuickModifier[],
+    accumulatedSelect?: Set<string>,
+  ) {
     const lines = content.split('\n')
-    const modifiersToSelect = new Set<string>()
+    const modifiersToSelect = accumulatedSelect ?? new Set<string>()
+    const dynamicModsToAdd: QuickModifier[] = accumulatedDynamicMods ?? []
 
     for (const line of lines) {
       const idx = line.indexOf(':')
@@ -86,6 +104,8 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
           const modCat = m.category.toLowerCase().replaceAll('-', ' ')
           return modCat === key || modCat === key.replaceAll(/\s+/g, '')
         })
+
+        let matchedAny = false
 
         for (const mod of categoryMods) {
           const labelLower = mod.label.toLowerCase()
@@ -121,12 +141,40 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
 
           if (matches) {
             modifiersToSelect.add(mod.id)
+            matchedAny = true
           }
+        }
+
+        if (!matchedAny) {
+          // Attribute didn't match any pre-defined Quick Modifier category
+          // Let's create a dynamic modifier for it!
+          const dynamicId = 'dynamic-' + key.replaceAll(/\s+/g, '-')
+          dynamicModsToAdd.push({
+            id: dynamicId,
+            category: key,
+            label: key.charAt(0).toUpperCase() + key.slice(1),
+            snippet: val,
+            sortOrder: 0,
+            enabled: 1,
+            usageCount: 0,
+            updatedAt: new Date().toISOString(),
+          })
+          modifiersToSelect.add(dynamicId)
         }
       }
     }
 
-    if (modifiersToSelect.size > 0 && typeof onSelectModifiers !== 'undefined') {
+    // Only commit if we are not accumulating
+    if (!accumulatedDynamicMods && onSetDynamicModifiers) {
+      onSetDynamicModifiers(dynamicModsToAdd)
+    }
+
+    // Only commit if we are not accumulating
+    if (
+      !accumulatedSelect &&
+      modifiersToSelect.size > 0 &&
+      typeof onSelectModifiers !== 'undefined'
+    ) {
       onSelectModifiers(Array.from(modifiersToSelect))
     }
   }
@@ -135,13 +183,16 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
   const modifierCategoriesList = ref<QuickModifier[]>([])
 
   let onSelectModifiers: ((ids: string[]) => void) | undefined
+  let onSetDynamicModifiers: ((mods: QuickModifier[]) => void) | undefined
 
   function setModifierDependencies(
     allModifiers: QuickModifier[],
     onSelect: (ids: string[]) => void,
+    onSetDynamic?: (mods: QuickModifier[]) => void,
   ) {
     modifierCategoriesList.value = allModifiers
     onSelectModifiers = onSelect
+    onSetDynamicModifiers = onSetDynamic
   }
 
   /**
@@ -193,22 +244,17 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
             // A better way is to rely on a passed-in list of categories, but since useQuickModifiers
             // has all modifiers, we can assume if it's a known preset attribute, we want it pruned
             // if no modifier is active.
-            //
-            // Let's implement the simpler rule: if it looks like a standard preset attribute (has a label)
+            // Let's implement the simpler rule: if it looks like a standard preset attribute
             // and we didn't explicitly select a modifier for it, PRUNE it to allow the base prompt to shine.
-            // Exclude structural/informational fields.
-            const structuralKeys = ['name', 'description']
-            if (!structuralKeys.includes(normalizedKey)) {
-              const isRecognizedCategory = modifierCategoriesList.value.some((m) => {
-                const cat = m.category.toLowerCase().replaceAll('-', ' ')
-                return cat === normalizedKey || cat === key.replaceAll(/\s+/g, '')
-              })
+            const isRecognizedCategory = modifierCategoriesList.value.some((m) => {
+              const cat = m.category.toLowerCase().replaceAll('-', ' ')
+              return cat === normalizedKey || cat === key.replaceAll(/\s+/g, '')
+            })
 
-              if (isRecognizedCategory) {
-                return null // Prune it because no modifier is active for this recognized category
-              } else {
-                return line // Keep it because it's not a quick modifier category
-              }
+            if (isRecognizedCategory) {
+              return null // Prune it because no modifier is active for this recognized category
+            } else {
+              return line // Keep it because it's not a quick modifier category
             }
           }
           return line
