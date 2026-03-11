@@ -108,3 +108,20 @@ export const luckyPrompts = sqliteTable(
   },
   (table) => [index('lucky_prompts_user_avail_idx').on(table.userId, table.consumed)],
 )
+
+export const systemPrompts = sqliteTable('system_prompts', {
+  name: text('name').primaryKey().notNull(),
+  content: text('content').notNull(),
+  description: text('description').notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
+export const quickModifiers = sqliteTable('quick_modifiers', {
+  id: text('id').primaryKey().notNull(),
+  category: text('category').notNull(), // lighting, mood, camera, detail, quality
+  label: text('label').notNull(),
+  snippet: text('snippet').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  enabled: integer('enabled').notNull().default(1), // 0 = disabled, 1 = enabled
+  updatedAt: text('updated_at').notNull(),
+})

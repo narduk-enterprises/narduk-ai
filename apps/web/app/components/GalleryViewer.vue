@@ -469,11 +469,10 @@ onUnmounted(() => {
 
           <!-- Image -->
           <div v-if="!isVideo && mediaUrl" class="flex items-center justify-center w-full h-full">
-            <NuxtImg
+            <MediaImg
               :src="mediaUrl"
               :alt="currentItem.prompt"
               class="w-full h-full object-contain select-none"
-              placeholder
             />
           </div>
 

@@ -56,11 +56,43 @@ const {
   generateI2IPrompt,
   handleSourceImageUpload,
   imageCount,
+  attachedPerson,
+  modifierSnippets,
+  attachPerson,
+  detachPerson,
+  compilePrompt,
 } = useGenerationForm()
 
 const { deleteGeneration } = useGenerate()
 
 const { elements, fetchElements, remixPrompt } = usePromptElements()
+
+const {
+  categories: modifierCategories,
+  toggleModifier,
+  isSelected: isModifierSelected,
+  clearModifiers,
+  compiledSnippets,
+  fetchModifiers,
+} = useQuickModifiers()
+
+// Keep modifierSnippets in sync
+watch(compiledSnippets, (val) => {
+  modifierSnippets.value = val
+})
+
+// Person presets for quick attachment
+const personElements = computed(() => elements.value.filter((el) => el.type === 'person'))
+
+function getPersonPreviewUrl(el: { metadata?: string | null }): string | null {
+  if (!el.metadata) return null
+  try {
+    const meta = JSON.parse(el.metadata)
+    return meta.headshotUrl || meta.fullBodyUrl || null
+  } catch {
+    return null
+  }
+}
 
 const galleryViewer = useGalleryViewer()
 const isComposeModalOpen = ref(false)
@@ -108,6 +140,11 @@ function openRecentViewer(gen: Generation) {
   galleryViewer.open(recentGenerations.value, idx >= 0 ? idx : 0)
 }
 
+function handleClearAll() {
+  detachPerson()
+  clearModifiers()
+}
+
 function handleUseBuilderPrompt(newPrompt: string) {
   prompt.value = newPrompt
 }
@@ -130,6 +167,7 @@ async function handleRemix() {
 onMounted(() => {
   loadUserImages()
   fetchElements()
+  fetchModifiers()
 })
 
 function handlePromptKeydown(e: KeyboardEvent) {
@@ -344,6 +382,129 @@ function editResult(gen: Generation) {
             </div>
           </template>
         </UFormField>
+
+        <!-- Attached Person Chip -->
+        <div v-if="attachedPerson" class="flex items-center gap-2">
+          <div
+            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-sm"
+          >
+            <NuxtImg
+              v-if="getPersonPreviewUrl(attachedPerson)"
+              :src="getPersonPreviewUrl(attachedPerson)!"
+              class="size-5 rounded-full object-cover ring-1 ring-primary/30"
+              width="20"
+              height="20"
+              loading="lazy"
+            />
+            <UIcon v-else name="i-lucide-user" class="size-4 text-primary" />
+            <span class="font-medium text-primary">{{ attachedPerson.name }}</span>
+            <UButton
+              color="primary"
+              variant="ghost"
+              icon="i-lucide-x"
+              size="xs"
+              :padded="false"
+              class="-mr-1 rounded-full hover:bg-primary/20"
+              @click="detachPerson"
+            />
+          </div>
+        </div>
+
+        <!-- Person Presets + Quick Modifiers -->
+        <div
+          v-if="personElements.length || modifierCategories.length"
+          class="space-y-3 border-t border-default/10 pt-4"
+        >
+          <!-- Person Presets -->
+          <div v-if="personElements.length" class="space-y-1.5">
+            <span
+              class="text-[10px] font-semibold text-muted uppercase tracking-wider flex items-center gap-1"
+            >
+              <UIcon name="i-lucide-user" class="size-3" />
+              Person
+            </span>
+            <div class="flex flex-wrap gap-1.5">
+              <UButton
+                v-for="person in personElements"
+                :key="person.id"
+                size="xs"
+                :variant="attachedPerson?.id === person.id ? 'solid' : 'outline'"
+                :color="attachedPerson?.id === person.id ? 'primary' : 'neutral'"
+                class="rounded-full"
+                :class="attachedPerson?.id === person.id ? 'shadow-sm shadow-primary/20' : ''"
+                @click="attachedPerson?.id === person.id ? detachPerson() : attachPerson(person)"
+              >
+                <template #leading>
+                  <NuxtImg
+                    v-if="getPersonPreviewUrl(person)"
+                    :src="getPersonPreviewUrl(person)!"
+                    class="size-4 rounded-full object-cover ring-1 ring-default/20 -ml-0.5"
+                    width="16"
+                    height="16"
+                    loading="lazy"
+                  />
+                </template>
+                {{ person.name }}
+              </UButton>
+            </div>
+          </div>
+
+          <!-- Quick Modifiers -->
+          <div v-for="cat in modifierCategories" :key="cat.category" class="space-y-1.5">
+            <span
+              class="text-[10px] font-semibold text-muted uppercase tracking-wider flex items-center gap-1"
+            >
+              <UIcon :name="cat.icon" class="size-3" />
+              {{ cat.category }}
+            </span>
+            <div class="flex flex-wrap gap-1.5">
+              <UButton
+                v-for="mod in cat.modifiers"
+                :key="mod.id"
+                size="xs"
+                :variant="isModifierSelected(mod.id) ? 'solid' : 'outline'"
+                :color="isModifierSelected(mod.id) ? 'primary' : 'neutral'"
+                class="rounded-full"
+                :class="isModifierSelected(mod.id) ? 'shadow-sm shadow-primary/20' : ''"
+                @click="toggleModifier(mod.id)"
+              >
+                {{ mod.label }}
+              </UButton>
+            </div>
+          </div>
+
+          <!-- Clear All -->
+          <div v-if="attachedPerson || compiledSnippets" class="flex justify-end">
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              icon="i-lucide-x"
+              @click="handleClearAll"
+            >
+              Clear All
+            </UButton>
+          </div>
+        </div>
+
+        <!-- Compiled Prompt Preview -->
+        <div
+          v-if="(attachedPerson || compiledSnippets) && compilePrompt()"
+          class="rounded-xl bg-muted/30 border border-default/10 p-3 space-y-1.5"
+        >
+          <div class="flex items-center justify-between">
+            <span
+              class="text-[10px] font-semibold text-muted uppercase tracking-wider flex items-center gap-1"
+            >
+              <UIcon name="i-lucide-eye" class="size-3" />
+              Final Prompt Preview
+            </span>
+            <span class="text-[10px] text-dimmed">{{ charCount }} chars</span>
+          </div>
+          <p class="text-sm text-default font-mono leading-relaxed wrap-break-word">
+            {{ compilePrompt() }}
+          </p>
+        </div>
 
         <!-- Options Row -->
         <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
@@ -562,12 +723,11 @@ function editResult(gen: Generation) {
             class="relative overflow-hidden rounded-2xl neon-border bg-elevated/30 cursor-pointer"
             @click="galleryViewer.open([latestResult!], 0)"
           >
-            <NuxtImg
+            <MediaImg
               v-if="latestMediaType === 'image'"
               :src="latestResult.mediaUrl!"
               :alt="latestResult.prompt"
               class="max-h-[60vh] w-full object-contain transition-transform duration-300 hover:scale-[1.02]"
-              placeholder
               loading="lazy"
             />
             <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->

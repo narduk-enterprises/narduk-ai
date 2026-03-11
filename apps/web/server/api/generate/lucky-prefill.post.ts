@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { luckyPrompts, promptElements, appSettings } from '../../database/schema'
+import { getSystemPrompt } from '../../utils/systemPrompts'
 
 const bodySchema = z.object({
   count: z.number().int().min(1).max(10).optional().default(5),
@@ -92,28 +93,23 @@ export default defineEventHandler(async (event) => {
 
       if (!pickedContent.length) return null
 
+      const rawSystemPrompt = await getSystemPrompt(event, 'lucky_prefill')
+      const systemPrompt = rawSystemPrompt
+        .replaceAll('{{mediaLabel}}', mediaLabel)
+        .replaceAll(
+          '{{videoGuidance}}',
+          isVideo
+            ? `- For video: emphasize natural motion, camera movement, temporal progression, and cinematic pacing\\n`
+            : '',
+        )
+
       // Call Grok directly (server-side, no HTTP round-trip)
       const responseContent = await grokChat(
         config.xaiApiKey,
         [
           {
             role: 'system',
-            content:
-              `You are a wildly creative ${mediaLabel} prompt generator for Grok Imagine. ` +
-              `The user has given you some preset components. Your job is to invent an AMAZING, ` +
-              `unexpected, and visually stunning scenario using these components. Be bold and imaginative — ` +
-              `surreal situations are great (e.g. riding a rhino at a football game, having tea on the moon, ` +
-              `swimming with whales in a city). The crazier the better!\n\n` +
-              `CRITICAL PHOTOREALISM RULES:\n` +
-              `- The ${mediaLabel} MUST look like it was captured by a REAL camera — photorealistic, cinematic, lifelike\n` +
-              `- Include anchors like "photorealistic", "shot on Sony A7IV", "natural lighting", "shallow depth of field", "film grain", "35mm"\n` +
-              `- NEVER produce anything that looks like CGI, cartoon, anime, illustration, 3D render, digital art, painting, or fantasy art\n` +
-              `- Real skin textures, real environments, real physics of light — even if the scenario itself is impossible\n` +
-              `- Think of it as "what if a photographer actually captured this impossible moment?"\n` +
-              (isVideo
-                ? `- For video: emphasize natural motion, camera movement, temporal progression, and cinematic pacing\n`
-                : '') +
-              `\nReturn JSON ONLY: { "prompt": "the complete generation prompt" }`,
+            content: systemPrompt,
           },
           {
             role: 'user',

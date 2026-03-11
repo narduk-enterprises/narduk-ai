@@ -1,4 +1,5 @@
 import type { Generation } from '~/types/generation'
+import type { PromptElement } from './usePromptElements'
 
 /**
  * useGenerationForm — encapsulates the generation page form state,
@@ -46,6 +47,35 @@ export function useGenerationForm() {
     activeUserPromptId.value = promptId || null
   }
 
+  // ─── Attached Person & Quick Modifiers ───────────────────────
+
+  const attachedPerson = ref<PromptElement | null>(null)
+  /** Quick modifier snippets string — set by generate.vue from useQuickModifiers */
+  const modifierSnippets = ref('')
+
+  function attachPerson(person: PromptElement) {
+    attachedPerson.value = person
+  }
+
+  function detachPerson() {
+    attachedPerson.value = null
+  }
+
+  /**
+   * Compile the final prompt: [person content] + [user prompt] + [modifier snippets]
+   */
+  function compilePrompt(): string {
+    const parts: string[] = []
+    if (attachedPerson.value) {
+      parts.push(attachedPerson.value.content)
+    }
+    parts.push(prompt.value.trim())
+    if (modifierSnippets.value) {
+      parts.push(modifierSnippets.value)
+    }
+    return parts.filter(Boolean).join(', ')
+  }
+
   // ─── Batch Count ────────────────────────────────────────────
 
   const imageCount = ref(1)
@@ -70,7 +100,8 @@ export function useGenerationForm() {
   // ─── Generate Handlers ──────────────────────────────────────
 
   async function handleGenerate() {
-    if (!prompt.value.trim()) return
+    const compiled = compilePrompt()
+    if (!compiled.trim()) return
 
     latestResult.value = null
     latestResults.value = []
@@ -87,7 +118,7 @@ export function useGenerationForm() {
 
       if (count <= 1) {
         // Single image — original flow
-        const result = await generateImage(prompt.value, opts)
+        const result = await generateImage(compiled, opts)
         if (result) {
           latestResult.value = result
           latestResults.value = [result]
@@ -96,7 +127,7 @@ export function useGenerationForm() {
       } else {
         // Batch: fire N parallel requests
         const settled = await Promise.allSettled(
-          Array.from({ length: count }, () => generateImage(prompt.value, opts)),
+          Array.from({ length: count }, () => generateImage(compiled, opts)),
         )
 
         const successes = settled
@@ -113,7 +144,7 @@ export function useGenerationForm() {
         }
       }
     } else if (activeTab.value === 't2v') {
-      const result = await generateVideo(prompt.value, {
+      const result = await generateVideo(compiled, {
         duration: duration.value,
         aspectRatio: aspectRatio.value,
         resolution: resolution.value,
@@ -129,7 +160,7 @@ export function useGenerationForm() {
         error.value = 'Select a source image first'
         return
       }
-      const result = await generateVideoFromImage(prompt.value, sourceGenerationId.value, {
+      const result = await generateVideoFromImage(compiled, sourceGenerationId.value, {
         duration: duration.value,
         resolution: resolution.value,
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
@@ -144,7 +175,7 @@ export function useGenerationForm() {
         error.value = 'Select a source image first'
         return
       }
-      const result = await editImage(prompt.value, sourceGenerationId.value, {
+      const result = await editImage(compiled, sourceGenerationId.value, {
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
         presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
         userPromptId: activeUserPromptId.value || undefined,
@@ -209,8 +240,8 @@ export function useGenerationForm() {
 
   // ─── Computed ───────────────────────────────────────────────
 
-  const charCount = computed(() => prompt.value.length)
-  const isGenerateDisabled = computed(() => !prompt.value.trim() || generating.value)
+  const charCount = computed(() => compilePrompt().length)
+  const isGenerateDisabled = computed(() => !compilePrompt().trim() || generating.value)
 
   const resultBadgeColor = computed(() => {
     if (!latestResult.value) return 'neutral'
@@ -312,10 +343,11 @@ export function useGenerationForm() {
     error.value = null
 
     try {
+      const compiled = compilePrompt()
       const result = await $fetch<{ enhancedPrompt: string }>('/api/generate/enhance-prompt', {
         method: 'POST',
         body: {
-          prompt: prompt.value,
+          prompt: compiled,
           instructions: enhanceInstructions.value || undefined,
           imageBase64: enhanceImageBase64.value || undefined,
           mediaType: currentMediaType.value,
@@ -549,6 +581,13 @@ export function useGenerationForm() {
     activePresets,
     setBuilderContext,
     imageCount,
+
+    // Attached person & modifiers
+    attachedPerson,
+    modifierSnippets,
+    attachPerson,
+    detachPerson,
+    compilePrompt,
 
     // Results
     latestResult,

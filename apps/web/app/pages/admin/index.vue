@@ -63,6 +63,41 @@ const { user } = useAuth()
           </p>
         </div>
       </NuxtLink>
+
+      <NuxtLink
+        to="/admin/system-prompts"
+        class="glass-card p-6 rounded-2xl flex flex-col items-start gap-4 transition-transform hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 group"
+      >
+        <div class="p-3 bg-elevated/80 rounded-xl group-hover:bg-primary/10 transition-colors">
+          <UIcon
+            name="i-lucide-bot"
+            class="size-6 text-dimmed group-hover:text-primary transition-colors"
+          />
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-default mb-1">AI System Prompts</h2>
+          <p class="text-sm text-muted">
+            View and carefully edit the underlying system prompts used for AI interactions.
+          </p>
+        </div>
+      </NuxtLink>
+      <NuxtLink
+        to="/admin/quick-modifiers"
+        class="glass-card p-6 rounded-2xl flex flex-col items-start gap-4 transition-transform hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 group"
+      >
+        <div class="p-3 bg-elevated/80 rounded-xl group-hover:bg-primary/10 transition-colors">
+          <UIcon
+            name="i-lucide-sparkles"
+            class="size-6 text-dimmed group-hover:text-primary transition-colors"
+          />
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-default mb-1">Quick Modifiers</h2>
+          <p class="text-sm text-muted">
+            Manage lightweight prompt snippets (lighting, mood, camera) for fast prompt building.
+          </p>
+        </div>
+      </NuxtLink>
       <NuxtLink
         to="/admin/settings"
         class="glass-card p-6 rounded-2xl flex flex-col items-start gap-4 transition-transform hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5 group"

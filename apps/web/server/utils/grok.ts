@@ -64,24 +64,88 @@ export async function grokChat(
   return data.choices?.[0]?.message?.content?.trim() || ''
 }
 
+export async function grokChatStream(
+  apiKey: string,
+  messages: GrokChatMessage[],
+  model?: string,
+): Promise<ReadableStream<Uint8Array>> {
+  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: model || 'grok-3-mini',
+      messages,
+      temperature: 0.7,
+      stream: true,
+    }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    console.error(`[grokChatStream] API error (${res.status}):`, text)
+    const errorMsg = parseXaiError(text) || 'Failed to chat with Grok API.'
+    throw createError({
+      statusCode: res.status,
+      message: errorMsg,
+    })
+  }
+
+  return (res.body as ReadableStream<Uint8Array>).pipeThrough(createOpenAIStreamParser())
+}
+
+function createOpenAIStreamParser() {
+  const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
+  let buffer = ''
+
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      buffer += decoder.decode(chunk, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
+          try {
+            const data = JSON.parse(trimmed.slice(6))
+            const content = data.choices?.[0]?.delta?.content
+            if (content) {
+              controller.enqueue(encoder.encode(content))
+            }
+          } catch {
+            // ignore invalid SSE parse errors
+          }
+        }
+      }
+    },
+    flush(controller) {
+      const trimmed = buffer.trim()
+      if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
+        try {
+          const data = JSON.parse(trimmed.slice(6))
+          const content = data.choices?.[0]?.delta?.content
+          if (content) {
+            controller.enqueue(encoder.encode(content))
+          }
+        } catch {
+          // ignore trailing SSE parse errors
+        }
+      }
+    },
+  })
+}
+
 export async function grokEnhancePrompt(
   apiKey: string,
   prompt: string,
-  instructions?: string,
+  systemContent: string,
   model?: string,
   imageBase64?: string,
-  mediaType: 'image' | 'video' = 'image',
 ): Promise<string> {
-  const isVideo = mediaType === 'video'
-  const mediaLabel = isVideo ? 'video' : 'image'
-  const videoGuidance = isVideo
-    ? ' Since the user is generating a VIDEO prompt for Grok Imagine, emphasize motion, temporal progression, camera movement, pacing, and dynamic action in addition to visual details.'
-    : ''
-
-  const systemContent = instructions
-    ? `You are an expert prompt engineer for AI ${mediaLabel} generation.${videoGuidance} Your task is to take an original ${mediaLabel} creation prompt and modify it so that the new generated ${mediaLabel} will match the original as closely as possible, while carefully applying the changes requested by the user. Do not change the core style, subject, lighting, or composition unless the user instructions explicitly ask for it.\n\nUser Instructions: ${instructions}\n\nReturn ONLY the new modified prompt text, with no introductory or conversational filler. Do not wrap in quotes.`
-    : `You are an expert prompt engineer for AI ${mediaLabel} generation.${videoGuidance} Your task is to take a simple user prompt and enhance it into a highly detailed, cinematic, and descriptive prompt that will produce stunning results. Focus on adding details about lighting, camera angle, atmosphere, style, and subject specifics.${isVideo ? ' Also include details about motion dynamics, temporal pacing, and camera movement to optimize for video generation.' : ''} Return ONLY the enhanced prompt text, with no introductory or conversational filler. Do not wrap in quotes.`
-
   const userContent = imageBase64
     ? [
         { type: 'text', text: prompt },
@@ -122,6 +186,55 @@ export async function grokEnhancePrompt(
 
   const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> }
   return data.choices?.[0]?.message?.content?.trim() || prompt
+}
+
+export async function grokEnhancePromptStream(
+  apiKey: string,
+  prompt: string,
+  systemContent: string,
+  model?: string,
+  imageBase64?: string,
+): Promise<ReadableStream<Uint8Array>> {
+  const userContent = imageBase64
+    ? [
+        { type: 'text', text: prompt },
+        { type: 'image_url', image_url: { url: imageBase64 } },
+      ]
+    : prompt
+
+  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: imageBase64 ? 'grok-2-vision-1212' : model || 'grok-3-mini',
+      messages: [
+        {
+          role: 'system',
+          content: systemContent,
+        },
+        {
+          role: 'user',
+          content: userContent,
+        },
+      ],
+      temperature: 0.7,
+      stream: true,
+    }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    console.error(`[grokEnhancePromptStream] API error (${res.status}):`, text)
+    throw createError({
+      statusCode: res.status,
+      message: 'Failed to enhance prompt with Grok API.',
+    })
+  }
+
+  return (res.body as ReadableStream<Uint8Array>).pipeThrough(createOpenAIStreamParser())
 }
 
 // ─── Image Generation (OpenAI SDK) ─────────────────────────

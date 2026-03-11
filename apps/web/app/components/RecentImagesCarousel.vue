@@ -44,12 +44,11 @@ function isLandscape(gen: Generation): boolean {
         @click="emit('click', item)"
       >
         <template v-if="item.status === 'done' && item.mediaUrl">
-          <NuxtImg
+          <MediaImg
             v-if="item.type === 'image'"
             :src="item.mediaUrl"
             :alt="item.prompt"
             class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-            placeholder
             loading="lazy"
           />
           <video

@@ -11,23 +11,9 @@ export interface ChatMessage {
   }
 }
 
-const SYSTEM_PROMPTS: Record<ChatMode, string> = {
-  general:
-    'You are Grok, an expert AI assistant specialized in writing prompts for image and video generation models. You must always respond in valid JSON format with exactly two keys: "message" (your conversational reply) and "prompt" (the final, isolated compilation of the image/video generation prompt). If the user isn\'t asking for a prompt generation or enhancement yet, leave "prompt" as null.',
-  person:
-    'You are Grok, an expert AI character designer. IMPORTANT: On the VERY FIRST message from the user, you MUST fill in ALL 22 attributes immediately based on whatever details they provide — even if sparse. Be creative and make bold, specific choices for every unfilled attribute. Crucially, emphasize natural, authentic, and realistic human features over idealized or "perfect" traits (e.g., include subtle physical imperfections, realistic skin textures, normal casual elements) to avoid a plasticy AI look. Do NOT ask questions first. Fill everything, then offer to refine. You must always respond in valid JSON format with four keys: "message" (a brief, friendly note about the character — max 2 sentences), "prompt" (null), "suggested_name" (a realistic full person name), and "builder_state" (MUST ALWAYS include ALL of these keys: "name", "description", "age", "gender", "ethnicity", "body_type", "height", "skin_tone", "hair_color", "hair_style", "eye_color", "face_shape", "expression", "breasts", "clothing", "accessories", "makeup", "tattoos_piercings", "vibe", "distinguishing_features", "extended_detail", "other"). The "name" MUST be a realistic full name — NOT a character archetype. The "description" should be a condensed 3-words-or-less evocative label. The "extended_detail" MUST be a detailed ~100-word vivid backstory/bio for the character that ties into their described physical traits, giving them depth and history. Every attribute MUST have a value — never null on first response. Infer aggressively. On subsequent messages, update only the attributes the user wants changed.',
-  scene:
-    'You are Grok, an expert AI environment designer. IMPORTANT: On the VERY FIRST message from the user, you MUST fill in ALL 14 attributes immediately based on whatever details they provide — even if sparse. Be creative and make bold, specific choices for every unfilled attribute. Do NOT ask questions first. Fill everything, then offer to refine. You must always respond in valid JSON format with four keys: "message" (a brief, friendly note about the scene you built — max 2 sentences), "prompt" (null), "suggested_name" (a short, evocative 2-4 word name, e.g. "Neon-Lit Alley" or "Enchanted Forest"), and "builder_state" (a flat JSON object that MUST ALWAYS include ALL of these keys: "name", "description", "setting", "time_of_day", "weather", "season", "lighting", "color_palette", "architecture", "vegetation", "props", "atmosphere", "depth", "ground_surface"). The "name" should match suggested_name. The "description" should be a condensed 3-words-or-less evocative label (e.g. "Moody Rainy Street", "Golden Desert Ruins"). Every attribute MUST have a value — never null on first response. Infer aggressively from context. On subsequent messages, update only the attributes the user wants changed.',
-  framing:
-    'You are Grok, an expert AI cinematographer. IMPORTANT: On the VERY FIRST message from the user, you MUST fill in ALL 12 attributes immediately based on whatever details they provide — even if sparse. Be creative and make bold, specific choices for every unfilled attribute. Do NOT ask questions first. Fill everything, then offer to refine. You must always respond in valid JSON format with four keys: "message" (a brief, friendly note about the framing you built — max 2 sentences), "prompt" (null), "suggested_name" (a short, evocative 2-4 word name, e.g. "Cinematic Wide" or "Low Angle Hero"), and "builder_state" (a flat JSON object that MUST ALWAYS include ALL of these keys: "name", "description", "shot_type", "camera_angle", "camera_height", "lens", "focal_length", "depth_of_field", "focus_point", "camera_movement", "composition_rule", "aspect_ratio"). The "name" should match suggested_name. The "description" should be a condensed 3-words-or-less evocative label (e.g. "Dutch Angle Drama", "Dreamy Bokeh Close-up"). Every attribute MUST have a value — never null on first response. Infer aggressively from context. On subsequent messages, update only the attributes the user wants changed.',
-  action:
-    'You are Grok, an expert AI action director. IMPORTANT: On the VERY FIRST message from the user, you MUST fill in ALL 11 attributes immediately based on whatever details they provide — even if sparse. Be creative and make bold, specific choices for every unfilled attribute. Do NOT ask questions first. Fill everything, then offer to refine. You must always respond in valid JSON format with four keys: "message" (a brief, friendly note about the action you built — max 2 sentences), "prompt" (null), "suggested_name" (a short, evocative 2-4 word name, e.g. "Walking in Rain" or "Drawing a Bow"), and "builder_state" (a flat JSON object that MUST ALWAYS include ALL of these keys: "name", "description", "primary_action", "body_position", "hand_placement", "head_direction", "facial_expression", "motion_blur", "energy_level", "interaction", "emotion"). The "name" should match suggested_name. The "description" should be a condensed 3-words-or-less evocative label (e.g. "Fierce Combat Leap", "Gentle Flower Picking"). Every attribute MUST have a value — never null on first response. Infer aggressively from context. On subsequent messages, update only the attributes the user wants changed.',
-  style:
-    'You are Grok, an expert AI art director. IMPORTANT: On the VERY FIRST message from the user, you MUST fill in ALL 10 attributes immediately based on whatever details they provide — even if sparse. Be creative and make bold, specific choices for every unfilled attribute. Do NOT ask questions first. Fill everything, then offer to refine. You must always respond in valid JSON format with four keys: "message" (a brief, friendly note about the style you built — max 2 sentences), "prompt" (null), "suggested_name" (a short, evocative 2-4 word name, e.g. "Cyberpunk Noir" or "Watercolor Sketch"), and "builder_state" (a flat JSON object that MUST ALWAYS include ALL of these keys: "name", "description", "art_medium", "color_palette", "lighting", "brushwork_or_texture", "influence_or_era", "mood", "level_of_detail", "key_elements"). The "name" should match suggested_name. The "description" should be a condensed 3-words-or-less evocative label. Every attribute MUST have a value — never null on first response. Infer aggressively from context. On subsequent messages, update only the attributes the user wants changed.',
-}
-
 export function useChatForm() {
   const { elements, fetchElements } = usePromptElements()
+  const { prompts } = useSystemPrompts()
 
   const chatMode = ref<ChatMode>('general')
   const mediaType = ref<'image' | 'video'>('image')
@@ -41,7 +27,7 @@ export function useChatForm() {
     initializeChat()
   })
 
-  function initializeChat() {
+  async function initializeChat() {
     if (chatMessages.value.length === 0) {
       const mode = chatMode.value
       const initialMessage =
@@ -49,10 +35,11 @@ export function useChatForm() {
           ? 'Hi! I can help you craft the perfect prompt for your next image or video. You can reference any of your saved Prompt Elements here. What are you thinking of creating?'
           : `Hi! Let's design a ${mode} together. What kind of ${mode} do you have in mind?`
 
-      const baseSystemPrompt = SYSTEM_PROMPTS[mode]
+      const promptKey = `chat_${mode}`
+      const baseSystemPrompt = prompts.value[promptKey] || ''
       const mediaContext =
         mode === 'general' && mediaType.value === 'video'
-          ? '\n\nIMPORTANT: The user is currently creating a VIDEO prompt for Grok Imagine. Optimize all prompts for video generation — emphasize motion, temporal progression, camera movement, pacing, and cinematic dynamics rather than static composition.'
+          ? '\\n\\nIMPORTANT: The user is currently creating a VIDEO prompt for Grok Imagine. Optimize all prompts for video generation — emphasize motion, temporal progression, camera movement, pacing, and cinematic dynamics rather than static composition.'
           : ''
 
       chatMessages.value = [
@@ -62,11 +49,7 @@ export function useChatForm() {
         },
         {
           role: 'assistant',
-          content: JSON.stringify({
-            message: initialMessage,
-            prompt: null,
-            builder_state: null,
-          }),
+          content: `<message>${initialMessage}</message>`,
           parsedResponse: {
             message: initialMessage,
             prompt: null,
@@ -104,36 +87,70 @@ export function useChatForm() {
         content: `${payloadMessages[0]?.content || ''}\n\n${elementsContext}`,
       }
 
-      const result = await $fetch<{ content: string }>('/api/generate/chat', {
-        method: 'POST',
-        body: {
-          chatMode: chatMode.value,
-          messages: payloadMessages.map((m) => ({ role: m.role, content: m.content })),
-        },
-      })
-
-      if (result.content) {
-        const parsed: Required<NonNullable<ChatMessage['parsedResponse']>> = {
-          message: result.content,
+      chatMessages.value.push({
+        role: 'assistant',
+        content: '',
+        parsedResponse: {
+          message: '',
           prompt: null,
           suggested_name: null,
           builder_state: null,
-        }
-        try {
-          const rawParsed = JSON.parse(result.content)
-          if (rawParsed.message) parsed.message = rawParsed.message
-          if (rawParsed.prompt) parsed.prompt = rawParsed.prompt
-          if (rawParsed.suggested_name) parsed.suggested_name = rawParsed.suggested_name
-          if (rawParsed.builder_state) parsed.builder_state = rawParsed.builder_state
-        } catch (parseErr) {
-          console.warn('Grok did not return valid JSON', parseErr)
+        },
+      })
+      const assistantIndex = chatMessages.value.length - 1
+
+      const res = await fetch('/api/generate/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({
+          chatMode: chatMode.value,
+          messages: payloadMessages.map((m) => ({ role: m.role, content: m.content })),
+          stream: true,
+        }),
+      })
+
+      if (!res.ok || !res.body) throw new Error('API Error')
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let fullContent = ''
+      const parsed: Required<NonNullable<ChatMessage['parsedResponse']>> = {
+        message: '',
+        prompt: null,
+        suggested_name: null,
+        builder_state: null,
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        fullContent += decoder.decode(value, { stream: true })
+
+        const msgMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
+        const promptMatch = fullContent.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
+        const titleMatch = fullContent.match(
+          /<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i,
+        )
+        const stateMatch = fullContent.match(/<builder_state>([\s\S]*?)(?:<\/builder_state>|$)/i)
+
+        if (msgMatch?.[1]) parsed.message = msgMatch[1].trim()
+        if (promptMatch?.[1]) parsed.prompt = promptMatch[1].trim()
+        if (titleMatch?.[1]) parsed.suggested_name = titleMatch[1].trim()
+
+        if (stateMatch?.[1]) {
+          try {
+            parsed.builder_state = JSON.parse(stateMatch[1].trim())
+          } catch {
+            // Wait for complete JSON
+          }
         }
 
-        chatMessages.value.push({
-          role: 'assistant',
-          content: result.content,
-          parsedResponse: parsed,
-        })
+        const msg = chatMessages.value[assistantIndex]!
+        msg.content = fullContent
+        msg.parsedResponse = { ...parsed }
       }
     } catch (e) {
       const err = e as { data?: { message?: string }; message?: string }

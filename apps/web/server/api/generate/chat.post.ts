@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { appSettings } from '../../database/schema'
-import { grokChat, type GrokChatMessage } from '../../utils/grok'
+import { grokChatStream, type GrokChatMessage } from '../../utils/grok'
 
 const bodySchema = z.object({
   chatMode: z
@@ -16,6 +16,7 @@ const bodySchema = z.object({
       }),
     )
     .max(20), // Max 20 messages in history
+  stream: z.boolean().optional().default(false),
 })
 
 /**
@@ -57,14 +58,24 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const responseContent = await grokChat(
-      config.xaiApiKey,
-      body.messages as GrokChatMessage[],
-      chatModel,
-      { type: 'json_object' },
-    )
-    log.info('Chat completion successful', { userId: user.id })
-    return { content: responseContent }
+    if (body.stream) {
+      const stream = await grokChatStream(
+        config.xaiApiKey,
+        body.messages as GrokChatMessage[],
+        chatModel,
+      )
+      log.info('Chat completion streaming started', { userId: user.id })
+      return sendStream(event, stream)
+    } else {
+      const responseContent = await grokChat(
+        config.xaiApiKey,
+        body.messages as GrokChatMessage[],
+        chatModel,
+        { type: 'json_object' },
+      )
+      log.info('Chat completion successful', { userId: user.id })
+      return { content: responseContent }
+    }
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown error'
     const statusCode =

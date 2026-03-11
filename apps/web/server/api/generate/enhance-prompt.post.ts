@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { appSettings } from '../../database/schema'
-import { grokEnhancePrompt } from '../../utils/grok'
+import { grokEnhancePrompt, grokEnhancePromptStream } from '../../utils/grok'
+import { getSystemPrompt } from '../../utils/systemPrompts'
+import { sendStream } from 'h3'
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
@@ -9,6 +11,7 @@ const bodySchema = z.object({
   instructions: z.string().max(20000).optional(),
   imageBase64: z.string().optional(),
   mediaType: z.enum(['image', 'video']).default('image'),
+  stream: z.boolean().optional().default(false),
 })
 
 /**
@@ -50,16 +53,51 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const enhancedPrompt = await grokEnhancePrompt(
-      config.xaiApiKey,
-      body.prompt,
-      body.instructions,
-      promptEnhanceModel,
-      body.imageBase64,
-      body.mediaType,
-    )
-    log.info('Prompt enhanced successfully', { userId: user.id })
-    return { enhancedPrompt }
+    const isVideo = body.mediaType === 'video'
+    const mediaLabel = isVideo ? 'video' : 'image'
+    const videoGuidance = isVideo
+      ? ' Since the user is generating a VIDEO prompt for Grok Imagine, emphasize motion, temporal progression, camera movement, pacing, and dynamic action in addition to visual details.'
+      : ''
+    const videoGuidance2 = isVideo
+      ? ' Also include details about motion dynamics, temporal pacing, and camera movement to optimize for video generation.'
+      : ''
+
+    let systemContent = ''
+    if (body.instructions) {
+      const rawPrompt = await getSystemPrompt(event, 'enhance_with_instructions')
+      systemContent = rawPrompt
+        .replaceAll('{{mediaLabel}}', mediaLabel)
+        .replaceAll('{{videoGuidance}}', videoGuidance)
+        .replaceAll('{{instructions}}', body.instructions)
+    } else {
+      const rawPrompt = await getSystemPrompt(event, 'enhance_without_instructions')
+      systemContent = rawPrompt
+        .replaceAll('{{mediaLabel}}', mediaLabel)
+        .replaceAll('{{videoGuidance}}', videoGuidance)
+        .replaceAll('{{videoGuidance2}}', videoGuidance2)
+    }
+
+    if (body.stream) {
+      const stream = await grokEnhancePromptStream(
+        config.xaiApiKey,
+        body.prompt,
+        systemContent,
+        promptEnhanceModel,
+        body.imageBase64,
+      )
+      log.info('Prompt enhancement streaming started', { userId: user.id })
+      return sendStream(event, stream)
+    } else {
+      const enhancedPrompt = await grokEnhancePrompt(
+        config.xaiApiKey,
+        body.prompt,
+        systemContent,
+        promptEnhanceModel,
+        body.imageBase64,
+      )
+      log.info('Prompt enhanced successfully', { userId: user.id })
+      return { enhancedPrompt }
+    }
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown error'
     const statusCode =

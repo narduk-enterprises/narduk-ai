@@ -90,12 +90,11 @@ function handleRemix() {
     <!-- Media Preview -->
     <div class="relative w-full overflow-hidden bg-elevated/50 aspect-4/5">
       <template v-if="generation.status === 'done' && generation.mediaUrl">
-        <NuxtImg
+        <MediaImg
           v-if="generation.type === 'image'"
           :src="generation.mediaUrl"
           :alt="generation.prompt"
           class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          placeholder
           loading="lazy"
         />
         <video

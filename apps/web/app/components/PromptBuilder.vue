@@ -2,6 +2,7 @@
 import type { PresetMetadata } from '../composables/usePromptElements'
 import { usePromptElements } from '../composables/usePromptElements'
 import { usePromptLibrary } from '../composables/usePromptLibrary'
+import { useSystemPrompts } from '../composables/useSystemPrompts'
 
 const isModalOpen = defineModel<boolean>('open', { default: false })
 
@@ -18,6 +19,7 @@ const emit = defineEmits<{
 
 const { elements, groupedByType, fetchElements } = usePromptElements()
 const { savePrompt, loading: saving } = usePromptLibrary()
+const { prompts } = useSystemPrompts()
 
 const step = ref<'presets' | 'refine'>('presets')
 const searchQuery = ref('')
@@ -113,21 +115,11 @@ async function composeDraft() {
     .join('\n')
 
   const isVideo = props.mediaType === 'video'
+  const sysContent = isVideo ? prompts.value.compose_video : prompts.value.compose_image
+
   const systemMsg = {
     role: 'system' as const,
-    content: isVideo
-      ? `You are a prompt engineering expert. The user is selecting components to generate a VIDEO prompt for Grok Imagine.
-Compose them into a single, cohesive, highly-detailed video generation prompt. Emphasize motion, temporal progression, camera movement, pacing, and dynamic action rather than static composition.
-CRITICAL: The prompt MUST produce results that look like real footage shot on a real camera — photorealistic, natural lighting, real skin textures, real environments. NEVER create prompts that would produce cartoon, illustration, CGI, 3D render, anime, digital art, painterly, or fantasy-looking results. Always include photorealism anchors such as "photorealistic", "shot on [real camera]", "natural lighting", "film grain", or "35mm film".
-Whenever the user talks to you, refine the prompt based on their request.
-Return JSON ONLY, matching exactly: { "message": "friendly chat reply to the user explaining what you did", "prompt": "the updated full generation prompt string", "suggested_title": "A short, catchy title for this prompt" }.
-Make the prompt vivid, specific, and ready to use for video generation. Do not include category prefixes in the final prompt.`
-      : `You are a prompt engineering expert. The user is selecting components to generate an image/video prompt.
-Compose them into a single, cohesive, highly-detailed generation prompt.
-CRITICAL: The prompt MUST produce results that look like a real photograph taken with a real camera — photorealistic, natural lighting, real skin textures, real environments. NEVER create prompts that would produce cartoon, illustration, CGI, 3D render, anime, digital art, painterly, or fantasy-looking results. Always include photorealism anchors such as "photorealistic", "shot on [real camera]", "natural lighting", "film grain", or "35mm film".
-Whenever the user talks to you, refine the prompt based on their request.
-Return JSON ONLY, matching exactly: { "message": "friendly chat reply to the user explaining what you did", "prompt": "the updated full generation prompt string", "suggested_title": "A short, catchy title for this prompt" }.
-Make the prompt vivid, specific, and ready to use for image generation. Do not include category prefixes in the final prompt.`,
+    content: sysContent || '',
   }
 
   const userMsg = {
@@ -138,21 +130,45 @@ Make the prompt vivid, specific, and ready to use for image generation. Do not i
   chatMessages.value = [systemMsg, userMsg]
 
   try {
-    // eslint-disable-next-line narduk/no-raw-fetch, narduk/no-fetch-in-component -- This is a client-side user action, not SSR data fetching
-    const res = await $fetch<{ content: string }>('/api/generate/chat', {
+    const res = await fetch('/api/generate/chat', {
       method: 'POST',
-      body: { chatMode: 'general', messages: chatMessages.value },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({ chatMode: 'general', messages: chatMessages.value, stream: true }),
     })
 
-    const parsed = JSON.parse(res.content)
-    currentPromptDraft.value = parsed.prompt || ''
-    if (parsed.suggested_title && !saveTitle.value) {
-      saveTitle.value = parsed.suggested_title
-    }
-    chatLog.value.push({ role: 'assistant', text: parsed.message || 'Draft created.' })
+    if (!res.ok || !res.body) throw new Error('API Error')
 
-    // Store assistant's original raw JSON reply in the internal message array for context
-    chatMessages.value.push({ role: 'assistant', content: res.content })
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let fullContent = ''
+
+    chatLog.value.push({ role: 'assistant', text: '' })
+    const assistantIndex = chatLog.value.length - 1
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      fullContent += decoder.decode(value, { stream: true })
+
+      const msgMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
+      const promptMatch = fullContent.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
+      const titleMatch = fullContent.match(/<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i)
+
+      const msg = chatLog.value[assistantIndex]!
+      if (msgMatch?.[1]) msg.text = msgMatch[1].trim()
+      if (promptMatch?.[1]) currentPromptDraft.value = promptMatch[1].trim()
+      if (titleMatch?.[1] && !saveTitle.value) saveTitle.value = titleMatch[1].trim()
+    }
+
+    const msg = chatLog.value[assistantIndex]!
+    if (!msg.text) {
+      msg.text = 'Draft created.'
+    }
+
+    chatMessages.value.push({ role: 'assistant', content: fullContent })
   } catch (e) {
     console.error('Failed to generate draft', e)
     chatLog.value.push({
@@ -176,19 +192,45 @@ async function sendChatMessage() {
   chatMessages.value.push(userMsg)
 
   try {
-    // eslint-disable-next-line narduk/no-raw-fetch, narduk/no-fetch-in-component -- This is a client-side user action, not SSR data fetching
-    const res = await $fetch<{ content: string }>('/api/generate/chat', {
+    const res = await fetch('/api/generate/chat', {
       method: 'POST',
-      body: { chatMode: 'general', messages: chatMessages.value },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({ chatMode: 'general', messages: chatMessages.value, stream: true }),
     })
 
-    const parsed = JSON.parse(res.content)
-    if (parsed.prompt) currentPromptDraft.value = parsed.prompt
-    if (parsed.suggested_title && !saveTitle.value) {
-      saveTitle.value = parsed.suggested_title
+    if (!res.ok || !res.body) throw new Error('API Error')
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let fullContent = ''
+
+    chatLog.value.push({ role: 'assistant', text: '' })
+    const assistantIndex = chatLog.value.length - 1
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      fullContent += decoder.decode(value, { stream: true })
+
+      const msgMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
+      const promptMatch = fullContent.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
+      const titleMatch = fullContent.match(/<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i)
+
+      const msg = chatLog.value[assistantIndex]!
+      if (msgMatch?.[1]) msg.text = msgMatch[1].trim()
+      if (promptMatch?.[1]) currentPromptDraft.value = promptMatch[1].trim()
+      if (titleMatch?.[1] && !saveTitle.value) saveTitle.value = titleMatch[1].trim()
     }
-    chatLog.value.push({ role: 'assistant', text: parsed.message || 'Updated the prompt.' })
-    chatMessages.value.push({ role: 'assistant', content: res.content })
+
+    const msg = chatLog.value[assistantIndex]!
+    if (!msg.text) {
+      msg.text = 'Updated the prompt.'
+    }
+
+    chatMessages.value.push({ role: 'assistant', content: fullContent })
   } catch (e) {
     console.error('Chat failed', e)
     chatLog.value.push({ role: 'assistant', text: 'Error refining prompt.' })

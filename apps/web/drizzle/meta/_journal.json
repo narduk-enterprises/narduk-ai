@@ -50,6 +50,13 @@
       "when": 1773219726559,
       "tag": "0006_jittery_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1773252103412,
+      "tag": "0007_free_kate_bishop",
+      "breakpoints": true
     }
   ]
 }
