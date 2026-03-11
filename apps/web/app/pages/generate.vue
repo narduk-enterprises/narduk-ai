@@ -404,6 +404,7 @@ const resolutions = ['480p', '720p']
               placeholder="e.g. Make it highly cinematic, neon cyberpunk style, 8k resolution..."
               :rows="3"
               autoresize
+              class="w-full"
             />
           </UFormField>
 
