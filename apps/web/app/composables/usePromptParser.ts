@@ -6,7 +6,7 @@
  * No LLM call needed — instant, accurate, and offline-capable.
  */
 import { PRESET_ATTRIBUTES, parseContentToAttributes } from '~/utils/presetSchemas'
-import type { QuickModifier } from './useQuickModifiers'
+import type { PromptTag } from '~/types/promptTag'
 
 export interface ParsedPromptResult {
   type: string
@@ -19,7 +19,7 @@ export interface ParsedPromptResult {
  * Deterministically parse a raw prompt into structured attributes + matched modifiers.
  * Works entirely client-side — no API call needed.
  */
-function parsePromptSync(prompt: string, modifiers: QuickModifier[]): ParsedPromptResult {
+function parsePromptSync(prompt: string, tags: PromptTag[]): ParsedPromptResult {
   // 1. Parse "Key: value" lines into a flat attribute map
   const parsed = parseContentToAttributes(prompt)
   const parsedKeys = new Set(Object.keys(parsed))
@@ -55,17 +55,16 @@ function parsePromptSync(prompt: string, modifiers: QuickModifier[]): ParsedProm
     }
   }
 
-  // 4. Match Quick Modifiers by checking if snippet text appears in the prompt
+  // 4. Match tags by checking if snippet text appears in the prompt
   const promptLower = prompt.toLowerCase()
   const matchedModifierIds: string[] = []
 
-  for (const mod of modifiers) {
-    const snippetLower = mod.snippet.toLowerCase()
-    const labelLower = mod.label.toLowerCase()
+  for (const tag of tags) {
+    const snippetLower = tag.snippet.toLowerCase()
+    const labelLower = tag.label.toLowerCase()
 
-    // Match if the modifier's snippet or label appears in the prompt
     if (promptLower.includes(snippetLower) || promptLower.includes(labelLower)) {
-      matchedModifierIds.push(mod.id)
+      matchedModifierIds.push(tag.id)
     }
   }
 
@@ -75,7 +74,7 @@ function parsePromptSync(prompt: string, modifiers: QuickModifier[]): ParsedProm
     const idx = line.indexOf(':')
     if (idx > 0) {
       const key = line.slice(0, idx).trim().toLowerCase().replaceAll(' ', '_')
-      if (consumedKeys.has(key)) continue // Already extracted
+      if (consumedKeys.has(key)) continue
     }
     const trimmed = line.trim()
     if (trimmed) remainingLines.push(trimmed)
@@ -90,7 +89,7 @@ function parsePromptSync(prompt: string, modifiers: QuickModifier[]): ParsedProm
 }
 
 export function usePromptParser() {
-  const { allModifiersList } = useQuickModifiers()
+  const { allTagsList, ensureLoaded } = usePromptTags()
   const parsing = ref(false)
   const error = ref<string | null>(null)
   const lastResult = ref<ParsedPromptResult | null>(null)
@@ -99,14 +98,15 @@ export function usePromptParser() {
    * Parse a raw prompt string into structured components.
    * Runs entirely client-side — instant results.
    */
-  function parsePrompt(prompt: string): ParsedPromptResult | null {
+  async function parsePrompt(prompt: string): Promise<ParsedPromptResult | null> {
     if (!prompt.trim()) return null
 
     parsing.value = true
     error.value = null
 
     try {
-      const result = parsePromptSync(prompt, allModifiersList.value)
+      await ensureLoaded()
+      const result = parsePromptSync(prompt, allTagsList.value)
       lastResult.value = result
       return result
     } catch (e) {

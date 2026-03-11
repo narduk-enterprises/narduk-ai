@@ -122,7 +122,10 @@ export const quickModifiers = sqliteTable(
   'quick_modifiers',
   {
     id: text('id').primaryKey().notNull(),
-    category: text('category').notNull(), // lighting, mood, camera, detail, quality
+    category: text('category').notNull(), // original display category
+    attributeKey: text('attribute_key'), // normalized: 'hair_color', 'lighting', etc.
+    appliesTo: text('applies_to'), // JSON: ["person","scene"] or null for global
+    selectionMode: text('selection_mode').notNull().default('single'), // 'single' | 'multi'
     label: text('label').notNull(),
     snippet: text('snippet').notNull(),
     sortOrder: integer('sort_order').notNull().default(0),
@@ -130,5 +133,8 @@ export const quickModifiers = sqliteTable(
     usageCount: integer('usage_count').notNull().default(0),
     updatedAt: text('updated_at').notNull(),
   },
-  (table) => [index('quick_modifiers_usage_idx').on(table.usageCount)],
+  (table) => [
+    index('quick_modifiers_usage_idx').on(table.usageCount),
+    index('quick_modifiers_attr_key_idx').on(table.attributeKey),
+  ],
 )

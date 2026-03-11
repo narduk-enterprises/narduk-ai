@@ -3,12 +3,14 @@ import type { Generation } from '~/types/generation'
 /**
  * useFeelingLucky — handles the "Feeling Lucky" feature that randomly picks
  * presets and auto-generates a prompt via cached prompts or real-time Grok.
+ *
+ * v2: Uses singleton usePromptElements, activePresetIds (ID-based).
  */
 export function useFeelingLucky(deps: {
   activeTab: Ref<string>
   prompt: Ref<string>
   activePresets: Ref<Record<string, string>>
-  activePromptElements: Ref<string[]>
+  activePresetIds: Ref<string[]>
   generating: Ref<boolean>
   error: Ref<string | null>
   latestResult: Ref<Generation | null>
@@ -19,7 +21,7 @@ export function useFeelingLucky(deps: {
     activeTab,
     prompt,
     activePresets,
-    activePromptElements,
+    activePresetIds,
     generating,
     error,
     latestResult,
@@ -28,7 +30,9 @@ export function useFeelingLucky(deps: {
   } = deps
 
   const feelingLucky = ref(false)
-  const { elements: luckyElements, fetchElements: fetchLuckyElements } = usePromptElements()
+
+  // Use singleton prompt elements — no duplicate instance
+  const { elements, fetchElements } = usePromptElements()
 
   async function handleFeelingLucky() {
     if (feelingLucky.value || generating.value) return
@@ -54,7 +58,14 @@ export function useFeelingLucky(deps: {
       if (cached.cached && cached.prompt && cached.presets) {
         prompt.value = cached.prompt
         activePresets.value = cached.presets
-        activePromptElements.value = Object.values(cached.presets)
+
+        // Resolve preset names → IDs from loaded elements
+        const ids: string[] = []
+        for (const [_type, name] of Object.entries(cached.presets)) {
+          const el = elements.value.find((e) => e.name === name)
+          if (el) ids.push(el.id)
+        }
+        activePresetIds.value = ids
 
         await handleGenerate()
 
@@ -68,11 +79,11 @@ export function useFeelingLucky(deps: {
       }
 
       // ── Fallback: real-time Grok generation ──
-      if (!luckyElements.value.length) {
-        await fetchLuckyElements()
+      if (!elements.value.length) {
+        await fetchElements()
       }
 
-      const allElements = luckyElements.value
+      const allElements = elements.value
       if (!allElements.length) {
         error.value = 'No presets available. Create some presets first!'
         return
@@ -86,24 +97,25 @@ export function useFeelingLucky(deps: {
       }
 
       // Pick random elements: always pick a person if available, then 1-2 others
-      // Store names in picked (for DB storage), content in pickedContent (for prompt composition)
       const picked: Record<string, string> = {}
+      const pickedIds: string[] = []
       const pickedContent: string[] = []
 
       if (byType.person?.length) {
         const person = byType.person[Math.floor(Math.random() * byType.person.length)]!
         picked.person = person.name
+        pickedIds.push(person.id)
         pickedContent.push(`person: ${person.content}`)
       }
 
       const otherTypes = ['scene', 'framing', 'action', 'style'].filter((t) => byType[t]?.length)
-      // Shuffle and pick 1-2 random other types
       const shuffled = otherTypes.sort(() => Math.random() - 0.5)
       const pickCount = Math.min(shuffled.length, Math.random() < 0.5 ? 1 : 2)
       for (let i = 0; i < pickCount; i++) {
         const type = shuffled[i]!
         const el = byType[type]![Math.floor(Math.random() * byType[type]!.length)]!
         picked[type] = el.name
+        pickedIds.push(el.id)
         pickedContent.push(`${type}: ${el.content}`)
       }
 
@@ -155,10 +167,10 @@ export function useFeelingLucky(deps: {
         return
       }
 
-      // Set the prompt and presets, then auto-generate
+      // Set the prompt, presets (names + IDs), then auto-generate
       prompt.value = luckyPrompt
       activePresets.value = picked
-      activePromptElements.value = Object.values(picked)
+      activePresetIds.value = pickedIds
 
       await handleGenerate()
     } catch (e) {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
-import type { QuickModifierCategory } from '~/composables/useQuickModifiers'
+import type { PromptTagCategory } from '~/types/promptTag'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -21,6 +21,7 @@ const {
   resolution,
   sourceGenerationId,
   activePresets,
+  activePresetIds,
   latestResult,
   latestResults,
   recentGenerations,
@@ -58,60 +59,33 @@ const {
   handleSourceImageUpload,
   imageCount,
   attachedPerson,
-  modifierSnippets,
-  activeModifiers,
   attachPerson,
   detachPerson,
   compiledPrompt,
-  setModifierDependencies,
-  activePromptElements,
+  // Tag API (from singleton usePromptTags, re-exported)
+  tagCategories,
+  ensureTagsLoaded,
+  toggleTag,
+  isTagSelected,
+  clearTags,
+  selectedTagsList,
+  tagSearchQuery,
+  filteredTags,
+  tagSnippets,
 } = useGenerationForm()
 
 const { deleteGeneration } = useGenerate()
 
 const { elements, fetchElements, remixPrompt } = usePromptElements()
 
-const {
-  categories: modifierCategories,
-  toggleModifier,
-  isSelected: isModifierSelected,
-  clearModifiers,
-  selectedModifiersList,
-  fetchModifiers,
-  allModifiersList,
-  addModifiers,
-  setDynamicModifiers,
-  compiledSnippets,
-  searchQuery,
-  filteredModifiers,
-} = useQuickModifiers()
-
 const isModifierSlideoverOpen = ref(false)
-const activeModifierCategory = ref<QuickModifierCategory | null>(null)
+const activeModifierCategory = ref<PromptTagCategory | null>(null)
 
-watch(modifierCategories, (newVal) => {
+watch(tagCategories, (newVal) => {
   if (newVal.length > 0 && !activeModifierCategory.value) {
     activeModifierCategory.value = newVal[0] ?? null
   }
 })
-
-// Wire up the form so it can auto-select modifiers when a preset is chosen
-setModifierDependencies(allModifiersList.value, addModifiers, setDynamicModifiers)
-watch(allModifiersList, (newList) => {
-  setModifierDependencies(newList, addModifiers, setDynamicModifiers)
-})
-
-// Keep modifierSnippets and activeModifiers in sync
-watch(compiledSnippets, (val) => {
-  modifierSnippets.value = val
-})
-watch(
-  selectedModifiersList,
-  (val) => {
-    activeModifiers.value = val
-  },
-  { immediate: true },
-)
 
 // Person presets for quick attachment
 const personElements = computed(() => elements.value.filter((el) => el.type === 'person'))
@@ -174,7 +148,7 @@ function openRecentViewer(gen: Generation) {
 
 function handleClearAll() {
   detachPerson()
-  clearModifiers()
+  clearTags()
 }
 
 function handleUseBuilderPrompt(newPrompt: string) {
@@ -199,7 +173,7 @@ async function handleRemix() {
 onMounted(() => {
   loadUserImages()
   fetchElements()
-  fetchModifiers()
+  ensureTagsLoaded()
 })
 
 function handlePromptKeydown(e: KeyboardEvent) {
@@ -212,16 +186,16 @@ function handlePromptKeydown(e: KeyboardEvent) {
 // ── Prompt Parser ──────────────────────────────────────────
 const { parsing: promptParsing, parsePrompt } = usePromptParser()
 
-function handleParsePrompt() {
+async function handleParsePrompt() {
   if (!prompt.value.trim() || promptParsing.value) return
-  const result = parsePrompt(prompt.value)
+  const result = await parsePrompt(prompt.value)
   if (!result) return
 
-  // Auto-select matched modifiers
+  // Auto-select matched tags
   if (result.matchedModifierIds.length) {
     for (const modId of result.matchedModifierIds) {
-      if (!isModifierSelected(modId)) {
-        toggleModifier(modId)
+      if (!isTagSelected(modId)) {
+        toggleTag(modId)
       }
     }
   }
@@ -499,7 +473,7 @@ function editResult(gen: Generation) {
 
         <!-- Person Presets + Quick Modifiers -->
         <div
-          v-if="personElements.length || modifierCategories.length"
+          v-if="personElements.length || tagCategories.length"
           class="space-y-3 border-t border-default/10 pt-4"
         >
           <!-- Person Presets -->
@@ -536,8 +510,8 @@ function editResult(gen: Generation) {
             </div>
           </div>
 
-          <!-- Active Modifiers & Add Button -->
-          <div v-if="modifierCategories.length" class="space-y-3 mt-4">
+          <!-- Active Tags & Add Button -->
+          <div v-if="tagCategories.length" class="space-y-3 mt-4">
             <div class="flex items-center justify-between">
               <span
                 class="text-[10px] font-semibold text-muted uppercase tracking-wider flex items-center gap-1"
@@ -557,27 +531,27 @@ function editResult(gen: Generation) {
             </div>
 
             <div
-              v-if="activeModifiers.length"
+              v-if="selectedTagsList.length"
               class="flex flex-wrap gap-1.5 bg-muted/20 p-2 rounded-lg border border-default/10"
             >
               <UButton
-                v-for="mod in activeModifiers"
-                :key="mod.id"
+                v-for="tag in selectedTagsList"
+                :key="tag.id"
                 size="xs"
                 variant="solid"
                 color="primary"
                 class="rounded-full shadow-sm shadow-primary/20"
                 icon="i-lucide-x"
                 trailing
-                @click="toggleModifier(mod.id)"
+                @click="toggleTag(tag.id)"
               >
-                {{ mod.label }}
+                {{ tag.label }}
               </UButton>
             </div>
           </div>
 
           <!-- Clear All -->
-          <div v-if="attachedPerson || modifierSnippets" class="flex justify-end">
+          <div v-if="attachedPerson || tagSnippets" class="flex justify-end">
             <UButton
               size="xs"
               variant="ghost"
@@ -592,9 +566,7 @@ function editResult(gen: Generation) {
 
         <!-- Compiled Prompt Preview -->
         <div
-          v-if="
-            (attachedPerson || modifierSnippets || activePromptElements.length > 0) && charCount > 0
-          "
+          v-if="(attachedPerson || tagSnippets || activePresetIds.length > 0) && charCount > 0"
           class="rounded-xl bg-muted/30 border border-default/10 p-3 space-y-1.5"
         >
           <div class="flex items-center justify-between">
@@ -1077,44 +1049,47 @@ function editResult(gen: Generation) {
           <!-- Search Input -->
           <div class="p-3 sm:px-4 sm:py-3 border-b border-default/10 shrink-0">
             <UInput
-              v-model="searchQuery"
+              v-model="tagSearchQuery"
               icon="i-lucide-search"
               placeholder="Search modifiers..."
               class="w-full"
             >
               <template #trailing>
                 <UButton
-                  v-if="searchQuery"
+                  v-if="tagSearchQuery"
                   color="neutral"
                   variant="link"
                   icon="i-lucide-x"
                   :padded="false"
-                  @click="searchQuery = ''"
+                  @click="tagSearchQuery = ''"
                 />
               </template>
             </UInput>
           </div>
 
           <!-- Slideover Content area -->
-          <div class="flex-1 overflow-hidden" :class="searchQuery ? 'p-4 overflow-y-auto' : 'flex'">
+          <div
+            class="flex-1 overflow-hidden"
+            :class="tagSearchQuery ? 'p-4 overflow-y-auto' : 'flex'"
+          >
             <!-- Search Results -->
-            <div v-if="searchQuery">
-              <div v-if="filteredModifiers.length" class="flex flex-wrap gap-1.5">
+            <div v-if="tagSearchQuery">
+              <div v-if="filteredTags.length" class="flex flex-wrap gap-1.5">
                 <UButton
-                  v-for="mod in filteredModifiers"
-                  :key="mod.id"
+                  v-for="tag in filteredTags"
+                  :key="tag.id"
                   size="xs"
-                  :variant="isModifierSelected(mod.id) ? 'solid' : 'outline'"
-                  :color="isModifierSelected(mod.id) ? 'primary' : 'neutral'"
+                  :variant="isTagSelected(tag.id) ? 'solid' : 'outline'"
+                  :color="isTagSelected(tag.id) ? 'primary' : 'neutral'"
                   class="rounded-full transition-shadow duration-200"
-                  :class="isModifierSelected(mod.id) ? 'shadow-sm shadow-primary/20' : ''"
-                  @click="toggleModifier(mod.id)"
+                  :class="isTagSelected(tag.id) ? 'shadow-sm shadow-primary/20' : ''"
+                  @click="toggleTag(tag.id)"
                 >
-                  {{ mod.label }}
+                  {{ tag.label }}
                 </UButton>
               </div>
               <div v-else class="text-center text-muted py-8 text-sm">
-                No modifiers found for "{{ searchQuery }}"
+                No modifiers found for "{{ tagSearchQuery }}"
               </div>
             </div>
 
@@ -1125,35 +1100,39 @@ function editResult(gen: Generation) {
                 class="w-1/3 sm:w-2/5 border-r border-default/10 overflow-y-auto py-2 flex shrink-0 flex-col"
               >
                 <UButton
-                  v-for="cat in modifierCategories"
-                  :key="cat.category"
+                  v-for="cat in tagCategories"
+                  :key="cat.attributeKey"
                   variant="ghost"
-                  :color="activeModifierCategory?.category === cat.category ? 'primary' : 'neutral'"
+                  :color="
+                    activeModifierCategory?.attributeKey === cat.attributeKey
+                      ? 'primary'
+                      : 'neutral'
+                  "
                   class="w-full justify-start rounded-none px-3 py-2 text-left shrink-0"
                   :class="
-                    activeModifierCategory?.category === cat.category
+                    activeModifierCategory?.attributeKey === cat.attributeKey
                       ? 'bg-primary/10 font-medium'
                       : 'text-muted'
                   "
                   @click="activeModifierCategory = cat"
                 >
-                  <span class="truncate text-xs sm:text-sm">{{ cat.label || cat.category }}</span>
+                  <span class="truncate text-xs sm:text-sm">{{ cat.label }}</span>
                 </UButton>
               </div>
               <!-- Content -->
               <div class="flex-1 p-3 sm:p-4 overflow-y-auto">
                 <div v-if="activeModifierCategory" class="flex flex-wrap gap-1.5">
                   <UButton
-                    v-for="mod in activeModifierCategory.modifiers"
-                    :key="mod.id"
+                    v-for="tag in activeModifierCategory.tags"
+                    :key="tag.id"
                     size="xs"
-                    :variant="isModifierSelected(mod.id) ? 'solid' : 'outline'"
-                    :color="isModifierSelected(mod.id) ? 'primary' : 'neutral'"
+                    :variant="isTagSelected(tag.id) ? 'solid' : 'outline'"
+                    :color="isTagSelected(tag.id) ? 'primary' : 'neutral'"
                     class="rounded-full transition-shadow duration-200"
-                    :class="isModifierSelected(mod.id) ? 'shadow-sm shadow-primary/20' : ''"
-                    @click="toggleModifier(mod.id)"
+                    :class="isTagSelected(tag.id) ? 'shadow-sm shadow-primary/20' : ''"
+                    @click="toggleTag(tag.id)"
                   >
-                    {{ mod.label }}
+                    {{ tag.label }}
                   </UButton>
                 </div>
               </div>

@@ -1,9 +1,12 @@
 import type { Generation } from '~/types/generation'
-import type { QuickModifier } from './useQuickModifiers'
+import type { PromptTag } from '~/types/promptTag'
 
 /**
  * useGenerationDispatch — handles generation dispatch (T2I/T2V/I2V/I2I),
  * batch support, video polling with toast notifications, and gallery loading.
+ *
+ * v2: Dual-write lineage (IDs) + presets (names) + promptElements (content)
+ * for backward compatibility. Does NOT clear state after dispatch.
  */
 export function useGenerationDispatch(deps: {
   activeTab: Ref<string>
@@ -12,10 +15,11 @@ export function useGenerationDispatch(deps: {
   duration: Ref<number>
   resolution: Ref<string>
   sourceGenerationId: Ref<string>
-  activePromptElements: Ref<string[]>
+  activePresetIds: Ref<string[]>
+  activePresetContents: ComputedRef<string[]>
   activePresets: Ref<Record<string, string>>
   activeUserPromptId: Ref<string | null>
-  activeModifiers: Ref<QuickModifier[]>
+  selectedTags: ComputedRef<PromptTag[]>
   compilePrompt: () => string
   recordUsage?: (ids: string[]) => Promise<void>
 }) {
@@ -26,10 +30,11 @@ export function useGenerationDispatch(deps: {
     duration,
     resolution,
     sourceGenerationId,
-    activePromptElements,
+    activePresetIds,
+    activePresetContents,
     activePresets,
     activeUserPromptId,
-    activeModifiers,
+    selectedTags,
     compilePrompt,
     recordUsage,
   } = deps
@@ -65,16 +70,25 @@ export function useGenerationDispatch(deps: {
     }
   }
 
-  // ─── Lineage ────────────────────────────────────────────────
+  // ─── Lineage (Dual-Write) ──────────────────────────────────
 
   function buildLineage(compiledPrompt: string): string {
     return JSON.stringify({
-      presetIds: activePromptElements.value,
-      modifierIds: activeModifiers.value.map((m: { id: string }) => m.id),
+      presetIds: activePresetIds.value,
+      tagIds: selectedTags.value.map((t) => t.id),
       userPrompt: prompt.value,
       compiledPrompt,
-      activePresets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
     })
+  }
+
+  /** Legacy: name-based presets for gallery/detail backward compat */
+  function buildLegacyPresets(): Record<string, string> | undefined {
+    return Object.keys(activePresets.value).length ? activePresets.value : undefined
+  }
+
+  /** Legacy: content strings for old generation records */
+  function buildLegacyPromptElements(): string[] | undefined {
+    return activePresetContents.value.length ? activePresetContents.value : undefined
   }
 
   // ─── Generate Handler ──────────────────────────────────────
@@ -87,22 +101,20 @@ export function useGenerationDispatch(deps: {
     latestResults.value = []
     error.value = null
 
+    // Build shared options (dual-write)
+    const lineage = buildLineage(compiled)
+    const baseOpts = {
+      promptElements: buildLegacyPromptElements(),
+      presets: buildLegacyPresets(),
+      userPromptId: activeUserPromptId.value || undefined,
+      lineage,
+    }
+
     if (activeTab.value === 't2i') {
       const count = imageCount.value
-
-      // Build structured lineage for generation tracking
-      const lineage = buildLineage(compiled)
-
-      const opts = {
-        aspectRatio: aspectRatio.value,
-        promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
-        presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
-        userPromptId: activeUserPromptId.value || undefined,
-        lineage,
-      }
+      const opts = { ...baseOpts, aspectRatio: aspectRatio.value }
 
       if (count <= 1) {
-        // Single image — original flow
         const result = await generateImage(compiled, opts)
         if (result) {
           latestResult.value = result
@@ -110,7 +122,6 @@ export function useGenerationDispatch(deps: {
           await loadUserImages()
         }
       } else {
-        // Batch: fire N parallel requests
         const settled = await Promise.allSettled(
           Array.from({ length: count }, () => generateImage(compiled, opts)),
         )
@@ -129,48 +140,30 @@ export function useGenerationDispatch(deps: {
         }
       }
     } else if (activeTab.value === 't2v') {
-      const lineage = buildLineage(compiled)
       const result = await generateVideo(compiled, {
+        ...baseOpts,
         duration: duration.value,
         aspectRatio: aspectRatio.value,
         resolution: resolution.value,
-        promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
-        presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
-        userPromptId: activeUserPromptId.value || undefined,
-        lineage,
       })
-      if (result) {
-        startPolling(result)
-      }
+      if (result) startPolling(result)
     } else if (activeTab.value === 'i2v') {
       if (!sourceGenerationId.value) {
         error.value = 'Select a source image first'
         return
       }
-      const lineage = buildLineage(compiled)
       const result = await generateVideoFromImage(compiled, sourceGenerationId.value, {
+        ...baseOpts,
         duration: duration.value,
         resolution: resolution.value,
-        promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
-        presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
-        userPromptId: activeUserPromptId.value || undefined,
-        lineage,
       })
-      if (result) {
-        startPolling(result)
-      }
+      if (result) startPolling(result)
     } else if (activeTab.value === 'i2i') {
       if (!sourceGenerationId.value) {
         error.value = 'Select a source image first'
         return
       }
-      const lineage = buildLineage(compiled)
-      const result = await editImage(compiled, sourceGenerationId.value, {
-        promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
-        presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
-        userPromptId: activeUserPromptId.value || undefined,
-        lineage,
-      })
+      const result = await editImage(compiled, sourceGenerationId.value, baseOpts)
       if (result) {
         latestResult.value = result
         latestResults.value = [result]
@@ -178,22 +171,17 @@ export function useGenerationDispatch(deps: {
       }
     }
 
-    if (recordUsage && activeModifiers.value.length > 0) {
-      recordUsage(activeModifiers.value.map((m) => m.id))
+    // Record tag usage
+    if (recordUsage && selectedTags.value.length > 0) {
+      recordUsage(selectedTags.value.map((t) => t.id))
     }
 
-    // Clear builder state after successful dispatch so subsequent generations aren't falsely tagged unless specifically re-selected.
-    activePromptElements.value = []
-    activePresets.value = {}
-    activeUserPromptId.value = null
+    // NOTE: We intentionally do NOT clear preset/modifier state after dispatch.
+    // Users expect to iterate on the same prompt — clearing was confusing UX.
   }
 
   // ─── Polling ──────────────────────────────────────────────────
 
-  /**
-   * Start polling a video generation result.
-   * Uses a shared pollingRef to avoid calling ref()/watch() conditionally.
-   */
   const _pollingRef = ref<Generation | null>(null)
 
   watch(_pollingRef, (updated) => {

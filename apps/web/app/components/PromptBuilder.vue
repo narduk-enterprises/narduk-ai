@@ -3,7 +3,6 @@ import type { PresetMetadata } from '../composables/usePromptElements'
 import { usePromptElements } from '../composables/usePromptElements'
 import { usePromptLibrary } from '../composables/usePromptLibrary'
 import { useSystemPrompts } from '../composables/useSystemPrompts'
-import { useQuickModifiers } from '../composables/useQuickModifiers'
 
 const isModalOpen = defineModel<boolean>('open', { default: false })
 
@@ -21,7 +20,7 @@ const emit = defineEmits<{
 const { elements, groupedByType, fetchElements } = usePromptElements()
 const { savePrompt, loading: saving } = usePromptLibrary()
 const { prompts } = useSystemPrompts()
-const { allModifiersList } = useQuickModifiers()
+const { allTagsList: allModifiersList } = usePromptTags()
 
 const step = ref<'presets' | 'refine'>('presets')
 const searchQuery = ref('')
@@ -120,12 +119,9 @@ async function composeDraft() {
   const sysContent = isVideo ? prompts.value.compose_video : prompts.value.compose_image
 
   const modifiersContext = allModifiersList.value.length
-    ? `\n\nYou can also suggest enhancements using Quick Modifiers if applicable. The user's app supports the following modifiers that you can toggle by emitting their ID in your JSON <builder_state> response:\n` +
+    ? `\n\nYou can also suggest enhancements using Quick Modifiers if applicable. When suggesting modifications, emit attribute-value pairs in your <builder_state> JSON response using attribute keys (e.g. {"hair_color": "blonde", "lighting": "golden hour"}). Available modifiers:\n` +
       allModifiersList.value
-        .map(
-          (m) =>
-            `- ID: ${m.id} (Category: ${m.category}, Label: ${m.label}) - INSERTS: "${m.snippet}"`,
-        )
+        .map((m) => `- ${m.attributeKey}: "${m.label}" → "${m.snippet}"`)
         .join('\n')
     : ''
 

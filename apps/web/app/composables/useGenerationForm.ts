@@ -1,13 +1,15 @@
 import type { Generation } from '~/types/generation'
 import type { PromptElement } from './usePromptElements'
-import type { QuickModifier } from './useQuickModifiers'
 
 /**
  * useGenerationForm — orchestrator composable for the generation page.
  * Delegates to focused sub-composables and re-exports a flat API
- * so generate.vue remains a thin consumer with zero breaking changes.
+ * so generate.vue remains a thin consumer.
+ *
+ * v2: Uses ID-based preset identity, singleton usePromptTags, and the
+ * deterministic prompt compiler. No more watcher-based wiring needed.
  */
-export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>) {
+export function useGenerationForm() {
   const route = useRoute()
   const { defaultAspectRatio, defaultDuration, defaultResolution } = useSettings()
 
@@ -20,31 +22,44 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
   const resolution = ref(defaultResolution.value)
   const sourceGenerationId = ref((route.query.source as string) || '')
 
-  // Preset + modifier state (shared across sub-composables)
-  const activePromptElements = ref<string[]>([])
-  const activePresets = ref<Record<string, string>>({})
+  // ─── Preset State (ID-based) ────────────────────────────────
+
+  const activePresetIds = ref<string[]>([])
+  const activePresets = ref<Record<string, string>>({}) // name-based, kept for dual-write
   const activeUserPromptId = ref<string | null>(null)
   const attachedPerson = ref<PromptElement | null>(null)
-  const modifierSnippets = ref('')
-  const activeModifiers = ref<QuickModifier[]>([])
 
-  // ─── Sub-composables ────────────────────────────────────────
+  // ─── Shared Composables ─────────────────────────────────────
 
-  const {
-    setBuilderContext,
-    setModifierDependencies,
-    autoSelectModifiersForPreset,
-    compilePrompt,
-    compiledPrompt,
-    onSetDynamicModifiers,
-  } = usePromptCompiler({
-    prompt,
-    activePromptElements,
-    activePresets,
-    activeUserPromptId,
-    attachedPerson,
-    activeModifiers,
+  const { elements: allElements, fetchElements } = usePromptElements()
+
+  // Prompt Tags (singleton catalog, local selection)
+  const tags = usePromptTags()
+
+  // ─── Derived: ID → Resolved Blocks ──────────────────────────
+
+  /** Full preset blocks with type — used by compiler for scoped tag matching */
+  const activePresetBlocks = computed(() => {
+    return activePresetIds.value
+      .map((id) => allElements.value.find((el) => el.id === id))
+      .filter((el): el is PromptElement => el !== null)
+      .map((el) => ({ type: el.type, content: el.content }))
   })
+
+  /** Flat content strings — used by dispatch for dual-write backward compat */
+  const activePresetContents = computed<string[]>(() => {
+    return activePresetBlocks.value.map((b) => b.content)
+  })
+
+  // ─── Prompt Compiler ────────────────────────────────────────
+
+  const { compiledPrompt, compilePrompt, setBuilderContext } = usePromptCompiler({
+    prompt,
+    activePresetBlocks,
+    selectedTags: tags.selectedTagsList,
+  })
+
+  // ─── Generation Dispatch ────────────────────────────────────
 
   const {
     imageCount,
@@ -65,13 +80,16 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
     duration,
     resolution,
     sourceGenerationId,
-    activePromptElements,
+    activePresetIds,
+    activePresetContents,
     activePresets,
     activeUserPromptId,
-    activeModifiers,
+    selectedTags: tags.selectedTagsList,
     compilePrompt,
-    recordUsage,
+    recordUsage: tags.recordUsage,
   })
+
+  // ─── Prompt Enhance ─────────────────────────────────────────
 
   const currentMediaType = computed((): 'image' | 'video' => {
     return activeTab.value === 't2v' || activeTab.value === 'i2v' ? 'video' : 'image'
@@ -110,7 +128,7 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
     activeTab,
     prompt,
     activePresets,
-    activePromptElements,
+    activePresetIds,
     generating,
     error,
     latestResult,
@@ -124,25 +142,52 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
     if (attachedPerson.value?.id === person.id) return
     attachedPerson.value = person
     activePresets.value = { ...activePresets.value, person: person.name }
-    if (!activePromptElements.value.includes(person.content)) {
-      activePromptElements.value = [...activePromptElements.value, person.content]
+    if (!activePresetIds.value.includes(person.id)) {
+      activePresetIds.value = [...activePresetIds.value, person.id]
     }
-    autoSelectModifiersForPreset(person.content)
   }
 
   function detachPerson() {
     if (attachedPerson.value) {
+      const personId = attachedPerson.value.id
       const { person: _, ...rest } = activePresets.value
       activePresets.value = rest
-      activePromptElements.value = activePromptElements.value.filter(
-        (c) => c !== attachedPerson.value!.content,
-      )
+      activePresetIds.value = activePresetIds.value.filter((id) => id !== personId)
     }
     attachedPerson.value = null
-    const setDynamic = onSetDynamicModifiers()
-    if (setDynamic) {
-      setDynamic([]) // Clear dynamic modifiers when detaching person
+  }
+
+  // ─── Builder Context (from PromptBuilder/Library/Parser) ────
+
+  function handleBuilderResult(
+    newPrompt: string,
+    presets?: Record<string, string>,
+    promptId?: string,
+  ) {
+    prompt.value = newPrompt
+    if (presets) {
+      activePresets.value = presets
+      // Resolve preset names → IDs
+      resolveAndActivatePresets(presets)
     }
+    if (promptId) activeUserPromptId.value = promptId
+  }
+
+  async function resolveAndActivatePresets(presets: Record<string, string>) {
+    // Ensure elements are loaded before resolving names → IDs
+    if (!allElements.value.length) {
+      await fetchElements()
+    }
+
+    const ids: string[] = []
+    for (const [type, name] of Object.entries(presets)) {
+      // Match by both type and name for precision
+      const el =
+        allElements.value.find((e) => e.type === type && e.name === name) ||
+        allElements.value.find((e) => e.name === name)
+      if (el) ids.push(el.id)
+    }
+    activePresetIds.value = ids
   }
 
   // ─── Simple Navigation Actions ──────────────────────────────
@@ -190,7 +235,7 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
     }
   })
 
-  // ─── Return (flat API — zero breaking changes to generate.vue) ──
+  // ─── Return ─────────────────────────────────────────────────
 
   return {
     // Form state
@@ -201,16 +246,34 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
     resolution,
     sourceGenerationId,
     activePresets,
-    activePromptElements,
+    activePresetIds,
+    activePresetContents,
     setBuilderContext,
+    handleBuilderResult,
     imageCount,
 
-    // Attached person & modifiers
+    // Attached person
     attachedPerson,
-    modifierSnippets,
-    activeModifiers,
     attachPerson,
     detachPerson,
+
+    // Prompt tags (re-exported from singleton)
+    tagCategories: tags.categories,
+    catalogLoaded: tags.catalogLoaded,
+    ensureTagsLoaded: tags.ensureLoaded,
+    fetchTags: tags.fetchTags,
+    toggleTag: tags.toggleTag,
+    isTagSelected: tags.isSelected,
+    clearTags: tags.clearTags,
+    addTags: tags.addTags,
+    selectedTagIds: tags.selectedTagIds,
+    selectedTagsList: tags.selectedTagsList,
+    allTagsList: tags.allTagsList,
+    tagSearchQuery: tags.searchQuery,
+    filteredTags: tags.filteredTags,
+    tagSnippets: tags.compiledSnippets,
+
+    // Compilation
     compilePrompt,
     compiledPrompt,
 
@@ -254,6 +317,5 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
     i2iInstructions,
     generatingI2IPrompt,
     generateI2IPrompt,
-    setModifierDependencies,
   }
 }

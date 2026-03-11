@@ -14,7 +14,7 @@ export interface ChatMessage {
 export function useChatForm() {
   const { elements, fetchElements } = usePromptElements()
   const { prompts } = useSystemPrompts()
-  const { allModifiersList } = useQuickModifiers()
+  const { allTagsList: allModifiersList, ensureLoaded: ensureTagsLoaded } = usePromptTags()
 
   const chatMode = ref<ChatMode>('general')
   const mediaType = ref<'image' | 'video'>('image')
@@ -76,6 +76,9 @@ export function useChatForm() {
     isChatting.value = true
 
     try {
+      // Ensure tags are loaded for context
+      await ensureTagsLoaded()
+
       // Build dynamic system prompt containing the user's elements context
       const elementsContext = elements.value.length
         ? `The user has the following saved Prompt Elements in their library:\n${elements.value
@@ -85,14 +88,11 @@ export function useChatForm() {
             )}\n\nMake sure to deeply reference or combine these if the user asks for them.`
         : 'The user has no saved Prompt Elements yet.'
 
-      // Build Quick Modifiers Context
+      // Build Quick Modifiers Context — use attribute_key: value format, not raw IDs
       const modifiersContext = allModifiersList.value.length
-        ? `\n\nThe user's app supports the following "Quick Modifiers" that you can toggle by emitting their ID in your JSON <builder_state> response. Use them exactly as listed below:\n` +
+        ? `\n\nThe user's app supports "Quick Modifiers" organized by attribute key. When suggesting modifications, emit attribute-value pairs in your <builder_state> JSON response using attribute keys (e.g. {"hair_color": "blonde", "lighting": "golden hour"}). Available modifiers:\n` +
           allModifiersList.value
-            .map(
-              (m) =>
-                `- ID: ${m.id} (Category: ${m.category}, Label: ${m.label}) - INSERTS: "${m.snippet}"`,
-            )
+            .map((m) => `- ${m.attributeKey}: "${m.label}" → "${m.snippet}"`)
             .join('\n')
         : ''
 

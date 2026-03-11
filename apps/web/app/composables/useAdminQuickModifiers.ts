@@ -1,11 +1,7 @@
-import type { QuickModifier } from './useQuickModifiers'
+import type { PromptTag } from '~/types/promptTag'
 
 export function useAdminQuickModifiers() {
-  const {
-    data: modifiers,
-    refresh,
-    status,
-  } = useFetch<QuickModifier[]>('/api/admin/quick-modifiers')
+  const { data: modifiers, refresh, status } = useFetch<PromptTag[]>('/api/admin/quick-modifiers')
 
   const toast = useToast()
   const saving = ref(false)
