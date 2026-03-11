@@ -67,12 +67,12 @@ const filteredGroupedByType = computed(() => {
   return filtered
 })
 
-function isElementSelected(el: { type: string; content: string }) {
-  return composeSelection[el.type] === el.content
+function isElementSelected(el: { type: string; name: string }) {
+  return composeSelection[el.type] === el.name
 }
 
-function handleComposeToggle(el: { type: string; content: string }) {
-  composeSelection[el.type] = composeSelection[el.type] === el.content ? null : el.content
+function handleComposeToggle(el: { type: string; name: string }) {
+  composeSelection[el.type] = composeSelection[el.type] === el.name ? null : el.name
 }
 
 function getPreviewImageUrl(el: { metadata?: string | null }): string | null {
@@ -103,9 +103,13 @@ async function composeDraft() {
   chatLog.value = []
   savedPromptId.value = null
 
+  // Look up full content from elements for each selected name
   const parts = Object.entries(composeSelection)
     .filter(([_, val]) => val)
-    .map(([key, val]) => `${key}: ${val}`)
+    .map(([key, name]) => {
+      const el = elements.value.find((e) => e.type === key && e.name === name)
+      return `${key}: ${el?.content || name}`
+    })
     .join('\n')
 
   const isVideo = props.mediaType === 'video'

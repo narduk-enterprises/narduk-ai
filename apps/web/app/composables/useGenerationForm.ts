@@ -426,12 +426,13 @@ export function useGenerationForm() {
       }
 
       // Pick random elements: always pick a person if available, then 1-2 others
+      // Store names in picked (for DB storage), content in pickedContent (for prompt composition)
       const picked: Record<string, string> = {}
       const pickedContent: string[] = []
 
       if (byType.person?.length) {
         const person = byType.person[Math.floor(Math.random() * byType.person.length)]!
-        picked.person = person.content
+        picked.person = person.name
         pickedContent.push(`person: ${person.content}`)
       }
 
@@ -442,7 +443,7 @@ export function useGenerationForm() {
       for (let i = 0; i < pickCount; i++) {
         const type = shuffled[i]!
         const el = byType[type]![Math.floor(Math.random() * byType[type]!.length)]!
-        picked[type] = el.content
+        picked[type] = el.name
         pickedContent.push(`${type}: ${el.content}`)
       }
 
