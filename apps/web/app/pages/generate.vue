@@ -41,6 +41,7 @@ const {
   removeEnhanceImage,
   enhanceImageBase64,
   upscaleGeneration,
+  upscaling,
   uploadingSource,
   handleSourceImageUpload,
 } = useGenerationForm()
@@ -298,35 +299,63 @@ const resolutions = ['480p', '720p']
             />
           </div>
           <div class="flex flex-wrap gap-2">
-            <UButton
+            <UTooltip
               v-if="latestResult.type === 'image'"
-              variant="outline"
-              icon="i-lucide-video"
-              size="sm"
-              class="rounded-full min-h-11 flex-1 sm:flex-initial"
-              @click="animateLatestImage"
+              text="Create a video from this image"
+              class="flex-1 sm:flex-initial"
             >
-              Animate
-            </UButton>
-            <UButton
+              <UButton
+                variant="outline"
+                icon="i-lucide-video"
+                size="sm"
+                class="rounded-full min-h-11 w-full"
+                @click="animateLatestImage"
+              >
+                Animate
+              </UButton>
+            </UTooltip>
+            <UTooltip
               v-if="latestResult.type === 'image'"
-              variant="outline"
-              icon="i-lucide-layers"
-              size="sm"
-              class="rounded-full min-h-11 flex-1 sm:flex-initial"
-              @click="editLatestImage"
+              text="Create a new image based on this one"
+              class="flex-1 sm:flex-initial"
             >
-              Edit
-            </UButton>
-            <UButton
-              variant="outline"
-              icon="i-lucide-grid-3x3"
-              size="sm"
-              to="/gallery"
-              class="rounded-full min-h-11 flex-1 sm:flex-initial"
+              <UButton
+                variant="outline"
+                icon="i-lucide-layers"
+                size="sm"
+                class="rounded-full min-h-11 w-full"
+                @click="editLatestImage"
+              >
+                Edit
+              </UButton>
+            </UTooltip>
+            <UTooltip
+              v-if="latestResult.type === 'image'"
+              text="Increase resolution to 2K (Costs more)"
+              class="flex-1 sm:flex-initial"
             >
-              Gallery
-            </UButton>
+              <UButton
+                variant="outline"
+                icon="i-lucide-maximize-2"
+                size="sm"
+                class="rounded-full min-h-11 w-full"
+                :loading="upscaling"
+                @click="upscaleGeneration(latestResult!.id)"
+              >
+                Upscale
+              </UButton>
+            </UTooltip>
+            <UTooltip text="View all past generations" class="flex-1 sm:flex-initial">
+              <UButton
+                variant="outline"
+                icon="i-lucide-grid-3x3"
+                size="sm"
+                to="/gallery"
+                class="rounded-full min-h-11 w-full"
+              >
+                Gallery
+              </UButton>
+            </UTooltip>
           </div>
         </template>
 

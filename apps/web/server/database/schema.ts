@@ -33,6 +33,7 @@ export const generations = sqliteTable(
     resolution: text('resolution'),
     metadata: text('metadata'), // JSON blob
     promptElements: text('prompt_elements'), // JSON array
+    presets: text('presets'), // JSON blob: Record<string, string>
     userPromptId: text('user_prompt_id').references(() => userPrompts.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),

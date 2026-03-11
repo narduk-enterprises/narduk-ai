@@ -6,13 +6,15 @@ definePageMeta({ middleware: ['auth'] })
 const route = useRoute()
 const genId = route.params.id as string
 
-const { fetchGeneration, deleteGeneration, retryGeneration, pollGeneration } = useGenerate()
+const { fetchGeneration, deleteGeneration, retryGeneration, pollGeneration, upscaleGeneration } =
+  useGenerate()
 
 const generation = ref<Generation | null>(null)
 const sourceGeneration = ref<Generation | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const retrying = ref(false)
+const upscaling = ref(false)
 
 async function load() {
   loading.value = true
@@ -65,6 +67,19 @@ async function handleRetry() {
     }
   } finally {
     retrying.value = false
+  }
+}
+
+async function handleUpscale() {
+  if (!generation.value || upscaling.value) return
+  upscaling.value = true
+  try {
+    const result = await upscaleGeneration(generation.value.id)
+    if (result) {
+      await navigateTo(`/gallery/${result.id}`)
+    }
+  } finally {
+    upscaling.value = false
   }
 }
 
@@ -212,46 +227,75 @@ const errorMessage = computed(() => {
           <div class="glass-card p-5">
             <h3 class="text-sm font-semibold text-muted mb-4 uppercase tracking-wider">Actions</h3>
             <div class="flex flex-col gap-2.5">
-              <UButton
+              <UTooltip
                 v-if="generation.status === 'failed' || generation.status === 'expired'"
-                icon="i-lucide-refresh-cw"
-                class="rounded-xl justify-center"
-                :loading="retrying"
-                block
-                @click="handleRetry"
+                text="Retry this generation"
               >
-                Retry Generation
-              </UButton>
-              <UButton
+                <UButton
+                  icon="i-lucide-refresh-cw"
+                  class="rounded-xl justify-center w-full"
+                  :loading="retrying"
+                  block
+                  @click="handleRetry"
+                >
+                  Retry Generation
+                </UButton>
+              </UTooltip>
+              <UTooltip
                 v-if="generation.type === 'image' && generation.status === 'done'"
-                icon="i-lucide-video"
-                variant="outline"
-                class="rounded-xl justify-center"
-                block
-                :to="{ path: '/generate', query: { source: generation.id, mode: 'i2v' } }"
+                text="Create a video from this image"
               >
-                Animate this Image
-              </UButton>
-              <UButton
+                <UButton
+                  icon="i-lucide-video"
+                  variant="outline"
+                  class="rounded-xl justify-center w-full"
+                  block
+                  :to="{ path: '/generate', query: { source: generation.id, mode: 'i2v' } }"
+                >
+                  Animate this Image
+                </UButton>
+              </UTooltip>
+              <UTooltip
                 v-if="generation.type === 'image' && generation.status === 'done'"
-                icon="i-lucide-layers"
-                variant="outline"
-                class="rounded-xl justify-center"
-                block
-                :to="{ path: '/generate', query: { source: generation.id, mode: 'i2i' } }"
+                text="Create a new image based on this one"
               >
-                Edit this Image
-              </UButton>
-              <UButton
-                color="error"
-                variant="ghost"
-                icon="i-lucide-trash-2"
-                class="rounded-xl justify-center mt-2"
-                block
-                @click="handleDelete"
+                <UButton
+                  icon="i-lucide-layers"
+                  variant="outline"
+                  class="rounded-xl justify-center w-full"
+                  block
+                  :to="{ path: '/generate', query: { source: generation.id, mode: 'i2i' } }"
+                >
+                  Edit this Image
+                </UButton>
+              </UTooltip>
+              <UTooltip
+                v-if="generation.type === 'image' && generation.status === 'done'"
+                text="Increase resolution to 2K (Costs more)"
               >
-                Delete
-              </UButton>
+                <UButton
+                  icon="i-lucide-maximize-2"
+                  variant="outline"
+                  class="rounded-xl justify-center w-full"
+                  :loading="upscaling"
+                  block
+                  @click="handleUpscale"
+                >
+                  Upscale to 2K
+                </UButton>
+              </UTooltip>
+              <UTooltip text="Permanently delete this generation">
+                <UButton
+                  color="error"
+                  variant="ghost"
+                  icon="i-lucide-trash-2"
+                  class="rounded-xl justify-center w-full mt-2"
+                  block
+                  @click="handleDelete"
+                >
+                  Delete
+                </UButton>
+              </UTooltip>
             </div>
           </div>
 

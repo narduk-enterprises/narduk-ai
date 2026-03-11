@@ -179,45 +179,55 @@ function handleUpscale() {
         <div
           class="flex gap-1 opacity-100 md:opacity-0 transition-opacity duration-200 md:group-hover:opacity-100"
         >
-          <UButton
+          <UTooltip
             v-if="generation.status === 'failed' || generation.status === 'expired'"
-            size="sm"
-            variant="ghost"
-            color="warning"
-            icon="i-lucide-refresh-cw"
-            title="Retry"
-            class="touch-target"
-            @click.stop.prevent="handleRetry"
-          />
-          <UButton
+            text="Retry"
+          >
+            <UButton
+              size="sm"
+              variant="ghost"
+              color="warning"
+              icon="i-lucide-refresh-cw"
+              class="touch-target"
+              @click.stop.prevent="handleRetry"
+            />
+          </UTooltip>
+          <UTooltip
             v-if="generation.type === 'image' && generation.status === 'done'"
-            size="sm"
-            variant="ghost"
-            color="primary"
-            icon="i-lucide-maximize-2"
-            title="Upscale to 2K"
-            class="touch-target"
-            @click.stop.prevent="handleUpscale"
-          />
-          <UButton
+            text="Upscale to 2K"
+          >
+            <UButton
+              size="sm"
+              variant="ghost"
+              color="primary"
+              icon="i-lucide-maximize-2"
+              class="touch-target"
+              @click.stop.prevent="handleUpscale"
+            />
+          </UTooltip>
+          <UTooltip
             v-if="generation.type === 'image' && generation.status === 'done'"
-            size="sm"
-            variant="ghost"
-            color="primary"
-            icon="i-lucide-wand-2"
-            title="Use as source"
-            class="touch-target"
-            @click.stop.prevent="handleUseAsSource"
-          />
-          <UButton
-            size="sm"
-            variant="ghost"
-            color="error"
-            icon="i-lucide-trash-2"
-            title="Delete"
-            class="touch-target"
-            @click.stop.prevent="handleDelete"
-          />
+            text="Use as source"
+          >
+            <UButton
+              size="sm"
+              variant="ghost"
+              color="primary"
+              icon="i-lucide-wand-2"
+              class="touch-target"
+              @click.stop.prevent="handleUseAsSource"
+            />
+          </UTooltip>
+          <UTooltip text="Delete">
+            <UButton
+              size="sm"
+              variant="ghost"
+              color="error"
+              icon="i-lucide-trash-2"
+              class="touch-target"
+              @click.stop.prevent="handleDelete"
+            />
+          </UTooltip>
         </div>
       </div>
     </div>
