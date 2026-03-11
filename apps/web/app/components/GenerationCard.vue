@@ -53,7 +53,12 @@ const parsedPresets = computed(() => {
     const raw = JSON.parse(props.generation.presets) as Record<string, string>
     return Object.entries(raw)
       .filter(([_, val]) => Boolean(val))
-      .map(([key, val]) => ({ type: key, name: val }))
+      .map(([key, val]) => ({
+        type: key,
+        // Old records stored full content; new records store short names.
+        // If the value is too long to be a name, fall back to the capitalized type key.
+        name: val.length > 40 ? key.charAt(0).toUpperCase() + key.slice(1) : val,
+      }))
   } catch {
     return null
   }

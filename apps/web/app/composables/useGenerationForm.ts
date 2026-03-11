@@ -407,7 +407,36 @@ export function useGenerationForm() {
     latestResults.value = []
 
     try {
-      // Ensure elements are loaded
+      const isVideo = activeTab.value === 't2v' || activeTab.value === 'i2v'
+      const mediaType = isVideo ? 'video' : 'image'
+
+      // ── Try cached prompt first (instant) ──
+      const cached = await $fetch<{
+        cached: boolean
+        prompt?: string
+        presets?: Record<string, string>
+      }>('/api/generate/lucky-consume', {
+        method: 'POST',
+        body: { mediaType },
+      })
+
+      if (cached.cached && cached.prompt && cached.presets) {
+        prompt.value = cached.prompt
+        activePresets.value = cached.presets
+        activePromptElements.value = Object.values(cached.presets)
+
+        await handleGenerate()
+
+        // Fire background prefill to replenish cache (fire-and-forget)
+        $fetch('/api/generate/lucky-prefill', {
+          method: 'POST',
+          body: { count: 2, mediaType },
+        }).catch(() => {})
+
+        return
+      }
+
+      // ── Fallback: real-time Grok generation ──
       if (!luckyElements.value.length) {
         await fetchLuckyElements()
       }
@@ -453,7 +482,6 @@ export function useGenerationForm() {
       }
 
       // Generate prompt via Grok with strong photorealism guardrails
-      const isVideo = activeTab.value === 't2v' || activeTab.value === 'i2v'
       const mediaLabel = isVideo ? 'video' : 'image'
 
       const res = await $fetch<{ content: string }>('/api/generate/chat', {
