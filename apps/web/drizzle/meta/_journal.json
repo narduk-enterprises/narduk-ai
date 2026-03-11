@@ -43,6 +43,13 @@
       "when": 1773211460000,
       "tag": "0005_seed_presets",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1773219726559,
+      "tag": "0006_jittery_mephisto",
+      "breakpoints": true
     }
   ]
 }

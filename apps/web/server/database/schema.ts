@@ -91,3 +91,20 @@ export const appSettings = sqliteTable('app_settings', {
   promptEnhanceModel: text('prompt_enhance_model').notNull().default('grok-3-mini'),
   updatedAt: text('updated_at').notNull(),
 })
+
+export const luckyPrompts = sqliteTable(
+  'lucky_prompts',
+  {
+    id: text('id').primaryKey().notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    prompt: text('prompt').notNull(),
+    mediaType: text('media_type').notNull(), // 'image' | 'video'
+    presets: text('presets').notNull(), // JSON: Record<string, string> (type → preset name)
+    presetContent: text('preset_content').notNull(), // JSON: string[] used for prompt composition
+    consumed: integer('consumed').notNull().default(0), // 0 = available, 1 = used
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [index('lucky_prompts_user_avail_idx').on(table.userId, table.consumed)],
+)
