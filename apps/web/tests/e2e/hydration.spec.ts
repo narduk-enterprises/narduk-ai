@@ -30,9 +30,7 @@ function isHydrationError(msg: ConsoleMessage): boolean {
 }
 
 /** Pages that do NOT require authentication */
-const PUBLIC_PAGES = [
-  { path: '/', name: 'Home' },
-]
+const PUBLIC_PAGES = [{ path: '/', name: 'Home' }]
 
 /** Pages that require auth (will redirect, but SSR still runs) */
 const AUTH_PAGES = [
