@@ -151,7 +151,7 @@ const userMenuItems = computed(() => [
         <UButton
           color="neutral"
           variant="ghost"
-          class="md:hidden p-2 rounded-full hover:bg-elevated"
+          class="md:hidden p-2 rounded-full hover:bg-elevated touch-target flex items-center justify-center"
           aria-label="Toggle navigation menu"
           :aria-expanded="mobileMenuOpen"
           @click="mobileMenuOpen = !mobileMenuOpen"
@@ -175,7 +175,7 @@ const userMenuItems = computed(() => [
               v-for="(item, index) in navItems"
               :key="index"
               :to="item.to"
-              class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-2xl transition-all"
+              class="flex items-center gap-3 px-4 py-3.5 text-sm font-medium rounded-2xl transition-all min-h-11"
               :class="
                 route.path.startsWith(item.to)
                   ? 'bg-primary/10 text-primary ring-1 ring-primary/20'

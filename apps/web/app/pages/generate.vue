@@ -167,7 +167,7 @@ const resolutions = ['480p', '720p']
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 pb-safe">
     <!-- Page Header -->
     <div class="mb-8">
       <h1 class="font-display text-3xl sm:text-4xl font-bold mb-2">Generate</h1>
@@ -185,7 +185,7 @@ const resolutions = ['480p', '720p']
           :variant="activeTab === mode.value ? 'solid' : 'outline'"
           :color="activeTab === mode.value ? 'primary' : 'neutral'"
           size="sm"
-          class="rounded-full"
+          class="rounded-full min-h-11"
           :class="activeTab === mode.value ? 'shadow-lg shadow-primary/20' : ''"
           @click="activeTab = mode.value"
         />
@@ -200,6 +200,7 @@ const resolutions = ['480p', '720p']
               v-model="prompt"
               placeholder="Describe what you want to create..."
               :rows="3"
+              :maxrows="8"
               autoresize
               class="w-full"
               :ui="{ base: 'border-none bg-transparent shadow-none focus:ring-0' }"
@@ -207,14 +208,14 @@ const resolutions = ['480p', '720p']
             />
           </div>
           <template #hint>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
               <UButton
                 variant="ghost"
                 color="neutral"
-                size="xs"
+                size="sm"
                 icon="i-lucide-puzzle"
                 :disabled="!elements.length"
-                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-[10px]"
+                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
                 @click="openComposeModal"
               >
                 Compose
@@ -222,11 +223,11 @@ const resolutions = ['480p', '720p']
               <UButton
                 variant="ghost"
                 color="neutral"
-                size="xs"
+                size="sm"
                 icon="i-lucide-shuffle"
                 :loading="remixing"
                 :disabled="!prompt.trim() || generating || remixing"
-                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-[10px]"
+                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
                 @click="handleRemix"
               >
                 Remix
@@ -234,11 +235,11 @@ const resolutions = ['480p', '720p']
               <UButton
                 variant="ghost"
                 color="neutral"
-                size="xs"
+                size="sm"
                 icon="i-lucide-wand-2"
                 :loading="enhancing"
                 :disabled="!prompt.trim() || generating || enhancing"
-                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-[10px]"
+                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
                 @click="openEnhanceModal"
               >
                 Enhance
@@ -350,7 +351,7 @@ const resolutions = ['480p', '720p']
             <p class="text-sm text-muted flex-1">{{ latestResult.prompt }}</p>
             <CopyPromptButton
               :prompt="latestResult.prompt"
-              class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
             />
           </div>
           <div class="flex flex-wrap gap-2">

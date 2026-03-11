@@ -34,6 +34,8 @@ export default defineNuxtConfig({
     gaPropertyId: process.env.GA_PROPERTY_ID || '',
     posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
     xaiApiKey: process.env.GROK_API_KEY || '',
+    xaiManagementKey: process.env.XAI_MANAGEMENT_KEY || '',
+    xaiTeamId: process.env.XAI_TEAM_ID || '',
     public: {
       appUrl: process.env.SITE_URL || 'https://narduk-ai.nard.uk',
       appName: process.env.APP_NAME || 'Narduk AI',

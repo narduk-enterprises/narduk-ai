@@ -191,7 +191,7 @@ const groupedElements = computed(() => {
 </script>
 
 <template>
-  <div class="h-[calc(100vh-4rem)] flex overflow-hidden bg-default">
+  <div class="h-[calc(100dvh-4rem)] flex overflow-hidden bg-default">
     <!-- Chat Area -->
     <div class="flex-1 flex flex-col h-full bg-default relative">
       <!-- Header -->
@@ -366,7 +366,7 @@ const groupedElements = computed(() => {
       </div>
 
       <!-- Input Area -->
-      <div class="p-4 md:p-6 bg-default border-t border-default/50 shrink-0">
+      <div class="p-3 md:p-6 bg-default border-t border-default/50 shrink-0 pb-safe">
         <UForm
           :state="{ input: chatInput }"
           @submit.prevent="sendChatMessage"
@@ -379,7 +379,7 @@ const groupedElements = computed(() => {
             size="lg"
             autoresize
             :rows="1"
-            :maxrows="5"
+            :maxrows="4"
             :disabled="isChatting"
             :ui="{ base: 'pr-14 rounded-2xl shadow-sm' }"
             @keydown="handleKeydown"
@@ -391,8 +391,8 @@ const groupedElements = computed(() => {
             icon="i-lucide-send"
             :loading="isChatting"
             :disabled="!chatInput.trim() || isChatting"
-            class="absolute right-2 bottom-2 rounded-xl"
-            size="sm"
+            class="absolute right-2 bottom-2 rounded-xl touch-target flex items-center justify-center"
+            size="md"
           />
         </UForm>
       </div>

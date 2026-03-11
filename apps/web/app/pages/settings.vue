@@ -52,7 +52,7 @@ function handleReset() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto px-4 py-12 space-y-8">
+  <div class="max-w-2xl mx-auto px-4 py-12 space-y-8 pb-safe">
     <!-- Page Header -->
     <div>
       <h1 class="font-display text-3xl font-bold">Settings</h1>

@@ -162,14 +162,16 @@ const groupedElements = computed(() => {
                 variant="ghost"
                 color="neutral"
                 icon="i-lucide-pencil"
-                size="xs"
+                size="sm"
+                class="touch-target"
                 @click="openEdit(el)"
               />
               <UButton
                 variant="ghost"
                 color="error"
                 icon="i-lucide-trash-2"
-                size="xs"
+                size="sm"
+                class="touch-target"
                 @click="handleDelete(el.id)"
               />
             </div>

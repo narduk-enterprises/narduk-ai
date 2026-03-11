@@ -165,7 +165,7 @@ function handleUpscale() {
         </p>
         <CopyPromptButton
           :prompt="generation.prompt"
-          class="absolute right-0 top-0 opacity-0 group-hover/prompt:opacity-100 transition-opacity"
+          class="absolute right-0 top-0 opacity-100 md:opacity-0 group-hover/prompt:opacity-100 transition-opacity"
         />
       </div>
 
@@ -178,40 +178,46 @@ function handleUpscale() {
         <span class="text-xs text-dimmed">
           {{ new Date(generation.createdAt).toLocaleDateString() }}
         </span>
-        <div class="flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <div
+          class="flex gap-1 opacity-100 md:opacity-0 transition-opacity duration-200 md:group-hover:opacity-100"
+        >
           <UButton
             v-if="generation.status === 'failed' || generation.status === 'expired'"
-            size="xs"
+            size="sm"
             variant="ghost"
             color="warning"
             icon="i-lucide-refresh-cw"
             title="Retry"
+            class="touch-target"
             @click.stop.prevent="handleRetry"
           />
           <UButton
             v-if="generation.type === 'image' && generation.status === 'done'"
-            size="xs"
+            size="sm"
             variant="ghost"
             color="primary"
             icon="i-lucide-maximize-2"
             title="Upscale to 2K"
+            class="touch-target"
             @click.stop.prevent="handleUpscale"
           />
           <UButton
             v-if="generation.type === 'image' && generation.status === 'done'"
-            size="xs"
+            size="sm"
             variant="ghost"
             color="primary"
             icon="i-lucide-wand-2"
             title="Use as source"
+            class="touch-target"
             @click.stop.prevent="handleUseAsSource"
           />
           <UButton
-            size="xs"
+            size="sm"
             variant="ghost"
             color="error"
             icon="i-lucide-trash-2"
             title="Delete"
+            class="touch-target"
             @click.stop.prevent="handleDelete"
           />
         </div>

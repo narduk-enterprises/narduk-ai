@@ -61,10 +61,15 @@ onUnmounted(() => {
 })
 
 const filteredGenerations = computed(() => {
-  if (activeFilter.value === 'all') return generations.value
-  if (activeFilter.value === 'images') return generations.value.filter((g) => g.type === 'image')
-  if (activeFilter.value === 'videos') return generations.value.filter((g) => g.type === 'video')
-  return generations.value.filter((g) => g.mode === activeFilter.value)
+  const list =
+    activeFilter.value === 'all'
+      ? generations.value
+      : activeFilter.value === 'images'
+        ? generations.value.filter((g) => g.type === 'image')
+        : activeFilter.value === 'videos'
+          ? generations.value.filter((g) => g.type === 'video')
+          : generations.value.filter((g) => g.mode === activeFilter.value)
+  return [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 })
 
 async function handleDelete(gen: Generation) {
@@ -99,7 +104,7 @@ const filters = [
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 pb-safe">
     <!-- Page Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
       <div>
