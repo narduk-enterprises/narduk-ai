@@ -192,6 +192,12 @@ async function handleDelete(gen: Generation) {
   }
 }
 
+function setFilter(value: string) {
+  navigateTo({
+    query: { ...route.query, filter: value === 'all' ? undefined : value },
+  })
+}
+
 function handleUseAsSource(gen: Generation) {
   navigateTo({ path: '/generate', query: { source: gen.id, mode: 'i2v' } })
 }
@@ -297,7 +303,6 @@ const filters = [
         <UButton
           v-for="filterItem in filters"
           :key="filterItem.value"
-          :to="{ query: { filter: filterItem.value === 'all' ? undefined : filterItem.value } }"
           :icon="filterItem.icon"
           :label="filterItem.label"
           :variant="activeFilter === filterItem.value ? 'solid' : 'outline'"
@@ -305,6 +310,7 @@ const filters = [
           size="sm"
           class="rounded-full"
           :class="activeFilter === filterItem.value ? 'shadow-lg shadow-primary/20' : ''"
+          @click="setFilter(filterItem.value)"
         />
       </div>
 
