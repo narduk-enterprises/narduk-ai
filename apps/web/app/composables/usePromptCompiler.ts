@@ -5,6 +5,9 @@ interface PresetBlock {
   content: string
 }
 
+/** Attribute keys stripped from preset content — non-visual metadata that bloats image prompts */
+const EXCLUDED_ATTRIBUTE_KEYS = new Set(['name', 'description', 'extended_detail', 'other'])
+
 /**
  * usePromptCompiler — deterministic prompt compilation.
  *
@@ -47,25 +50,37 @@ export function usePromptCompiler(deps: {
 
     // 1. Render preset attributes, substituting selected tags scoped by preset type
     for (const block of activePresetBlocks.value) {
-      const lines = block.content.split('\n').map((line) => {
-        const colonIdx = line.indexOf(':')
-        if (colonIdx <= 0) return line
+      const lines = block.content
+        .split('\n')
+        .map((line) => {
+          const colonIdx = line.indexOf(':')
+          if (colonIdx <= 0) return line
 
-        const key = line.slice(0, colonIdx).trim().toLowerCase().replaceAll(' ', '_')
+          const key = line.slice(0, colonIdx).trim().toLowerCase().replaceAll(' ', '_')
+          const value = line.slice(colonIdx + 1).trim()
 
-        // Collect tags that match BOTH attributeKey AND appliesTo for this preset type
-        const matchingTags = selectedTags.value.filter(
-          (t) => t.attributeKey === key && tagAppliesToPreset(t, block.type),
-        )
-        if (matchingTags.length > 0) {
-          for (const t of matchingTags) usedTagIds.add(t.id)
-          const combined = matchingTags.map((t) => t.snippet).join(', ')
-          return `${line.slice(0, colonIdx + 1)} ${combined}`
-        }
+          // Strip non-visual metadata lines (backstory, labels, filler)
+          if (EXCLUDED_ATTRIBUTE_KEYS.has(key)) return null
 
-        // Keep original line — NEVER prune
-        return line
-      })
+          // Collect tags that match BOTH attributeKey AND appliesTo for this preset type
+          const matchingTags = selectedTags.value.filter(
+            (t) => t.attributeKey === key && tagAppliesToPreset(t, block.type),
+          )
+          if (matchingTags.length > 0) {
+            for (const t of matchingTags) usedTagIds.add(t.id)
+            const combined = matchingTags.map((t) => t.snippet).join(', ')
+            // If all matched snippets are empty, drop the line entirely
+            if (!combined.trim()) return null
+            return `${line.slice(0, colonIdx + 1)} ${combined}`
+          }
+
+          // Drop lines with value "None" — they add noise without visual guidance
+          if (value.toLowerCase() === 'none') return null
+
+          // Keep original line
+          return line
+        })
+        .filter((line): line is string => line !== null)
       parts.push(lines.join('\n'))
     }
 
