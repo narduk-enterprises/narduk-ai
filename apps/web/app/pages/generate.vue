@@ -21,6 +21,7 @@ const {
   sourceGenerationId,
   activePresets,
   latestResult,
+  latestResults,
   recentGenerations,
   userImages,
   generating,
@@ -52,6 +53,7 @@ const {
   generatingI2IPrompt,
   generateI2IPrompt,
   handleSourceImageUpload,
+  imageCount,
 } = useGenerationForm()
 
 const { deleteGeneration } = useGenerate()
@@ -156,6 +158,22 @@ const modes = [
 
 const aspectRatios = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
 const resolutions = ['480p', '720p']
+const imageCounts = [1, 2, 3, 4]
+
+function selectResultAndOpenViewer(gen: Generation) {
+  const idx = latestResults.value.findIndex((g: Generation) => g.id === gen.id)
+  galleryViewer.open(latestResults.value, idx >= 0 ? idx : 0)
+}
+
+function animateResult(gen: Generation) {
+  activeTab.value = 'i2v'
+  sourceGenerationId.value = gen.id
+}
+
+function editResult(gen: Generation) {
+  activeTab.value = 'i2i'
+  sourceGenerationId.value = gen.id
+}
 </script>
 
 <template>
@@ -378,7 +396,7 @@ const resolutions = ['480p', '720p']
           :loading="generating"
           :disabled="isGenerateDisabled"
           block
-          :label="generating ? 'Generating...' : 'Generate'"
+          :label="generating ? 'Generating...' : (imageCount > 1 && activeTab === 't2i' ? `Generate ${imageCount} Images` : 'Generate')"
           class="rounded-xl shadow-lg hover:shadow-primary/20 transition-shadow"
           @click="handleGenerate"
         />
@@ -410,8 +428,91 @@ const resolutions = ['480p', '720p']
           </p>
         </div>
 
-        <!-- Done -->
-        <template v-else-if="latestResult.status === 'done' && latestResult.mediaUrl">
+        <!-- Done: Batch Grid (multiple results) -->
+        <template v-else-if="latestResults.length > 1 && latestResults.every(r => r.status === 'done')">
+          <div
+            class="grid gap-4"
+            :class="{
+              'grid-cols-2': latestResults.length === 2 || latestResults.length === 4,
+              'grid-cols-3': latestResults.length === 3,
+            }"
+          >
+            <div
+              v-for="gen in latestResults"
+              :key="gen.id"
+              class="relative overflow-hidden rounded-2xl neon-border bg-elevated/30 cursor-pointer group"
+              @click="selectResultAndOpenViewer(gen)"
+            >
+              <NuxtImg
+                v-if="gen.mediaUrl"
+                :src="gen.mediaUrl"
+                :alt="gen.prompt"
+                class="w-full aspect-square object-cover transition-transform duration-300 hover:scale-[1.03]"
+                placeholder
+                loading="lazy"
+              />
+              <!-- Quick Actions Overlay -->
+              <div class="absolute bottom-0 inset-x-0 p-2 bg-linear-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <div class="flex justify-center gap-1.5">
+                  <UTooltip text="Animate">
+                    <UButton
+                      variant="solid"
+                      color="neutral"
+                      icon="i-lucide-video"
+                      size="xs"
+                      class="rounded-full"
+                      @click.stop="animateResult(gen)"
+                    />
+                  </UTooltip>
+                  <UTooltip text="Edit">
+                    <UButton
+                      variant="solid"
+                      color="neutral"
+                      icon="i-lucide-layers"
+                      size="xs"
+                      class="rounded-full"
+                      @click.stop="editResult(gen)"
+                    />
+                  </UTooltip>
+                  <UTooltip text="Upscale">
+                    <UButton
+                      variant="solid"
+                      color="neutral"
+                      icon="i-lucide-maximize-2"
+                      size="xs"
+                      class="rounded-full"
+                      :loading="upscaling"
+                      @click.stop="upscaleGeneration(gen.id)"
+                    />
+                  </UTooltip>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 group w-full">
+            <p class="text-sm text-muted flex-1">{{ latestResult!.prompt }}</p>
+            <CopyPromptButton
+              :prompt="latestResult!.prompt"
+              class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            />
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <UTooltip text="View all past generations" class="flex-1 sm:flex-initial">
+              <UButton
+                variant="outline"
+                icon="i-lucide-grid-3x3"
+                size="sm"
+                to="/gallery"
+                class="rounded-full min-h-11 w-full"
+              >
+                Gallery
+              </UButton>
+            </UTooltip>
+          </div>
+        </template>
+
+        <!-- Done: Single Result -->
+        <template v-else-if="latestResult?.status === 'done' && latestResult.mediaUrl">
           <div
             class="relative overflow-hidden rounded-2xl neon-border bg-elevated/30 cursor-pointer"
             @click="galleryViewer.open([latestResult!], 0)"
@@ -540,6 +641,26 @@ const resolutions = ['480p', '720p']
             </UButton>
           </div>
         </div>
+
+        <!-- Image Count (T2I only) -->
+        <UFormField
+          v-if="activeTab === 't2i'"
+          label="Images"
+          class="w-full sm:w-auto"
+        >
+          <div class="flex gap-1">
+            <UButton
+              v-for="count in imageCounts"
+              :key="count"
+              :label="String(count)"
+              :variant="imageCount === count ? 'solid' : 'outline'"
+              :color="imageCount === count ? 'primary' : 'neutral'"
+              size="sm"
+              class="min-w-9"
+              @click="imageCount = count"
+            />
+          </div>
+        </UFormField>
       </div>
 
       <!-- Recent Generations -->

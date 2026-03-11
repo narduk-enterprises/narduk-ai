@@ -399,7 +399,10 @@ export function useGenerate() {
           : 'Keep the core subject recognizable') +
         '\n- Radically change the scene, setting, environment, time of day, and weather' +
         '\n- Use a completely different lighting setup, color palette, and atmosphere' +
-        '\n- Try a different camera angle, composition, and visual style' +
+        '\n- Try a different camera angle and composition' +
+        '\n- CRITICAL: The result MUST look like a real photograph taken with a real camera — photorealistic, natural lighting, real skin textures, real environments' +
+        '\n- NEVER produce cartoon, illustration, CGI, 3D render, anime, digital art, painterly, or fantasy-looking results' +
+        '\n- Include photorealism anchors such as "photorealistic", "shot on [real camera]", "natural lighting", "film grain", or "35mm film"' +
         '\n- The result should look like an ENTIRELY DIFFERENT ' +
         mediaType +
         ' of the same ' +

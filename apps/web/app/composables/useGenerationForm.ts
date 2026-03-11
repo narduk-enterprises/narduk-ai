@@ -46,9 +46,14 @@ export function useGenerationForm() {
     activeUserPromptId.value = promptId || null
   }
 
+  // ─── Batch Count ────────────────────────────────────────────
+
+  const imageCount = ref(1)
+
   // ─── Generation Results ─────────────────────────────────────
 
   const latestResult = ref<Generation | null>(null)
+  const latestResults = ref<Generation[]>([])
   const recentGenerations = ref<Generation[]>([])
   const userImages = ref<Generation[]>([])
 
@@ -68,18 +73,47 @@ export function useGenerationForm() {
     if (!prompt.value.trim()) return
 
     latestResult.value = null
+    latestResults.value = []
     error.value = null
 
     if (activeTab.value === 't2i') {
-      const result = await generateImage(prompt.value, {
+      const count = imageCount.value
+      const opts = {
         aspectRatio: aspectRatio.value,
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
         presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
         userPromptId: activeUserPromptId.value || undefined,
-      })
-      if (result) {
-        latestResult.value = result
-        await loadUserImages()
+      }
+
+      if (count <= 1) {
+        // Single image — original flow
+        const result = await generateImage(prompt.value, opts)
+        if (result) {
+          latestResult.value = result
+          latestResults.value = [result]
+          await loadUserImages()
+        }
+      } else {
+        // Batch: fire N parallel requests
+        // eslint-disable-next-line nuxt-guardrails/no-map-async-in-server -- Client-side Promise.all batching, not N+1
+        const settled = await Promise.allSettled(
+          Array.from({ length: count }, () => generateImage(prompt.value, opts)),
+        )
+
+        const successes = settled
+          .filter(
+            (r): r is PromiseFulfilledResult<Generation | null> => r.status === 'fulfilled',
+          )
+          .map((r) => r.value)
+          .filter((v): v is Generation => v !== null)
+
+        if (successes.length > 0) {
+          latestResult.value = successes[0]!
+          latestResults.value = successes
+          await loadUserImages()
+        } else {
+          error.value = 'All image generations failed. Please try again.'
+        }
       }
     } else if (activeTab.value === 't2v') {
       const result = await generateVideo(prompt.value, {
@@ -120,6 +154,7 @@ export function useGenerationForm() {
       })
       if (result) {
         latestResult.value = result
+        latestResults.value = [result]
         await loadUserImages()
       }
     }
@@ -373,9 +408,11 @@ export function useGenerationForm() {
     sourceGenerationId,
     activePresets,
     setBuilderContext,
+    imageCount,
 
     // Results
     latestResult,
+    latestResults,
     recentGenerations,
     userImages,
 
