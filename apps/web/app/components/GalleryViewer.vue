@@ -191,7 +191,7 @@ watch(currentIndex, () => {
         .then(() => {
           isPlaying.value = true
           scheduleHideControls()
-          return undefined
+          return
         })
         .catch(() => {
           // autoplay blocked
@@ -210,7 +210,7 @@ watch(isOpen, (open) => {
           .then(() => {
             isPlaying.value = true
             scheduleHideControls()
-            return undefined
+            return
           })
           .catch(() => {
             // autoplay blocked

@@ -299,7 +299,7 @@ const presetGenerations = computed(() => {
 })
 
 function openPresetViewer(item: Generation) {
-  const idx = presetGenerations.value.findIndex(g => g.id === item.id)
+  const idx = presetGenerations.value.findIndex((g) => g.id === item.id)
   galleryViewer.open(presetGenerations.value, idx >= 0 ? idx : 0)
 }
 
