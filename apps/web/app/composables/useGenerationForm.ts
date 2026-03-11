@@ -77,26 +77,55 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
       const idx = line.indexOf(':')
       if (idx !== -1) {
         const key = line.slice(0, idx).trim().toLowerCase().replaceAll('-', ' ')
-        // Match value exactly for auto-selection (assuming snippet == value)
-        const val = line.slice(idx + 1).trim()
+        const val = line
+          .slice(idx + 1)
+          .trim()
+          .toLowerCase()
 
-        // Find modifier matching this category and snippet
-        const modifier = modifierCategoriesList.value.find((m) => {
+        const categoryMods = modifierCategoriesList.value.filter((m) => {
           const modCat = m.category.toLowerCase().replaceAll('-', ' ')
-          return (
-            (modCat === key || modCat === key.replaceAll(/\s+/g, '')) &&
-            m.snippet.toLowerCase() === val.toLowerCase()
-          )
+          return modCat === key || modCat === key.replaceAll(/\s+/g, '')
         })
 
-        if (modifier) {
-          modifiersToSelect.add(modifier.id)
+        for (const mod of categoryMods) {
+          const labelLower = mod.label.toLowerCase()
+          const snippetLower = mod.snippet.toLowerCase()
+          let matches = false
+
+          if (key === 'age') {
+            const ageNum = Number.parseInt(val)
+            if (!Number.isNaN(ageNum)) {
+              if (ageNum < 13 && mod.id === 'age-child') matches = true
+              else if (ageNum >= 13 && ageNum < 20 && mod.id === 'age-teen') matches = true
+              else if (ageNum >= 20 && ageNum < 30 && mod.id === 'age-20s') matches = true
+              else if (ageNum >= 30 && ageNum < 40 && mod.id === 'age-30s') matches = true
+              else if (ageNum >= 40 && ageNum < 50 && mod.id === 'age-40s') matches = true
+              else if (ageNum >= 50 && ageNum < 60 && mod.id === 'age-50s') matches = true
+              else if (ageNum >= 60 && mod.id === 'age-senior') matches = true
+            } else if (val.includes(labelLower) || snippetLower.includes(val)) {
+              matches = true
+            }
+          } else {
+            if (val.includes(labelLower) || snippetLower.includes(val)) {
+              matches = true
+            } else {
+              const valWords = val.split(/[\s,]+/).filter((w) => w.length > 2)
+              for (const word of valWords) {
+                if (labelLower === word || snippetLower.includes(word)) {
+                  matches = true
+                  break
+                }
+              }
+            }
+          }
+
+          if (matches) {
+            modifiersToSelect.add(mod.id)
+          }
         }
       }
     }
 
-    // Add these to active modifiers without clearing existing ones
-    // We emit an event or call a method on useQuickModifiers to add these IDs
     if (modifiersToSelect.size > 0 && typeof onSelectModifiers !== 'undefined') {
       onSelectModifiers(Array.from(modifiersToSelect))
     }
@@ -170,7 +199,16 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
             // Exclude structural/informational fields.
             const structuralKeys = ['name', 'description']
             if (!structuralKeys.includes(normalizedKey)) {
-              return null // prune line
+              const isRecognizedCategory = modifierCategoriesList.value.some((m) => {
+                const cat = m.category.toLowerCase().replaceAll('-', ' ')
+                return cat === normalizedKey || cat === key.replaceAll(/\s+/g, '')
+              })
+
+              if (isRecognizedCategory) {
+                return null // Prune it because no modifier is active for this recognized category
+              } else {
+                return line // Keep it because it's not a quick modifier category
+              }
             }
           }
           return line

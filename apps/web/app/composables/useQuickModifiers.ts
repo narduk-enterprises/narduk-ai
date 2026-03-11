@@ -20,6 +20,15 @@ export function useQuickModifiers() {
   const categories = ref<QuickModifierCategory[]>([])
   const selectedIds = ref<Set<string>>(new Set())
   const loading = ref(false)
+  const searchQuery = ref('')
+
+  const filteredModifiers = computed(() => {
+    if (!searchQuery.value.trim()) return []
+    const q = searchQuery.value.toLowerCase().trim()
+    return allModifiersList.value.filter(
+      (m) => m.label.toLowerCase().includes(q) || m.snippet.toLowerCase().includes(q),
+    )
+  })
 
   async function fetchModifiers() {
     loading.value = true
@@ -121,5 +130,7 @@ export function useQuickModifiers() {
     allModifiersList,
     addModifiers,
     recordUsage,
+    searchQuery,
+    filteredModifiers,
   }
 }

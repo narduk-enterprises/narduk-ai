@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
+import type { QuickModifierCategory } from '~/composables/useQuickModifiers'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -80,7 +81,18 @@ const {
   allModifiersList,
   addModifiers,
   compiledSnippets,
+  searchQuery,
+  filteredModifiers,
 } = useQuickModifiers()
+
+const isModifierSlideoverOpen = ref(false)
+const activeModifierCategory = ref<QuickModifierCategory | null>(null)
+
+watch(modifierCategories, (newVal) => {
+  if (newVal.length > 0 && !activeModifierCategory.value) {
+    activeModifierCategory.value = newVal[0] ?? null
+  }
+})
 
 // Wire up the form so it can auto-select modifiers when a preset is chosen
 setModifierDependencies(allModifiersList.value, addModifiers)
@@ -152,14 +164,6 @@ const presetDropdownItems = computed(() => {
   }
 
   return [nestedItems]
-})
-
-const accordionItems = computed(() => {
-  return modifierCategories.value.map((cat, index) => ({
-    ...cat,
-    defaultOpen: cat.category === 'frequently-used' || index === 0,
-    modifiers: cat.modifiers,
-  }))
 })
 
 function openRecentViewer(gen: Generation) {
@@ -476,48 +480,44 @@ function editResult(gen: Generation) {
             </div>
           </div>
 
-          <!-- Quick Modifiers Accordion -->
-          <div v-if="modifierCategories.length" class="space-y-1.5 mt-4">
-            <UAccordion variant="ghost" size="sm" :items="accordionItems" multiple>
-              <template #default="{ item, open }">
-                <UButton
-                  color="neutral"
-                  variant="ghost"
-                  class="border-b border-default/5 w-full rounded-none px-2 py-2"
-                  :ui="{ leadingIcon: 'text-muted' }"
-                  :icon="item.icon"
-                >
-                  <span
-                    class="text-xs font-semibold text-muted uppercase tracking-wider flex-1 text-left"
-                  >
-                    {{ item.label || item.category }}
-                  </span>
-                  <template #trailing>
-                    <UIcon
-                      name="i-lucide-chevron-right"
-                      class="w-4 h-4 ms-auto transform transition-transform duration-200"
-                      :class="[open && 'rotate-90']"
-                    />
-                  </template>
-                </UButton>
-              </template>
-              <template #body="{ item }">
-                <div class="flex flex-wrap gap-1.5 px-2 pb-3 pt-1">
-                  <UButton
-                    v-for="mod in item.modifiers"
-                    :key="mod.id"
-                    size="xs"
-                    :variant="isModifierSelected(mod.id) ? 'solid' : 'outline'"
-                    :color="isModifierSelected(mod.id) ? 'primary' : 'neutral'"
-                    class="rounded-full"
-                    :class="isModifierSelected(mod.id) ? 'shadow-sm shadow-primary/20' : ''"
-                    @click="toggleModifier(mod.id)"
-                  >
-                    {{ mod.label }}
-                  </UButton>
-                </div>
-              </template>
-            </UAccordion>
+          <!-- Active Modifiers & Add Button -->
+          <div v-if="modifierCategories.length" class="space-y-3 mt-4">
+            <div class="flex items-center justify-between">
+              <span
+                class="text-[10px] font-semibold text-muted uppercase tracking-wider flex items-center gap-1"
+              >
+                <UIcon name="i-lucide-sparkles" class="size-3" />
+                Quick Modifiers
+              </span>
+              <UButton
+                size="xs"
+                variant="soft"
+                icon="i-lucide-plus"
+                color="neutral"
+                @click="isModifierSlideoverOpen = true"
+              >
+                Add Modifiers
+              </UButton>
+            </div>
+
+            <div
+              v-if="activeModifiers.length"
+              class="flex flex-wrap gap-1.5 bg-muted/20 p-2 rounded-lg border border-default/10"
+            >
+              <UButton
+                v-for="mod in activeModifiers"
+                :key="mod.id"
+                size="xs"
+                variant="solid"
+                color="primary"
+                class="rounded-full shadow-sm shadow-primary/20"
+                icon="i-lucide-x"
+                trailing
+                @click="toggleModifier(mod.id)"
+              >
+                {{ mod.label }}
+              </UButton>
+            </div>
           </div>
 
           <!-- Clear All -->
@@ -1013,5 +1013,104 @@ function editResult(gen: Generation) {
 
     <!-- Gallery Viewer -->
     <GalleryViewer />
+
+    <!-- Quick Modifiers Slideover -->
+    <USlideover v-model:open="isModifierSlideoverOpen" title="Quick Modifiers">
+      <template #body>
+        <div class="flex flex-col h-full overflow-hidden">
+          <!-- Search Input -->
+          <div class="p-3 sm:px-4 sm:py-3 border-b border-default/10 shrink-0">
+            <UInput
+              v-model="searchQuery"
+              icon="i-lucide-search"
+              placeholder="Search modifiers..."
+              class="w-full"
+            >
+              <template #trailing>
+                <UButton
+                  v-if="searchQuery"
+                  color="neutral"
+                  variant="link"
+                  icon="i-lucide-x"
+                  :padded="false"
+                  @click="searchQuery = ''"
+                />
+              </template>
+            </UInput>
+          </div>
+
+          <!-- Slideover Content area -->
+          <div class="flex-1 overflow-hidden" :class="searchQuery ? 'p-4 overflow-y-auto' : 'flex'">
+            <!-- Search Results -->
+            <div v-if="searchQuery">
+              <div v-if="filteredModifiers.length" class="flex flex-wrap gap-1.5">
+                <UButton
+                  v-for="mod in filteredModifiers"
+                  :key="mod.id"
+                  size="xs"
+                  :variant="isModifierSelected(mod.id) ? 'solid' : 'outline'"
+                  :color="isModifierSelected(mod.id) ? 'primary' : 'neutral'"
+                  class="rounded-full transition-shadow duration-200"
+                  :class="isModifierSelected(mod.id) ? 'shadow-sm shadow-primary/20' : ''"
+                  @click="toggleModifier(mod.id)"
+                >
+                  {{ mod.label }}
+                </UButton>
+              </div>
+              <div v-else class="text-center text-muted py-8 text-sm">
+                No modifiers found for "{{ searchQuery }}"
+              </div>
+            </div>
+
+            <!-- Category Tabs (No Search) -->
+            <template v-else>
+              <!-- Sidebar -->
+              <div
+                class="w-1/3 sm:w-2/5 border-r border-default/10 overflow-y-auto py-2 flex shrink-0 flex-col"
+              >
+                <UButton
+                  v-for="cat in modifierCategories"
+                  :key="cat.category"
+                  variant="ghost"
+                  :color="activeModifierCategory?.category === cat.category ? 'primary' : 'neutral'"
+                  class="w-full justify-start rounded-none px-3 py-2 text-left shrink-0"
+                  :class="
+                    activeModifierCategory?.category === cat.category
+                      ? 'bg-primary/10 font-medium'
+                      : 'text-muted'
+                  "
+                  @click="activeModifierCategory = cat"
+                >
+                  <span class="truncate text-xs sm:text-sm">{{ cat.label || cat.category }}</span>
+                </UButton>
+              </div>
+              <!-- Content -->
+              <div class="flex-1 p-3 sm:p-4 overflow-y-auto">
+                <div v-if="activeModifierCategory" class="flex flex-wrap gap-1.5">
+                  <UButton
+                    v-for="mod in activeModifierCategory.modifiers"
+                    :key="mod.id"
+                    size="xs"
+                    :variant="isModifierSelected(mod.id) ? 'solid' : 'outline'"
+                    :color="isModifierSelected(mod.id) ? 'primary' : 'neutral'"
+                    class="rounded-full transition-shadow duration-200"
+                    :class="isModifierSelected(mod.id) ? 'shadow-sm shadow-primary/20' : ''"
+                    @click="toggleModifier(mod.id)"
+                  >
+                    {{ mod.label }}
+                  </UButton>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end p-3 sm:pr-4 sm:pb-4 sm:pt-2">
+          <UButton color="primary" @click="isModifierSlideoverOpen = false"> Done </UButton>
+        </div>
+      </template>
+    </USlideover>
   </div>
 </template>
