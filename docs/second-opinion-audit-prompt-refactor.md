@@ -4,13 +4,39 @@
 
 ---
 
+## PR #3 re-audit (refactor/prompt-generation-v3)
+
+**Branch:** `refactor/prompt-generation-v3` ([PR #3](https://github.com/narduk-enterprises/narduk-ai/pull/3))
+
+**Copilot’s 7 review findings — all addressed and verified:**
+
+| # | File | Finding | Status |
+|---|------|---------|--------|
+| 1 | useGenerationForm.ts | `activePresetBlocks`: filter `find()` result with `el != null` (not just `el !== null`) so `undefined` is excluded | ✅ Fixed: `.filter((el): el is PromptElement => el != null)` |
+| 2 | usePromptTags.ts | Non-mutating sort for `appliesTo` scope key (avoid mutating shared catalog) | ✅ Fixed: `[...(tag.appliesTo ?? [])].sort()` |
+| 3 | quickModifiers.ts | Add `'framing'` to `CATEGORY_ORDER` | ✅ Fixed: `'framing'` included in order list |
+| 4 | quickModifiers.ts | Validate `selectionMode` against `['single','multi']` | ✅ Fixed: `['single','multi'].includes(...) ? meta!.selectionMode : 'single'` |
+| 5 | 0014_modifier_metadata.sql | Set `applies_to` for broad `attribute_key = 'framing'` | ✅ Fixed: `UPDATE ... SET applies_to = '["framing"]' WHERE attribute_key = 'framing' AND applies_to IS NULL` |
+| 6 | useAdminQuickModifiers.ts | Use admin-specific type (not PromptTag) for raw API response | ✅ Fixed: `QuickModifierRow` interface, `useFetch<QuickModifierRow[]>` |
+| 7 | presetSchemas.ts / useChatForm | `compilationPipelineDescription()` must match new tag-based compiler | ✅ Fixed: Text describes never-prune, appliesTo, attribute-key pairs; useChatForm injects same |
+
+**Other checks:**
+
+- **useFeelingLucky:** Critical fix (resolve by type+name) is already present on this branch.
+- **useQuickModifiers:** Removed on this branch; no dead code.
+- **Quality:** `pnpm run quality` passes after fixing Prettier in `app/composables/useAdminQuickModifiers.ts` and `server/utils/quickModifiers.ts` (run `pnpm exec prettier --write` on those two files if CI fails format check).
+
+**Verdict:** PR #3 is in good shape. All Copilot comments and the earlier second-opinion critical fix are applied. Recommend merging after ensuring the format fix is committed if CI runs format check.
+
+---
+
 ## 1. Issues Found
 
 ### 🔴 Critical
 
-**1. useFeelingLucky: Preset name→ID resolution ignores type**
+**1. useFeelingLucky: Preset name→ID resolution ignores type** — ✅ **Fixed on PR #3**
 
-When consuming a cached lucky prompt, the code resolves `cached.presets` (Record<type, name>) to IDs using only `name`:
+When consuming a cached lucky prompt, the code previously resolved `cached.presets` (Record<type, name>) to IDs using only `name`:
 
 ```ts
 // useFeelingLucky.ts L62–66
