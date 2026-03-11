@@ -114,9 +114,7 @@ async function handleRemix() {
   if (!prompt.value.trim() || remixing.value) return
   remixing.value = true
   try {
-    const presetsToPass = Object.keys(activePresets.value).length
-      ? activePresets.value
-      : undefined
+    const presetsToPass = Object.keys(activePresets.value).length ? activePresets.value : undefined
     prompt.value = await remixPrompt(prompt.value, currentMediaType.value, presetsToPass)
   } catch (e) {
     console.error('Remix failed:', e)

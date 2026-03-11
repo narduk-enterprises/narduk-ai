@@ -28,12 +28,7 @@ export default defineEventHandler(async (event) => {
       content: promptElements.content,
     })
     .from(promptElements)
-    .where(
-      and(
-        eq(promptElements.userId, user.id),
-        inArray(promptElements.name, names),
-      ),
-    )
+    .where(and(eq(promptElements.userId, user.id), inArray(promptElements.name, names)))
 
   // Build resolved map keyed by preset type
   const resolved: Record<string, { name: string; content: string }> = {}
