@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { promptElements } from '../../database/schema'
 
 const bodySchema = z.object({
-  type: z.enum(['person', 'scene', 'framing']),
+  type: z.enum(['person', 'scene', 'framing', 'action', 'prompt']),
   name: z.string().min(1).max(100),
   content: z.string().min(1).max(2000),
 })

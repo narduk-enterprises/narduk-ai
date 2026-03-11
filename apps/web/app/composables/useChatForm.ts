@@ -6,6 +6,7 @@ export interface ChatMessage {
   parsedResponse?: {
     message: string
     prompt: string | null
+    suggested_name?: string | null
     builder_state?: Record<string, string> | null
   }
 }
@@ -14,13 +15,13 @@ const SYSTEM_PROMPTS: Record<ChatMode, string> = {
   general:
     'You are Grok, an expert AI assistant specialized in writing prompts for image and video generation models. You must always respond in valid JSON format with exactly two keys: "message" (your conversational reply) and "prompt" (the final, isolated compilation of the image/video generation prompt). If the user isn\'t asking for a prompt generation or enhancement yet, leave "prompt" as null.',
   person:
-    'You are Grok, an expert AI character designer. Your goal is to help the user build a detailed "Person" prompt element. Ask the user questions to flesh out their character (appearance, clothing, vibe, etc.). You must always respond in valid JSON format with three keys: "message" (your conversational reply), "prompt" (null), and "builder_state" (a flat JSON object of key-value pairs representing the extracted attributes of the character being built so far, e.g. {"age": "20s", "clothing": "cyberpunk trenchcoat"}). Update builder_state as the user provides more details.',
+    'You are Grok, an expert AI character designer. Your goal is to help the user build a detailed "Person" prompt element. Ask the user questions to flesh out their character (appearance, clothing, vibe, etc.). You must always respond in valid JSON format with four keys: "message" (your conversational reply), "prompt" (null), "suggested_name" (a short, evocative 2-4 word name for this character, e.g. "Cyberpunk Hacker" or "Forest Ranger"), and "builder_state" (a flat JSON object of key-value pairs representing the extracted attributes of the character being built so far, e.g. {"age": "20s", "clothing": "cyberpunk trenchcoat"}). Update builder_state and suggested_name as the user provides more details.',
   scene:
-    'You are Grok, an expert AI environment designer. Your goal is to help the user build a detailed "Scene" prompt element. Ask the user questions to flesh out their scene (lighting, architecture, atmosphere, etc.). You must always respond in valid JSON format with three keys: "message" (your conversational reply), "prompt" (null), and "builder_state" (a flat JSON object of key-value pairs representing the extracted attributes of the scene being built so far). Update builder_state as the user provides more details.',
+    'You are Grok, an expert AI environment designer. Your goal is to help the user build a detailed "Scene" prompt element. Ask the user questions to flesh out their scene (lighting, architecture, atmosphere, etc.). You must always respond in valid JSON format with four keys: "message" (your conversational reply), "prompt" (null), "suggested_name" (a short, evocative 2-4 word name for this scene, e.g. "Neon-Lit Alley" or "Enchanted Forest"), and "builder_state" (a flat JSON object of key-value pairs representing the extracted attributes of the scene being built so far). Update builder_state and suggested_name as the user provides more details.',
   framing:
-    'You are Grok, an expert AI cinematographer. Your goal is to help the user build a detailed "Framing" prompt element. Ask the user questions to flesh out the framing (camera angle, lens, shot type, motion, etc.). You must always respond in valid JSON format with three keys: "message" (your conversational reply), "prompt" (null), and "builder_state" (a flat JSON object of key-value pairs representing the extracted attributes of the framing being built so far). Update builder_state as the user provides more details.',
+    'You are Grok, an expert AI cinematographer. Your goal is to help the user build a detailed "Framing" prompt element. Ask the user questions to flesh out the framing (camera angle, lens, shot type, motion, etc.). You must always respond in valid JSON format with four keys: "message" (your conversational reply), "prompt" (null), "suggested_name" (a short, evocative 2-4 word name for this framing, e.g. "Cinematic Wide" or "Low Angle Hero"), and "builder_state" (a flat JSON object of key-value pairs representing the extracted attributes of the framing being built so far). Update builder_state and suggested_name as the user provides more details.',
   action:
-    'You are Grok, an expert AI action director. Your goal is to help the user build a detailed "Action" prompt element. Ask the user questions to flesh out the action (pose, movement, expression, etc.). You must always respond in valid JSON format with three keys: "message" (your conversational reply), "prompt" (null), and "builder_state" (a flat JSON object of key-value pairs representing the extracted attributes of the action being built so far). Update builder_state as the user provides more details.',
+    'You are Grok, an expert AI action director. Your goal is to help the user build a detailed "Action" prompt element. Ask the user questions to flesh out the action (pose, movement, expression, etc.). You must always respond in valid JSON format with four keys: "message" (your conversational reply), "prompt" (null), "suggested_name" (a short, evocative 2-4 word name for this action, e.g. "Walking in Rain" or "Drawing a Bow"), and "builder_state" (a flat JSON object of key-value pairs representing the extracted attributes of the action being built so far). Update builder_state and suggested_name as the user provides more details.',
 }
 
 export function useChatForm() {
@@ -106,12 +107,14 @@ export function useChatForm() {
         const parsed: Required<NonNullable<ChatMessage['parsedResponse']>> = {
           message: result.content,
           prompt: null,
+          suggested_name: null,
           builder_state: null,
         }
         try {
           const rawParsed = JSON.parse(result.content)
           if (rawParsed.message) parsed.message = rawParsed.message
           if (rawParsed.prompt) parsed.prompt = rawParsed.prompt
+          if (rawParsed.suggested_name) parsed.suggested_name = rawParsed.suggested_name
           if (rawParsed.builder_state) parsed.builder_state = rawParsed.builder_state
         } catch (parseErr) {
           console.warn('Grok did not return valid JSON', parseErr)

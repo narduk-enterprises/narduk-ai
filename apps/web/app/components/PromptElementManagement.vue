@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import type { FormSubmitEvent } from '#ui/types'
 
-const { elements, loading, error, fetchElements, createElement, deleteElement } =
+const { elements, loading, error, fetchElements, createElement, updateElement, deleteElement } =
   usePromptElements()
 
 onMounted(fetchElements)
@@ -29,14 +29,42 @@ const options = [
   { label: 'Scene / Environment', value: 'scene' },
   { label: 'Framing / Camera', value: 'framing' },
   { label: 'Action / Pose', value: 'action' },
+  { label: 'Assembled Prompt', value: 'prompt' },
 ]
+
+const editingId = ref<string | null>(null)
+const isEditing = computed(() => editingId.value !== null)
+
+function openEdit(el: { id: string; type: string; name: string; content: string }) {
+  editingId.value = el.id
+  state.type = el.type as Schema['type']
+  state.name = el.name
+  state.content = el.content
+  isModalOpen.value = true
+}
+
+function openCreate() {
+  editingId.value = null
+  state.type = 'person'
+  state.name = ''
+  state.content = ''
+  isModalOpen.value = true
+}
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   submitting.value = true
   try {
-    await createElement(event.data.type, event.data.name, event.data.content)
+    if (editingId.value) {
+      await updateElement(editingId.value, {
+        type: event.data.type,
+        name: event.data.name,
+        content: event.data.content,
+      })
+    } else {
+      await createElement(event.data.type, event.data.name, event.data.content)
+    }
     isModalOpen.value = false
-    // reset form
+    editingId.value = null
     state.name = ''
     state.content = ''
   } catch (e) {
@@ -60,6 +88,7 @@ const groupedElements = computed(() => {
     { label: 'Scenes', type: 'scene', icon: 'i-lucide-image', items: [] },
     { label: 'Framings', type: 'framing', icon: 'i-lucide-camera', items: [] },
     { label: 'Actions', type: 'action', icon: 'i-lucide-activity', items: [] },
+    { label: 'Prompts', type: 'prompt', icon: 'i-lucide-file-text', items: [] },
   ]
 
   for (const el of elements.value) {
@@ -80,7 +109,7 @@ const groupedElements = computed(() => {
           Manage your saved presets to quickly build generation prompts.
         </p>
       </div>
-      <UButton icon="i-lucide-plus" @click="isModalOpen = true">Add Preset</UButton>
+      <UButton icon="i-lucide-plus" @click="openCreate">Add Preset</UButton>
     </div>
 
     <!-- Error state -->
@@ -103,7 +132,7 @@ const groupedElements = computed(() => {
         Create reusable snippets like "Cyberpunk cityscape" or "Cinematic wide angle" to speed up
         your workflow.
       </p>
-      <UButton variant="outline" icon="i-lucide-plus" @click="isModalOpen = true"
+      <UButton variant="outline" icon="i-lucide-plus" @click="openCreate"
         >Create your first preset</UButton
       >
     </div>
@@ -128,14 +157,22 @@ const groupedElements = computed(() => {
                 {{ el.content }}
               </p>
             </div>
-            <UButton
-              variant="ghost"
-              color="error"
-              icon="i-lucide-trash-2"
-              size="xs"
-              class="shrink-0 -mr-2"
-              @click="handleDelete(el.id)"
-            />
+            <div class="flex items-center gap-1 shrink-0 -mr-2">
+              <UButton
+                variant="ghost"
+                color="neutral"
+                icon="i-lucide-pencil"
+                size="xs"
+                @click="openEdit(el)"
+              />
+              <UButton
+                variant="ghost"
+                color="error"
+                icon="i-lucide-trash-2"
+                size="xs"
+                @click="handleDelete(el.id)"
+              />
+            </div>
           </div>
         </div>
       </template>
@@ -147,8 +184,11 @@ const groupedElements = computed(() => {
         <UCard>
           <template #header>
             <h3 class="font-display font-semibold text-lg flex items-center gap-2">
-              <UIcon name="i-lucide-plus-circle" class="size-5 text-primary" />
-              New Preset
+              <UIcon
+                :name="isEditing ? 'i-lucide-pencil' : 'i-lucide-plus-circle'"
+                class="size-5 text-primary"
+              />
+              {{ isEditing ? 'Edit Preset' : 'New Preset' }}
             </h3>
           </template>
 
@@ -176,7 +216,7 @@ const groupedElements = computed(() => {
                 Cancel
               </UButton>
               <UButton type="submit" color="primary" icon="i-lucide-save" :loading="submitting">
-                Save Preset
+                {{ isEditing ? 'Update Preset' : 'Save Preset' }}
               </UButton>
             </div>
           </UForm>

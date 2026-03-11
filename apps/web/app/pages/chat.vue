@@ -62,12 +62,16 @@ function useGeneratedPrompt(promptText: string) {
 
 async function savePromptToLibrary(promptText: string) {
   const elementType = chatMode.value === 'general' ? 'scene' : chatMode.value
-  const name = prompt(`Name this ${elementType} preset:`, `New ${elementType}`)
-  if (!name) return
+
+  // Auto-name from Grok's suggested_name in the latest assistant message
+  const lastAssistant = [...chatMessages.value].reverse().find((m) => m.role === 'assistant')
+  const name =
+    lastAssistant?.parsedResponse?.suggested_name ||
+    `${elementType.charAt(0).toUpperCase() + elementType.slice(1)} preset`
 
   savingBuilder.value = true
   try {
-    const payloadType = elementType as 'person' | 'scene' | 'framing' | 'action'
+    const payloadType = elementType as 'person' | 'scene' | 'framing' | 'action' | 'prompt'
     await createElement(payloadType, name, promptText)
     toast.add({
       title: 'Saved to Library',
@@ -95,6 +99,12 @@ function insertIntoChat(text: string) {
 
 function formatKey(key: string | number) {
   return String(key).replaceAll('_', ' ')
+}
+
+function finalizeBuilderAsPrompt() {
+  chatInput.value =
+    "Now compile all of the attributes we've built so far into a complete, detailed image generation prompt. Return it in the prompt field."
+  sendChatMessage()
 }
 
 const modeOptions = [
@@ -318,6 +328,16 @@ const groupedElements = computed(() => {
                 <UButton
                   color="primary"
                   variant="solid"
+                  icon="i-lucide-sparkles"
+                  size="sm"
+                  :loading="isChatting"
+                  @click="finalizeBuilderAsPrompt"
+                >
+                  Finalize as Prompt
+                </UButton>
+                <UButton
+                  color="neutral"
+                  variant="soft"
                   icon="i-lucide-bookmark-plus"
                   size="sm"
                   :loading="savingBuilder"
@@ -402,15 +422,27 @@ const groupedElements = computed(() => {
             <span class="text-default leading-snug">{{ val }}</span>
           </div>
         </div>
-        <UButton
-          block
-          color="primary"
-          icon="i-lucide-save"
-          :loading="savingBuilder"
-          @click="saveBuilderState"
-        >
-          Save as Preset
-        </UButton>
+        <div class="flex flex-col gap-2">
+          <UButton
+            block
+            color="primary"
+            icon="i-lucide-sparkles"
+            :loading="isChatting"
+            @click="finalizeBuilderAsPrompt"
+          >
+            Finalize as Prompt
+          </UButton>
+          <UButton
+            block
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-save"
+            :loading="savingBuilder"
+            @click="saveBuilderState"
+          >
+            Save as Preset
+          </UButton>
+        </div>
       </div>
 
       <div class="p-4 border-b border-default/50 glass z-10 shrink-0">
@@ -504,15 +536,27 @@ const groupedElements = computed(() => {
                 <span class="text-default leading-snug">{{ val }}</span>
               </div>
             </div>
-            <UButton
-              block
-              color="primary"
-              icon="i-lucide-save"
-              :loading="savingBuilder"
-              @click="saveBuilderState"
-            >
-              Save as Preset
-            </UButton>
+            <div class="flex flex-col gap-2">
+              <UButton
+                block
+                color="primary"
+                icon="i-lucide-sparkles"
+                :loading="isChatting"
+                @click="finalizeBuilderAsPrompt"
+              >
+                Finalize as Prompt
+              </UButton>
+              <UButton
+                block
+                color="neutral"
+                variant="soft"
+                icon="i-lucide-save"
+                :loading="savingBuilder"
+                @click="saveBuilderState"
+              >
+                Save as Preset
+              </UButton>
+            </div>
           </div>
 
           <div class="flex-1 overflow-y-auto p-4 space-y-6">
