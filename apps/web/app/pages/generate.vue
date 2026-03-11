@@ -455,7 +455,7 @@ function editResult(gen: Generation) {
               class="text-[10px] font-semibold text-muted uppercase tracking-wider flex items-center gap-1"
             >
               <UIcon :name="cat.icon" class="size-3" />
-              {{ cat.category }}
+              {{ cat.label || cat.category }}
             </span>
             <div class="flex flex-wrap gap-1.5">
               <UButton

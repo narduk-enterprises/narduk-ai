@@ -14,6 +14,7 @@ export interface QuickModifier {
 
 export interface QuickModifiersByCategory {
   category: string
+  label: string
   icon: string
   modifiers: QuickModifier[]
 }
@@ -48,9 +49,29 @@ export async function getQuickModifiersByCategory(
     grouped[cat]!.sort((a, b) => a.sortOrder - b.sortOrder)
   }
 
-  // Return in canonical category order
-  return CATEGORY_ORDER.filter((cat) => grouped[cat]?.length).map((cat) => ({
+  // Get all unique categories from the groups
+  const allCategories = Object.keys(grouped)
+
+  // Sort categories: put predefined ones first in CATEGORY_ORDER, then alphabetical
+  allCategories.sort((a, b) => {
+    const indexA = CATEGORY_ORDER.indexOf(a)
+    const indexB = CATEGORY_ORDER.indexOf(b)
+
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB
+    if (indexA !== -1) return -1
+    if (indexB !== -1) return 1
+    return a.localeCompare(b)
+  })
+
+  // Return in sorted order
+  return allCategories.map((cat) => ({
     category: cat,
+    label: CATEGORY_ORDER.includes(cat)
+      ? cat.charAt(0).toUpperCase() + cat.slice(1)
+      : cat
+          .split('-')
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' '),
     icon: CATEGORY_ICONS[cat] || 'i-lucide-tag',
     modifiers: grouped[cat]!,
   }))

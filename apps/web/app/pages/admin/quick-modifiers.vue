@@ -36,13 +36,16 @@ const editForm = reactive({
   enabled: 1,
 })
 
-const categoryOptions = [
-  { label: 'Lighting', value: 'lighting' },
-  { label: 'Mood', value: 'mood' },
-  { label: 'Camera', value: 'camera' },
-  { label: 'Detail', value: 'detail' },
-  { label: 'Quality', value: 'quality' },
-]
+const categoryOptions = computed(() => {
+  const base = ['lighting', 'mood', 'camera', 'detail', 'quality']
+  const existing = new Set(base)
+  if (modifiers.value) {
+    for (const m of modifiers.value) {
+      if (m.category) existing.add(m.category)
+    }
+  }
+  return Array.from(existing)
+})
 
 const categoryIcons: Record<string, string> = {
   lighting: 'i-lucide-sun',
@@ -52,8 +55,9 @@ const categoryIcons: Record<string, string> = {
   quality: 'i-lucide-award',
 }
 
-function autoId() {
-  createForm.id = createForm.label
+function autoId(val?: string | Event) {
+  const text = typeof val === 'string' ? val : createForm.label
+  createForm.id = text
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replaceAll(/(^-|-$)/g, '')
@@ -119,20 +123,38 @@ const groupedModifiers = computed(() => {
     if (!groups[mod.category]) groups[mod.category] = []
     groups[mod.category]!.push(mod)
   }
-  const order = ['lighting', 'mood', 'camera', 'detail', 'quality']
-  return order
-    .filter((cat) => groups[cat]?.length)
-    .map((cat) => ({
-      category: cat,
-      label: categoryOptions.find((o) => o.value === cat)?.label || cat,
-      icon: categoryIcons[cat] || 'i-lucide-tag',
-      items: groups[cat]!.sort((a, b) => a.sortOrder - b.sortOrder),
-    }))
+  const allCats = Object.keys(groups)
+  const baseOrder = ['lighting', 'mood', 'camera', 'detail', 'quality']
+
+  allCats.sort((a, b) => {
+    const iA = baseOrder.indexOf(a)
+    const iB = baseOrder.indexOf(b)
+    if (iA !== -1 && iB !== -1) return iA - iB
+    if (iA !== -1) return -1
+    if (iB !== -1) return 1
+    return a.localeCompare(b)
+  })
+
+  return allCats.map((cat) => ({
+    category: cat,
+    label: baseOrder.includes(cat)
+      ? cat.charAt(0).toUpperCase() + cat.slice(1)
+      : cat
+          .split('-')
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' '),
+    icon: categoryIcons[cat] || 'i-lucide-tag',
+    items: groups[cat]!.sort((a, b) => a.sortOrder - b.sortOrder),
+  }))
 })
 </script>
 
 <template>
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <datalist id="category-options">
+      <option v-for="cat in categoryOptions" :key="cat" :value="cat" />
+    </datalist>
+
     <div class="mb-8">
       <UButton
         to="/admin"
@@ -177,7 +199,12 @@ const groupedModifiers = computed(() => {
             <div v-if="editingId === mod.id" class="space-y-3">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <UFormField label="Category">
-                  <USelect v-model="editForm.category" :items="categoryOptions" class="w-full" />
+                  <UInput
+                    v-model="editForm.category"
+                    list="category-options"
+                    placeholder="e.g. lighting"
+                    class="w-full"
+                  />
                 </UFormField>
                 <UFormField label="Label">
                   <UInput v-model="editForm.label" class="w-full" />
@@ -277,14 +304,19 @@ const groupedModifiers = computed(() => {
         <div class="space-y-4">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <UFormField label="Category">
-              <USelect v-model="createForm.category" :items="categoryOptions" class="w-full" />
+              <UInput
+                v-model="createForm.category"
+                list="category-options"
+                placeholder="e.g. lighting"
+                class="w-full"
+              />
             </UFormField>
             <UFormField label="Label">
               <UInput
                 v-model="createForm.label"
                 placeholder="e.g. Golden Hour"
                 class="w-full"
-                @input="autoId"
+                @update:model-value="autoId"
               />
             </UFormField>
           </div>

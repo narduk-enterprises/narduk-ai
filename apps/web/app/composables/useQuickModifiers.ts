@@ -10,6 +10,7 @@ export interface QuickModifier {
 
 export interface QuickModifierCategory {
   category: string
+  label: string
   icon: string
   modifiers: QuickModifier[]
 }
