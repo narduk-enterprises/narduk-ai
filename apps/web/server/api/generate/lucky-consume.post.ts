@@ -41,10 +41,7 @@ export default defineEventHandler(async (event) => {
   const pick = available[Math.floor(Math.random() * available.length)]!
 
   // Mark it consumed
-  await db
-    .update(luckyPrompts)
-    .set({ consumed: 1 })
-    .where(eq(luckyPrompts.id, pick.id))
+  await db.update(luckyPrompts).set({ consumed: 1 }).where(eq(luckyPrompts.id, pick.id))
 
   return {
     cached: true,

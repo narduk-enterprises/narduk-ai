@@ -34,7 +34,10 @@ export default defineEventHandler(async (event) => {
     .where(eq(promptElements.userId, user.id))
 
   if (!allElements.length) {
-    throw createError({ statusCode: 400, message: 'No presets available. Create some presets first!' })
+    throw createError({
+      statusCode: 400,
+      message: 'No presets available. Create some presets first!',
+    })
   }
 
   // Group elements by type
@@ -144,7 +147,12 @@ export default defineEventHandler(async (event) => {
   )
 
   const errors = results.filter((r) => r.status === 'rejected').length
-  log.info('Lucky prefill complete', { userId: user.id, generated, errors, mediaType: body.mediaType })
+  log.info('Lucky prefill complete', {
+    userId: user.id,
+    generated,
+    errors,
+    mediaType: body.mediaType,
+  })
 
   return { generated, errors, mediaType: body.mediaType }
 })
