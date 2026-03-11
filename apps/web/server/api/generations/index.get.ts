@@ -11,8 +11,6 @@ const querySchema = z.object({
   mode: z.string().optional(),
 })
 
-
-
 /**
  * GET /api/generations — List user's generations (newest first).
  * Supports ?limit=N&offset=N&type=image|video&mode=t2i|t2v|i2v|i2i query params.
