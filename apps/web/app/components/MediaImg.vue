@@ -40,6 +40,5 @@ const isDev = import.meta.dev
     :width="width"
     :height="height"
     placeholder
-    provider="cloudflare"
   />
 </template>
