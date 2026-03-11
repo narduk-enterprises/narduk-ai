@@ -43,6 +43,10 @@ const {
   upscaleGeneration,
   upscaling,
   uploadingSource,
+  sourceGeneration,
+  i2iInstructions,
+  generatingI2IPrompt,
+  generateI2IPrompt,
   handleSourceImageUpload,
 } = useGenerationForm()
 
@@ -127,11 +131,13 @@ const resolutions = ['480p', '720p']
         <UFormField required>
           <template #label>
             <div class="flex items-center gap-1.5">
-              <span>Prompt</span>
+              <span>{{
+                activeTab === 'i2i' || activeTab === 'i2v' ? 'Final Prompt' : 'Prompt'
+              }}</span>
               <UTooltip
                 v-if="activeTab === 'i2i' || activeTab === 'i2v'"
                 text="When using a source image, describe the entire desired output, not just the changes. The AI will redesign the image using both the source and your description as inspiration."
-                :ui="{ content: 'max-w-xs text-center' }"
+                :popper="{ placement: 'top' }"
               >
                 <UIcon
                   name="i-lucide-info"
@@ -140,7 +146,53 @@ const resolutions = ['480p', '720p']
               </UTooltip>
             </div>
           </template>
-          <div class="prompt-input p-1">
+          <!-- I2I Instructions Flow -->
+          <div
+            v-if="(activeTab === 'i2i' || activeTab === 'i2v') && sourceGeneration"
+            class="space-y-4 mb-4 bg-black/5 dark:bg-black/20 p-4 rounded-xl border border-default/10"
+          >
+            <UFormField label="Original Prompt">
+              <UTextarea
+                :model-value="sourceGeneration.prompt"
+                :rows="2"
+                :maxrows="4"
+                autoresize
+                disabled
+                class="w-full opacity-70"
+              />
+            </UFormField>
+
+            <UFormField label="Additional Changes">
+              <UTextarea
+                v-model="i2iInstructions"
+                placeholder="e.g. Make it a snowy winter scene, change the car color to red..."
+                :rows="2"
+                autoresize
+                class="w-full"
+              />
+            </UFormField>
+
+            <UButton
+              color="primary"
+              variant="soft"
+              icon="i-lucide-wand-2"
+              size="sm"
+              :loading="generatingI2IPrompt"
+              :disabled="generatingI2IPrompt"
+              class="w-full justify-center"
+              @click="generateI2IPrompt"
+            >
+              Generate Final Prompt
+            </UButton>
+          </div>
+
+          <div class="prompt-input p-1 relative">
+            <div
+              v-if="generatingI2IPrompt"
+              class="absolute inset-0 bg-default/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl"
+            >
+              <UIcon name="i-lucide-loader-2" class="size-6 text-primary animate-spin" />
+            </div>
             <UTextarea
               v-model="prompt"
               placeholder="Describe what you want to create..."
@@ -375,25 +427,12 @@ const resolutions = ['480p', '720p']
       </div>
 
       <!-- Recent Generations -->
-      <div v-if="recentGenerations.length" class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-display font-semibold">Recent</h2>
-          <UButton variant="link" to="/gallery" size="sm" trailing-icon="i-lucide-arrow-right">
-            View All
-          </UButton>
-        </div>
-        <div class="columns-2 gap-4 sm:columns-3 stagger-children">
-          <GenerationCard
-            v-for="gen in recentGenerations"
-            :key="gen.id"
-            :generation="gen"
-            class="break-inside-avoid mb-4"
-            @click="navigateTo(`/gallery/${gen.id}`)"
-            @use-as-source="useGenerationAsSource"
-            @upscale="(gen) => upscaleGeneration(gen.id)"
-          />
-        </div>
-      </div>
+      <RecentImagesCarousel
+        :generations="recentGenerations"
+        @click="(gen) => navigateTo(`/gallery/${gen.id}`)"
+        @use-as-source="useGenerationAsSource"
+        @upscale="(gen) => upscaleGeneration(gen.id)"
+      />
     </div>
 
     <!-- Enhance Modal -->

@@ -56,7 +56,7 @@ export function useGenerationForm() {
     try {
       const all = await fetchGenerations(100)
       userImages.value = all.filter((g) => g.type === 'image' && g.status === 'done')
-      recentGenerations.value = all.slice(0, 6)
+      recentGenerations.value = all.slice(0, 20)
     } catch {
       // silent
     }
@@ -273,6 +273,41 @@ export function useGenerationForm() {
     }
   }
 
+  // ─── Image-to-Image Prompt Generation ───────────────────────
+  const sourceGeneration = computed(() => {
+    if (!sourceGenerationId.value) return null
+    return userImages.value.find((g) => g.id === sourceGenerationId.value) || null
+  })
+
+  const i2iInstructions = ref('')
+  const generatingI2IPrompt = ref(false)
+
+  async function generateI2IPrompt() {
+    if (!sourceGeneration.value || generatingI2IPrompt.value) return
+
+    generatingI2IPrompt.value = true
+    error.value = null
+
+    try {
+      const result = await $fetch<{ enhancedPrompt: string }>('/api/generate/enhance-prompt', {
+        method: 'POST',
+        body: {
+          prompt: sourceGeneration.value.prompt,
+          instructions: i2iInstructions.value || undefined,
+          // We do not need to send imageBase64 here since we are just deriving a new prompt based on the old one + instructions.
+        },
+      })
+      if (result.enhancedPrompt) {
+        prompt.value = result.enhancedPrompt
+      }
+    } catch (e) {
+      const err = e as { data?: { message?: string }; message?: string }
+      error.value = err.data?.message || err.message || 'Failed to generate I2I prompt'
+    } finally {
+      generatingI2IPrompt.value = false
+    }
+  }
+
   // ─── Upscale ──────────────────────────────────────────────────
   const upscaling = ref(false)
 
@@ -340,5 +375,9 @@ export function useGenerationForm() {
     removeEnhanceImage,
     enhanceImageBase64,
     uploadingSource,
+    sourceGeneration,
+    i2iInstructions,
+    generatingI2IPrompt,
+    generateI2IPrompt,
   }
 }
