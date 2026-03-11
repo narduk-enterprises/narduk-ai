@@ -36,7 +36,11 @@ export function usePromptTags() {
     if (!searchQuery.value.trim()) return []
     const q = searchQuery.value.toLowerCase().trim()
     return allTagsList.value.filter(
-      (t) => t.label.toLowerCase().includes(q) || t.snippet.toLowerCase().includes(q),
+      (t) =>
+        t.label.toLowerCase().includes(q) ||
+        t.snippet.toLowerCase().includes(q) ||
+        t.category.toLowerCase().includes(q) ||
+        t.attributeKey.toLowerCase().replaceAll('_', ' ').includes(q),
     )
   })
 
