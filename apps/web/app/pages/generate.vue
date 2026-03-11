@@ -374,6 +374,22 @@ function editResult(gen: Generation) {
           >
             <USelect v-model="resolution" :items="resolutions" class="w-full sm:w-24" />
           </UFormField>
+
+          <!-- Image Count (T2I only) -->
+          <UFormField v-if="activeTab === 't2i'" label="Images" class="w-full sm:w-auto">
+            <div class="flex gap-1">
+              <UButton
+                v-for="count in imageCounts"
+                :key="count"
+                :label="String(count)"
+                :variant="imageCount === count ? 'solid' : 'outline'"
+                :color="imageCount === count ? 'primary' : 'neutral'"
+                size="sm"
+                class="min-w-9"
+                @click="imageCount = count"
+              />
+            </div>
+          </UFormField>
         </div>
 
         <!-- Source Image Selector -->
@@ -651,22 +667,6 @@ function editResult(gen: Generation) {
             </UButton>
           </div>
         </div>
-
-        <!-- Image Count (T2I only) -->
-        <UFormField v-if="activeTab === 't2i'" label="Images" class="w-full sm:w-auto">
-          <div class="flex gap-1">
-            <UButton
-              v-for="count in imageCounts"
-              :key="count"
-              :label="String(count)"
-              :variant="imageCount === count ? 'solid' : 'outline'"
-              :color="imageCount === count ? 'primary' : 'neutral'"
-              size="sm"
-              class="min-w-9"
-              @click="imageCount = count"
-            />
-          </div>
-        </UFormField>
       </div>
 
       <!-- Recent Generations -->
