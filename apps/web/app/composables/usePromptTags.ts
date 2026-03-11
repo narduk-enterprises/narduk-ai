@@ -18,10 +18,14 @@ export function usePromptTags() {
   // ─── Computed derivatives ──────────────────────────────────
 
   const allTagsList = computed<PromptTag[]>(() => {
+    const seen = new Set<string>()
     const list: PromptTag[] = []
     for (const cat of tagCatalog.value) {
       for (const t of cat.tags) {
-        list.push(t)
+        if (!seen.has(t.id)) {
+          seen.add(t.id)
+          list.push(t)
+        }
       }
     }
     return list

@@ -140,6 +140,11 @@ export function useGenerationForm() {
 
   function attachPerson(person: PromptElement) {
     if (attachedPerson.value?.id === person.id) return
+    // Remove old person's ID before attaching new one
+    if (attachedPerson.value) {
+      const oldId = attachedPerson.value.id
+      activePresetIds.value = activePresetIds.value.filter((id) => id !== oldId)
+    }
     attachedPerson.value = person
     activePresets.value = { ...activePresets.value, person: person.name }
     if (!activePresetIds.value.includes(person.id)) {
