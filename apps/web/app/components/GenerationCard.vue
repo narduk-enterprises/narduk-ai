@@ -87,20 +87,17 @@ function handleUpscale() {
           v-if="generation.type === 'image'"
           :src="generation.mediaUrl"
           :alt="generation.prompt"
-          class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          class="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
           placeholder
           loading="lazy"
         />
         <video
           v-else
           :src="generation.mediaUrl"
-          :poster="generation.thumbnailUrl || undefined"
-          class="h-full w-full object-cover"
-          muted
           loop
-          preload="metadata"
-          @mouseenter="($event.target as HTMLVideoElement)?.play()"
-          @mouseleave="($event.target as HTMLVideoElement)?.pause()"
+          muted
+          playsinline
+          class="h-full w-full object-contain"
         />
       </template>
       <div v-else class="flex h-full w-full items-center justify-center">

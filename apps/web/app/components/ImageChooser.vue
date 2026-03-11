@@ -107,12 +107,12 @@ function clearSelection() {
     <!-- State 1: Image Selected -->
     <div
       v-if="selectedImage"
-      class="relative group rounded-xl overflow-hidden ring-1 ring-default shadow-sm bg-muted/20 w-full sm:w-64 aspect-square max-w-sm"
+      class="relative group rounded-xl overflow-hidden ring-1 ring-default shadow-sm bg-black/5 dark:bg-black/40 w-full sm:w-64 aspect-square max-w-sm flex items-center justify-center p-2"
     >
       <img
         :src="selectedImage.mediaUrl!"
         :alt="selectedImage.prompt"
-        class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        class="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
       />
 
       <!-- Overlay controls -->
@@ -263,7 +263,7 @@ function clearSelection() {
                 :key="img.id"
                 variant="ghost"
                 :padded="false"
-                class="relative aspect-square overflow-hidden rounded-xl ring-2 transition-all duration-200 hover:scale-[1.02] text-left group focus:outline-none"
+                class="relative aspect-square overflow-hidden rounded-xl ring-2 transition-all duration-200 hover:scale-[1.02] text-left group focus:outline-none bg-black/5 dark:bg-black/40 p-1 flex items-center justify-center"
                 :class="[
                   modelValue === img.id
                     ? 'ring-primary shadow-lg shadow-primary/20 scale-[1.02]'
@@ -271,7 +271,7 @@ function clearSelection() {
                 ]"
                 @click="selectImage(img.id)"
               >
-                <img :src="img.mediaUrl!" :alt="img.prompt" class="h-full w-full object-cover" />
+                <img :src="img.mediaUrl!" :alt="img.prompt" class="h-full w-full object-contain" />
 
                 <!-- Hover info overlay -->
                 <div

@@ -298,7 +298,7 @@ const errorMessage = computed(() => {
               <NuxtImg
                 :src="sourceGeneration.mediaUrl"
                 :alt="sourceGeneration.prompt"
-                class="w-full h-auto aspect-square object-cover"
+                class="w-full h-auto aspect-square object-contain"
                 placeholder
                 loading="lazy"
               />

@@ -411,10 +411,10 @@ const resolutions = ['480p', '720p']
               @change="handleImageUpload"
             />
             <div v-if="enhanceImageBase64" class="relative group">
-              <img
+              <NuxtImg
                 :src="enhanceImageBase64"
                 alt="Enhanced Source"
-                class="size-16 object-cover rounded-lg ring-1 ring-default shadow-sm"
+                class="size-16 object-contain bg-black/5 dark:bg-black/40 p-1 rounded-lg ring-1 ring-default shadow-sm"
               />
               <UButton
                 color="error"

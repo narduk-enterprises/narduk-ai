@@ -65,13 +65,14 @@ function handleDelete() {
     @click="navigateTo(`/presets/${preset.id}`)"
   >
     <!-- Image / Placeholder -->
-    <div class="relative aspect-4/5 overflow-hidden bg-elevated">
-      <!-- Actual preview image -->
-      <img
+    <div
+      class="aspect-3/4 w-full bg-black/5 dark:bg-black/40 flex items-center justify-center relative overflow-hidden text-center z-10 transition-transform duration-300"
+    >
+      <NuxtImg
         v-if="previewUrl"
         :src="previewUrl"
         :alt="preset.name"
-        class="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+        class="size-full object-contain transition-transform duration-500 group-hover:scale-105"
         loading="lazy"
       />
 
@@ -86,14 +87,14 @@ function handleDelete() {
           class="size-12 text-default/20 transition-transform duration-300 group-hover:scale-110"
         />
       </div>
+    </div>
 
-      <!-- Type badge overlay -->
-      <div class="absolute top-3 left-3">
-        <UBadge :color="config!.color as any" variant="subtle" size="sm" class="backdrop-blur-sm">
-          <UIcon :name="config!.icon" class="size-3 mr-1" />
-          {{ config!.label }}
-        </UBadge>
-      </div>
+    <!-- Type badge overlay -->
+    <div class="absolute top-3 left-3">
+      <UBadge :color="config!.color as any" variant="subtle" size="sm" class="backdrop-blur-sm">
+        <UIcon :name="config!.icon" class="size-3 mr-1" />
+        {{ config!.label }}
+      </UBadge>
     </div>
 
     <!-- Content -->
