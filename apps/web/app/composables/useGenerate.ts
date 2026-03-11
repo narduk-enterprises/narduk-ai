@@ -352,11 +352,13 @@ export function useGenerate() {
     if (!hasPresets) {
       // Fallback: no presets, use aggressive generic remix
       return (
-        'Creatively remix this prompt to produce a DRAMATICALLY DIFFERENT result. ' +
-        'Keep any people or characters looking exactly the same (same appearance, features, ' +
-        'body type, hair, clothing) but completely change the scene, setting, time of day, ' +
-        'weather, lighting, color palette, camera angle, composition, mood, and artistic style. ' +
-        'The result should look like an entirely different photograph or frame of the same subject. ' +
+        'Creatively remix this prompt — change several elements such as the setting, ' +
+        'time of day, lighting, color palette, camera angle, or mood. ' +
+        'Keep the core subject/character but reimagine the scene in a fresh and surprising way. ' +
+        'CRITICAL: The result MUST look like a real photograph taken with a real camera — ' +
+        'photorealistic, natural lighting, real skin textures, real environments. ' +
+        'NEVER produce cartoon, illustration, CGI, 3D render, anime, digital art, painterly, or fantasy-looking results. ' +
+        'Include cues like "photorealistic", "shot on [real camera]", "natural lighting", "film grain", or "35mm film" to anchor realism. ' +
         'Return ONLY the remixed prompt.'
       )
     }
