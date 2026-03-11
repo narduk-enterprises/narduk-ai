@@ -2,11 +2,39 @@
  * Admin composable for xAI API usage and billing stats.
  * Fetches aggregated data from /api/admin/xai-usage.
  */
+
+interface XaiBalanceChange {
+  changeOrigin: string
+  amount: { val: string }
+  invoiceNumber: string
+  createTime: string | null
+  spendBpKeyYear?: number
+  spendBpKeyMonth?: number
+}
+
+interface XaiInvoiceLine {
+  description: string
+  unitType: string
+  unitPrice: string
+  numUnits: string
+  amount: string
+}
+
 export interface XaiUsageResponse {
   configured: boolean
-  balance: Record<string, unknown> | null
-  usage: Record<string, unknown> | null
-  invoicePreview: Record<string, unknown> | null
+  balance: {
+    changes: XaiBalanceChange[]
+    total: { val: string }
+  } | null
+  invoicePreview: {
+    coreInvoice: {
+      lines: XaiInvoiceLine[]
+      totalWithCorr: { val: string }
+      prepaidCredits: { val: string }
+      prepaidCreditsUsed: { val: string }
+    }
+    billingCycle: { year: number; month: number }
+  } | null
 }
 
 export function useAdminXaiStats() {

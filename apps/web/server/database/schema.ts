@@ -52,6 +52,7 @@ export const promptElements = sqliteTable(
     type: text('type').notNull(), // 'person' | 'scene' | 'framing' | 'action'
     name: text('name').notNull(),
     content: text('content').notNull(),
+    metadata: text('metadata'), // JSON blob: { headshotUrl?, fullBodyUrl?, ... }
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },

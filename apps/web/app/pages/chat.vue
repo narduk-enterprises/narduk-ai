@@ -22,7 +22,13 @@ const {
   sendChatMessage,
 } = useChatForm()
 
-const { createElement } = usePromptElements()
+const { createElement, deleteElement, updateElement } = usePromptElements()
+const { generateImage, generating: generatingPreview } = useGenerate()
+
+// IMPORTANT: Keep elements in sync — after any create/delete/update,
+// always call fetchElements() which updates the array from useChatForm.
+// Do NOT rely on createElement's local unshift since it operates on
+// a different composable instance.
 
 const chatScrollContainer = ref<HTMLElement | null>(null)
 
@@ -55,6 +61,35 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 const isMobileLibraryOpen = ref(false)
+const isLibraryOpen = ref(true)
+const isBuilderOpen = ref(true)
+
+const PERSON_ATTRIBUTES = [
+  'name',
+  'age',
+  'gender',
+  'ethnicity',
+  'body_type',
+  'height',
+  'skin_tone',
+  'hair_color',
+  'hair_style',
+  'eye_color',
+  'face_shape',
+  'expression',
+  'clothing',
+  'accessories',
+  'makeup',
+  'tattoos_piercings',
+  'vibe',
+  'distinguishing_features',
+] as const
+
+// Editable overrides — user can directly edit attribute values
+const editableOverrides = reactive<Record<string, string | null>>({})
+const previewImageUrl = ref<string | null>(null)
+const headshotUrl = ref<string | null>(null)
+const currentPresetId = ref<string | null>(null)
 
 function useGeneratedPrompt(promptText: string) {
   navigateTo({ path: '/generate', query: { prompt: promptText } })
@@ -74,7 +109,7 @@ async function savePromptToLibrary(promptText: string) {
     const payloadType = elementType as 'person' | 'scene' | 'framing' | 'action' | 'prompt'
     await createElement(payloadType, name, promptText)
     toast.add({
-      title: 'Saved to Library',
+      title: 'Saved to Presets',
       description: `"${name}" has been added to your ${elementType} presets.`,
       icon: 'i-lucide-check-circle',
       color: 'success',
@@ -92,13 +127,113 @@ async function savePromptToLibrary(promptText: string) {
   }
 }
 
-function insertIntoChat(text: string) {
-  chatInput.value = chatInput.value ? `${chatInput.value}\n\n${text}` : text
+/** Load a saved preset's content as builder state attributes */
+function loadPresetAsBuilderState(
+  content: string,
+  type: string,
+  metadata?: string | null,
+  elementId?: string,
+) {
+  // Parse "Key: value" lines into an editable state
+  const lines = content.split('\n').filter((l) => l.trim())
+  const parsed: Record<string, string> = {}
+  for (const line of lines) {
+    const colonIdx = line.indexOf(':')
+    if (colonIdx > 0) {
+      const key = line.slice(0, colonIdx).trim().toLowerCase().replaceAll(' ', '_')
+      const val = line.slice(colonIdx + 1).trim()
+      if (val) parsed[key] = val
+    }
+  }
+
+  // Switch to the right builder mode if needed
+  if (type !== 'general' && type !== chatMode.value) {
+    chatMode.value = type as 'person' | 'scene' | 'framing' | 'action'
+  }
+
+  // Inject as a synthetic assistant message with builder_state
+  const builderState =
+    chatMode.value === 'person'
+      ? Object.fromEntries(PERSON_ATTRIBUTES.map((a) => [a, parsed[a] || null]))
+      : parsed
+
+  chatMessages.value.push({
+    role: 'assistant',
+    content: JSON.stringify({
+      message: `Loaded preset attributes. You can edit any attribute directly.`,
+      prompt: null,
+      suggested_name: parsed.name || null,
+      builder_state: builderState,
+    }),
+    parsedResponse: {
+      message: 'Loaded preset attributes. You can edit any attribute directly.',
+      prompt: null,
+      suggested_name: parsed.name || null,
+      builder_state: builderState,
+    },
+  })
+
+  // Clear any previous overrides
+  for (const key of Object.keys(editableOverrides)) {
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- clearing reactive object
+    delete editableOverrides[key]
+  }
+
+  // Load saved preview images from metadata
+  previewImageUrl.value = null
+  headshotUrl.value = null
+  if (metadata) {
+    try {
+      const meta = JSON.parse(metadata)
+      if (meta.fullBodyUrl) previewImageUrl.value = meta.fullBodyUrl
+      if (meta.headshotUrl) headshotUrl.value = meta.headshotUrl
+    } catch {
+      /* ignore invalid JSON */
+    }
+  }
+
+  // Track preset for auto-save
+  currentPresetId.value = elementId ?? null
+
   isMobileLibraryOpen.value = false
 }
 
 function formatKey(key: string | number) {
   return String(key).replaceAll('_', ' ')
+}
+
+/** Start a fresh builder chat in the given mode */
+function startNewBuilderChat(type: string) {
+  const mode = type as 'person' | 'scene' | 'framing' | 'action'
+  // Clear overrides and preview
+  for (const key of Object.keys(editableOverrides)) {
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- clearing reactive object
+    delete editableOverrides[key]
+  }
+  previewImageUrl.value = null
+  // Switch mode (watcher in composable will reset messages and reinitialize)
+  chatMode.value = mode
+  isMobileLibraryOpen.value = false
+}
+
+async function handleDeletePreset(id: string, name: string) {
+  try {
+    await deleteElement(id)
+    toast.add({
+      title: 'Preset Deleted',
+      description: `"${name}" has been removed.`,
+      icon: 'i-lucide-trash-2',
+      color: 'success',
+    })
+    await fetchElements()
+  } catch (_err) {
+    toast.add({
+      title: 'Delete Failed',
+      description: 'Could not delete the preset.',
+      icon: 'i-lucide-alert-triangle',
+      color: 'error',
+    })
+  }
 }
 
 function finalizeBuilderAsPrompt() {
@@ -132,32 +267,100 @@ const currentBuilderState = computed(() => {
   return null
 })
 
+/** Merges actual builder state with the full attribute schema and user edits */
+const mergedBuilderState = computed(() => {
+  const state = currentBuilderState.value
+  if (!state) return null
+  if (chatMode.value !== 'person') {
+    // For non-person modes, just apply overrides
+    return { ...state, ...editableOverrides }
+  }
+
+  const merged: Record<string, string | null> = {}
+  for (const attr of PERSON_ATTRIBUTES) {
+    // Priority: editableOverrides > state from Grok > null
+    merged[attr] = editableOverrides[attr] ?? state[attr] ?? null
+  }
+  // Include any extra attributes Grok returned that aren't in our schema
+  for (const [key, val] of Object.entries(state)) {
+    if (!(key in merged)) merged[key] = editableOverrides[key] ?? val
+  }
+  return merged
+})
+
+/** Update a single attribute via inline editing */
+function updateAttribute(key: string, value: string) {
+  if (value.trim()) {
+    editableOverrides[key] = value.trim()
+  } else {
+    editableOverrides[key] = null
+  }
+}
+
+// Reset editable overrides when mode changes
+watch(chatMode, () => {
+  for (const key of Object.keys(editableOverrides)) {
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- clearing reactive object
+    delete editableOverrides[key]
+  }
+  previewImageUrl.value = null
+  headshotUrl.value = null
+  currentPresetId.value = null
+})
+
+// Reset overrides when a NEW assistant message arrives with fresh builder_state
+watch(
+  () => chatMessages.value.length,
+  () => {
+    const lastMsg = chatMessages.value[chatMessages.value.length - 1]
+    if (lastMsg?.role === 'assistant' && lastMsg.parsedResponse?.builder_state) {
+      for (const key of Object.keys(editableOverrides)) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- clearing reactive object
+        delete editableOverrides[key]
+      }
+    }
+  },
+)
+
 const savingBuilder = ref(false)
 const toast = useToast()
 
 async function saveBuilderState() {
-  if (!currentBuilderState.value) return
+  const state = mergedBuilderState.value
+  if (!state) return
 
-  const content = Object.entries(currentBuilderState.value)
+  // Build content from merged state (includes user edits)
+  const content = Object.entries(state)
+    .filter(([, v]) => v)
     .map(
       ([k, v]) =>
         `${String(k).charAt(0).toUpperCase() + String(k).slice(1).replaceAll('_', ' ')}: ${v}`,
     )
     .join('\n')
 
-  const name = prompt(`Enter a name for this ${chatMode.value} preset:`, `New ${chatMode.value}`)
-  if (!name) return
+  // Auto-name: use name attribute, suggested_name, or fallback
+  const nameFromState = state.name || null
+  const lastAssistant = [...chatMessages.value].reverse().find((m) => m.role === 'assistant')
+  const name =
+    nameFromState || lastAssistant?.parsedResponse?.suggested_name || `New ${chatMode.value}`
 
   savingBuilder.value = true
   try {
     const payloadType = chatMode.value as 'person' | 'scene' | 'framing' | 'action'
-    await createElement(payloadType, name, content)
+    // Build metadata JSON with preview image URLs
+    const metadata: Record<string, string | null> = {}
+    if (headshotUrl.value) metadata.headshotUrl = headshotUrl.value
+    if (previewImageUrl.value) metadata.fullBodyUrl = previewImageUrl.value
+    const metadataStr = Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null
+    const created = await createElement(payloadType, name, content, metadataStr)
+    currentPresetId.value = created?.id ?? null
     toast.add({
       title: 'Preset Saved',
-      description: `Your ${chatMode.value} preset has been added to the library.`,
+      description: `"${name}" has been added to your ${chatMode.value} presets.`,
       icon: 'i-lucide-check-circle',
       color: 'success',
     })
+    await fetchElements()
   } catch (_err) {
     toast.add({
       title: 'Failed to Save',
@@ -169,6 +372,100 @@ async function saveBuilderState() {
     savingBuilder.value = false
   }
 }
+
+/** Generate headshot + full-body preview images of the current person */
+async function generatePersonPreview() {
+  const state = mergedBuilderState.value
+  if (!state) return
+
+  // Compile filled attributes into a portrait prompt
+  const attrs = Object.entries(state)
+    .filter(([k, v]) => v && k !== 'name')
+    .map(([k, v]) => `${formatKey(k)}: ${v}`)
+    .join(', ')
+
+  const fullBodyPrompt = `Full body portrait photograph of a person: ${attrs}. Standing pose facing the viewer, plain white background, studio lighting, clean and simple, fashion lookbook style, no distractions, high quality, photorealistic.`
+  const headshotPrompt = `Professional headshot portrait of a person: ${attrs}. Close-up face and shoulders, plain white background, studio lighting, sharp focus, high quality, photorealistic.`
+
+  previewImageUrl.value = null
+  headshotUrl.value = null
+
+  // Generate both in parallel
+  const [fullBodyResult, headshotResult] = await Promise.allSettled([
+    generateImage(fullBodyPrompt, '9:16'),
+    generateImage(headshotPrompt, '1:1'),
+  ])
+
+  if (fullBodyResult.status === 'fulfilled' && fullBodyResult.value?.mediaUrl) {
+    previewImageUrl.value = fullBodyResult.value.mediaUrl
+  }
+  if (headshotResult.status === 'fulfilled' && headshotResult.value?.mediaUrl) {
+    headshotUrl.value = headshotResult.value.mediaUrl
+  }
+
+  if (!previewImageUrl.value && !headshotUrl.value) {
+    toast.add({
+      title: 'Preview Failed',
+      description: 'Could not generate preview images.',
+      icon: 'i-lucide-alert-triangle',
+      color: 'error',
+    })
+  }
+}
+
+// ─── Debounced Auto-Save ───────────────────────────────────
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+const AUTO_SAVE_DELAY = 1500 // 1.5s debounce
+
+function buildCurrentContent() {
+  const state = mergedBuilderState.value
+  if (!state) return null
+  return Object.entries(state)
+    .filter(([, v]) => v)
+    .map(
+      ([k, v]) =>
+        `${String(k).charAt(0).toUpperCase() + String(k).slice(1).replaceAll('_', ' ')}: ${v}`,
+    )
+    .join('\n')
+}
+
+function buildCurrentMetadata() {
+  const meta: Record<string, string | null> = {}
+  if (headshotUrl.value) meta.headshotUrl = headshotUrl.value
+  if (previewImageUrl.value) meta.fullBodyUrl = previewImageUrl.value
+  return Object.keys(meta).length > 0 ? JSON.stringify(meta) : null
+}
+
+function scheduleAutoSave() {
+  if (!currentPresetId.value) return
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  autoSaveTimer = setTimeout(async () => {
+    const id = currentPresetId.value
+    if (!id) return
+    const content = buildCurrentContent()
+    if (!content) return
+    try {
+      await updateElement(id, {
+        content,
+        metadata: buildCurrentMetadata(),
+      })
+      await fetchElements()
+    } catch {
+      /* silent — saves are best-effort */
+    }
+  }, AUTO_SAVE_DELAY)
+}
+
+// Watch for changes that should trigger auto-save
+watch([() => JSON.stringify(mergedBuilderState.value), headshotUrl, previewImageUrl], () =>
+  scheduleAutoSave(),
+)
+
+// Also trigger auto-save on inline attribute edits
+watch(
+  () => JSON.stringify(editableOverrides),
+  () => scheduleAutoSave(),
+)
 
 // Group elements for the library sidebar
 const groupedElements = computed(() => {
@@ -212,18 +509,20 @@ const groupedElements = computed(() => {
           class="md:hidden"
           @click="isMobileLibraryOpen = true"
         >
-          Library
+          Presets
         </UButton>
       </div>
 
       <!-- Floating Builder State for Mobile -->
       <div
-        v-if="currentBuilderState"
+        v-if="mergedBuilderState"
         class="md:hidden p-3 border-b border-primary/20 bg-primary/5 shrink-0 flex items-center justify-between"
       >
         <span class="text-sm font-semibold text-primary capitalize flex items-center gap-1.5">
           <UIcon name="i-lucide-hammer" class="size-4" />
-          {{ chatMode }} State ({{ Object.keys(currentBuilderState).length }})
+          {{ chatMode }} ({{
+            Object.values(mergedBuilderState).filter((v) => v !== null).length
+          }}/{{ Object.keys(mergedBuilderState).length }})
         </span>
         <UButton size="xs" color="primary" variant="soft" @click="isMobileLibraryOpen = true"
           >View & Save</UButton
@@ -231,7 +530,7 @@ const groupedElements = computed(() => {
       </div>
 
       <!-- Message History -->
-      <div ref="chatScrollContainer" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+      <div ref="chatScrollContainer" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 pb-4">
         <UAlert
           v-if="error"
           color="error"
@@ -252,7 +551,7 @@ const groupedElements = computed(() => {
             class="p-4 rounded-2xl whitespace-pre-wrap text-sm md:text-base leading-relaxed"
             :class="[
               msg.role === 'user'
-                ? 'bg-primary text-primary-inverted rounded-tr-sm'
+                ? 'bg-primary text-white rounded-tr-sm'
                 : 'bg-elevated text-default border border-default rounded-tl-sm shadow-sm',
             ]"
           >
@@ -286,7 +585,7 @@ const groupedElements = computed(() => {
                       :loading="savingBuilder"
                       @click="savePromptToLibrary(msg.parsedResponse.prompt!)"
                     >
-                      Save to Library
+                      Save to Presets
                     </UButton>
                     <CopyPromptButton :prompt="msg.parsedResponse.prompt" />
                   </div>
@@ -306,48 +605,114 @@ const groupedElements = computed(() => {
             class="mt-3 w-full animate-fade-in-up"
           >
             <UCard class="ring-1 ring-primary/20 bg-primary/5">
-              <div class="p-4 sm:p-5">
-                <div class="flex items-center gap-2 mb-3">
-                  <UIcon name="i-lucide-hammer" class="size-5 text-primary" />
-                  <span class="text-sm font-semibold text-primary capitalize"
+              <div class="p-3 sm:p-4">
+                <div class="flex items-center gap-2 mb-2">
+                  <img
+                    v-if="headshotUrl"
+                    :src="headshotUrl"
+                    alt="Headshot"
+                    class="size-7 rounded-full object-cover ring-1 ring-primary/30 shrink-0"
+                  />
+                  <UIcon v-else name="i-lucide-hammer" class="size-4 text-primary" />
+                  <span class="text-xs font-semibold text-primary capitalize"
                     >{{ chatMode }} Attributes</span
                   >
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   <div
-                    v-for="(val, key) in msg.parsedResponse.builder_state"
+                    v-for="(val, key) in chatMode === 'person'
+                      ? Object.fromEntries(
+                          PERSON_ATTRIBUTES.map((a) => [
+                            a,
+                            msg.parsedResponse!.builder_state![a] ?? null,
+                          ]),
+                        )
+                      : msg.parsedResponse!.builder_state"
                     :key="key"
-                    class="text-sm bg-elevated p-2 rounded-lg border border-default"
+                    class="text-xs p-1.5 rounded-md border"
+                    :class="
+                      val
+                        ? 'bg-elevated border-default'
+                        : 'bg-default border-dashed border-default/50'
+                    "
                   >
-                    <span class="font-medium text-primary capitalize text-xs">{{
-                      formatKey(key)
-                    }}</span>
-                    <p class="text-default leading-snug mt-0.5">{{ val }}</p>
+                    <span
+                      class="font-medium capitalize text-[10px] block"
+                      :class="val ? 'text-primary' : 'text-dimmed'"
+                      >{{ formatKey(key) }}</span
+                    >
+                    <!-- eslint-disable-next-line narduk/no-native-input -- Lightweight inline edit, UInput too heavy here -->
+                    <input
+                      :value="editableOverrides[String(key)] ?? (val || '')"
+                      :placeholder="'...'"
+                      class="w-full bg-transparent text-default text-xs border-none outline-none focus:ring-1 focus:ring-primary/30 rounded px-0.5 placeholder:text-dimmed placeholder:italic"
+                      @change="
+                        updateAttribute(String(key), ($event.target as HTMLInputElement).value)
+                      "
+                    />
                   </div>
                 </div>
-                <UButton
-                  color="primary"
-                  variant="solid"
-                  icon="i-lucide-sparkles"
-                  size="sm"
-                  :loading="isChatting"
-                  @click="finalizeBuilderAsPrompt"
-                >
-                  Finalize as Prompt
-                </UButton>
-                <UButton
-                  color="neutral"
-                  variant="soft"
-                  icon="i-lucide-bookmark-plus"
-                  size="sm"
-                  :loading="savingBuilder"
-                  @click="saveBuilderState"
-                >
-                  Save {{ chatMode }} to Library
-                </UButton>
+                <div class="flex flex-wrap gap-1.5 mt-2">
+                  <UButton
+                    color="primary"
+                    variant="solid"
+                    icon="i-lucide-sparkles"
+                    size="sm"
+                    :loading="isChatting"
+                    @click="finalizeBuilderAsPrompt"
+                  >
+                    Finalize as Prompt
+                  </UButton>
+                  <UButton
+                    v-if="chatMode === 'person'"
+                    color="neutral"
+                    variant="outline"
+                    icon="i-lucide-eye"
+                    size="sm"
+                    :loading="generatingPreview"
+                    @click="generatePersonPreview"
+                  >
+                    Preview
+                  </UButton>
+                  <UButton
+                    color="neutral"
+                    variant="soft"
+                    icon="i-lucide-bookmark-plus"
+                    size="sm"
+                    :loading="savingBuilder"
+                    @click="saveBuilderState"
+                  >
+                    Save
+                  </UButton>
+                </div>
               </div>
             </UCard>
           </div>
+        </div>
+
+        <!-- Preview Images Inline -->
+        <div
+          v-if="previewImageUrl || headshotUrl"
+          class="flex self-start items-end gap-3 max-w-[80%] animate-fade-in-up"
+        >
+          <div v-if="headshotUrl" class="w-28 shrink-0">
+            <MediaPlayer :src="headshotUrl" type="image" alt="Headshot" />
+          </div>
+          <div v-if="previewImageUrl" class="max-w-xs">
+            <MediaPlayer :src="previewImageUrl" type="image" alt="Full Body" />
+          </div>
+        </div>
+        <p v-if="previewImageUrl || headshotUrl" class="text-xs text-dimmed mt-1 ml-1">
+          Tap to zoom
+        </p>
+
+        <!-- Preview Loading -->
+        <div
+          v-else-if="generatingPreview"
+          class="flex self-start items-center gap-3 p-4 rounded-2xl bg-elevated border border-default rounded-tl-sm max-w-[85%] animate-fade-in-up"
+        >
+          <UIcon name="i-lucide-loader-2" class="size-5 animate-spin text-primary" />
+          <span class="text-sm text-muted">Generating preview...</span>
         </div>
 
         <!-- Typing Indicator -->
@@ -366,22 +731,24 @@ const groupedElements = computed(() => {
       </div>
 
       <!-- Input Area -->
-      <div class="p-3 md:p-6 bg-default border-t border-default/50 shrink-0 pb-safe">
+      <div
+        class="px-3 pt-3 md:px-6 md:pt-4 md:pb-8 bg-default border-t border-default/50 shrink-0 pb-safe"
+      >
         <UForm
           :state="{ input: chatInput }"
           @submit.prevent="sendChatMessage"
-          class="flex gap-3 max-w-4xl mx-auto relative"
+          class="max-w-4xl mx-auto flex items-end gap-2"
         >
           <UTextarea
             v-model="chatInput"
             placeholder="Describe what you want to create or ask for ideas..."
-            class="w-full flex-1"
+            class="flex-1"
             size="lg"
             autoresize
             :rows="1"
             :maxrows="4"
             :disabled="isChatting"
-            :ui="{ base: 'pr-14 rounded-2xl shadow-sm' }"
+            :ui="{ base: 'rounded-2xl shadow-card' }"
             @keydown="handleKeydown"
           />
           <UButton
@@ -391,10 +758,13 @@ const groupedElements = computed(() => {
             icon="i-lucide-send"
             :loading="isChatting"
             :disabled="!chatInput.trim() || isChatting"
-            class="absolute right-2 bottom-2 rounded-xl touch-target flex items-center justify-center"
-            size="md"
+            class="rounded-xl touch-target shrink-0 mb-0.5"
+            size="lg"
           />
         </UForm>
+        <p class="text-center text-[11px] text-dimmed mt-2 hidden md:block">
+          Press Enter to send · Shift+Enter for new line
+        </p>
       </div>
     </div>
 
@@ -403,61 +773,133 @@ const groupedElements = computed(() => {
       class="hidden md:flex flex-col w-80 lg:w-96 border-l border-default/50 bg-elevated shrink-0"
     >
       <!-- Builder State Panel -->
-      <div v-if="currentBuilderState" class="p-4 border-b border-default/50 bg-primary/5 shrink-0">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="font-display font-semibold flex items-center gap-2 text-primary capitalize">
-            <UIcon name="i-lucide-hammer" class="size-5" />
-            Current {{ chatMode }}
-          </h2>
-        </div>
-        <div class="space-y-2 mb-4 max-h-48 overflow-y-auto">
-          <div
-            v-for="(val, key) in currentBuilderState"
-            :key="key"
-            class="text-sm flex flex-col bg-elevated p-2 rounded-lg border border-default shadow-sm hover:border-primary/50 transition-colors"
-          >
-            <span class="font-medium text-primary capitalize text-xs mb-0.5">{{
-              formatKey(key)
-            }}</span>
-            <span class="text-default leading-snug">{{ val }}</span>
+      <div v-if="mergedBuilderState" class="border-b border-default/50 bg-primary/5 shrink-0">
+        <div class="p-4 cursor-pointer select-none" @click="isBuilderOpen = !isBuilderOpen">
+          <div class="flex items-center justify-between">
+            <h2 class="font-display font-semibold flex items-center gap-2 text-primary capitalize">
+              <UIcon name="i-lucide-hammer" class="size-5" />
+              Current {{ chatMode }}
+            </h2>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-muted tabular-nums">
+                {{ Object.values(mergedBuilderState).filter((v) => v !== null).length }}/{{
+                  Object.keys(mergedBuilderState).length
+                }}
+              </span>
+              <UIcon
+                name="i-lucide-chevron-down"
+                class="size-4 text-muted transition-transform duration-200"
+                :class="isBuilderOpen ? 'rotate-180' : ''"
+              />
+            </div>
           </div>
         </div>
-        <div class="flex flex-col gap-2">
-          <UButton
-            block
-            color="primary"
-            icon="i-lucide-sparkles"
-            :loading="isChatting"
-            @click="finalizeBuilderAsPrompt"
+        <div v-show="isBuilderOpen" class="px-4 pb-4">
+          <!-- Preview Image (headshot only in sidebar) -->
+          <div
+            v-if="headshotUrl || previewImageUrl"
+            class="mb-4 max-w-[50%] mx-auto rounded-xl overflow-hidden ring-1 ring-primary/20 cursor-zoom-in"
           >
-            Finalize as Prompt
-          </UButton>
-          <UButton
-            block
-            color="neutral"
-            variant="soft"
-            icon="i-lucide-save"
-            :loading="savingBuilder"
-            @click="saveBuilderState"
-          >
-            Save as Preset
-          </UButton>
+            <MediaPlayer
+              :src="(headshotUrl || previewImageUrl)!"
+              type="image"
+              alt="Person Preview"
+            />
+          </div>
+          <div class="space-y-2 mb-4 max-h-[calc(100dvh-24rem)] overflow-y-auto">
+            <div
+              v-for="(val, key) in mergedBuilderState"
+              :key="key"
+              class="text-sm flex flex-col p-2 rounded-lg border transition-colors"
+              :class="
+                val
+                  ? 'bg-elevated border-default shadow-sm hover:border-primary/50'
+                  : 'bg-default border-dashed border-default/50'
+              "
+            >
+              <span
+                class="font-medium capitalize text-xs mb-0.5"
+                :class="val ? 'text-primary' : 'text-dimmed'"
+                >{{ formatKey(key) }}</span
+              >
+              <!-- eslint-disable-next-line narduk/no-native-input -- Lightweight inline edit -->
+              <input
+                :value="editableOverrides[String(key)] ?? (val || '')"
+                :placeholder="'Set ' + formatKey(key) + '...'"
+                class="w-full bg-transparent text-default text-sm border-none outline-none focus:ring-1 focus:ring-primary/30 rounded px-1 -mx-1 placeholder:text-dimmed placeholder:italic placeholder:text-xs"
+                @change="updateAttribute(String(key), ($event.target as HTMLInputElement).value)"
+              />
+            </div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <UButton
+              block
+              color="primary"
+              icon="i-lucide-sparkles"
+              :loading="isChatting"
+              @click="finalizeBuilderAsPrompt"
+            >
+              Finalize as Prompt
+            </UButton>
+            <div class="flex gap-2">
+              <UButton
+                v-if="chatMode === 'person'"
+                class="flex-1"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-eye"
+                :loading="generatingPreview"
+                @click="generatePersonPreview"
+              >
+                Preview
+              </UButton>
+              <UButton
+                class="flex-1"
+                color="neutral"
+                variant="soft"
+                icon="i-lucide-save"
+                :loading="savingBuilder"
+                @click="saveBuilderState"
+              >
+                Save
+              </UButton>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="p-4 border-b border-default/50 glass z-10 shrink-0">
-        <h2 class="font-display font-semibold text-lg flex items-center gap-2">
-          <UIcon name="i-lucide-library" class="size-5 text-primary" />
-          Prompt Library
-        </h2>
-        <p class="text-xs text-muted mt-1">Read-only view. Manage in Settings.</p>
+      <div
+        class="p-4 border-b border-default/50 glass z-10 shrink-0 cursor-pointer select-none"
+        @click="isLibraryOpen = !isLibraryOpen"
+      >
+        <div class="flex items-center justify-between">
+          <h2 class="font-display font-semibold text-lg flex items-center gap-2">
+            <UIcon name="i-lucide-library" class="size-5 text-primary" />
+            Preset Library
+          </h2>
+          <UIcon
+            name="i-lucide-chevron-down"
+            class="size-5 text-muted transition-transform duration-200"
+            :class="isLibraryOpen ? 'rotate-180' : ''"
+          />
+        </div>
       </div>
-      <div class="flex-1 overflow-y-auto p-4 space-y-6">
+      <div v-show="isLibraryOpen" class="flex-1 overflow-y-auto p-4 space-y-6">
         <div v-for="(items, type) in groupedElements" :key="type">
           <template v-if="items.length > 0">
-            <h3 class="text-xs font-semibold text-muted uppercase tracking-wider mb-3 ml-1">
-              {{ type }}s
-            </h3>
+            <div class="flex items-center justify-between mb-3 ml-1">
+              <h3 class="text-xs font-semibold text-muted uppercase tracking-wider">{{ type }}s</h3>
+              <UButton
+                v-if="type !== 'prompt'"
+                variant="ghost"
+                color="primary"
+                icon="i-lucide-plus"
+                size="xs"
+                class="-mr-1"
+                :title="`New ${type} chat`"
+                @click="startNewBuilderChat(String(type))"
+              />
+            </div>
             <div class="space-y-2">
               <UButton
                 v-for="el in items"
@@ -466,17 +908,34 @@ const groupedElements = computed(() => {
                 color="neutral"
                 block
                 class="justify-start text-left h-auto py-2.5 hover:bg-default shadow-sm border border-transparent hover:border-default group transition-all"
-                @click="insertIntoChat(el.content)"
+                @click="loadPresetAsBuilderState(el.content, el.type, el.metadata, el.id)"
               >
-                <div class="flex flex-col w-full overflow-hidden">
-                  <span class="text-sm font-medium text-default truncate">{{ el.name }}</span>
-                  <span class="text-xs text-dimmed truncate">{{ el.content }}</span>
+                <div class="flex items-center gap-2 flex-1 overflow-hidden">
+                  <img
+                    v-if="el.metadata && JSON.parse(el.metadata).headshotUrl"
+                    :src="JSON.parse(el.metadata).headshotUrl"
+                    :alt="el.name"
+                    class="size-8 rounded-full object-cover shrink-0 ring-1 ring-default"
+                  />
+                  <div class="flex flex-col flex-1 overflow-hidden">
+                    <span class="text-sm font-medium text-default truncate">{{ el.name }}</span>
+                    <span class="text-xs text-dimmed truncate">{{ el.content }}</span>
+                  </div>
                 </div>
-                <!-- Inline inject icon hint -->
-                <UIcon
-                  name="i-lucide-arrow-left-to-line"
-                  class="size-4 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ml-2 text-primary"
-                />
+                <div class="flex items-center gap-1 shrink-0 ml-2">
+                  <UIcon
+                    name="i-lucide-arrow-left-to-line"
+                    class="size-4 opacity-0 group-hover:opacity-100 transition-opacity text-primary"
+                  />
+                  <UButton
+                    variant="ghost"
+                    color="error"
+                    icon="i-lucide-trash-2"
+                    size="xs"
+                    class="opacity-0 group-hover:opacity-100 transition-opacity"
+                    @click.stop="handleDeletePreset(el.id, el.name)"
+                  />
+                </div>
               </UButton>
             </div>
           </template>
@@ -500,7 +959,7 @@ const groupedElements = computed(() => {
           >
             <h2 class="font-display font-semibold text-lg flex items-center gap-2">
               <UIcon name="i-lucide-library" class="size-5 text-primary" />
-              Library
+              Presets
             </h2>
             <UButton
               color="neutral"
@@ -513,7 +972,7 @@ const groupedElements = computed(() => {
 
           <!-- Mobile Builder State Panel -->
           <div
-            v-if="currentBuilderState"
+            v-if="mergedBuilderState"
             class="p-4 border-b border-default/50 bg-primary/5 shrink-0"
           >
             <div class="flex items-center justify-between mb-3">
@@ -523,17 +982,46 @@ const groupedElements = computed(() => {
                 <UIcon name="i-lucide-hammer" class="size-5" />
                 Current {{ chatMode }}
               </h2>
+              <span class="text-xs text-muted tabular-nums">
+                {{ Object.values(mergedBuilderState).filter((v) => v !== null).length }}/{{
+                  Object.keys(mergedBuilderState).length
+                }}
+              </span>
+            </div>
+            <!-- Preview Image (headshot only in slideover) -->
+            <div
+              v-if="headshotUrl || previewImageUrl"
+              class="mb-4 max-w-[50%] mx-auto rounded-xl overflow-hidden ring-1 ring-primary/20 cursor-zoom-in"
+            >
+              <MediaPlayer
+                :src="(headshotUrl || previewImageUrl)!"
+                type="image"
+                alt="Person Preview"
+              />
             </div>
             <div class="space-y-2 mb-4">
               <div
-                v-for="(val, key) in currentBuilderState"
+                v-for="(val, key) in mergedBuilderState"
                 :key="key"
-                class="text-sm flex flex-col bg-elevated p-2 rounded-lg border border-default shadow-sm"
+                class="text-sm flex flex-col p-2 rounded-lg border"
+                :class="
+                  val
+                    ? 'bg-elevated border-default shadow-sm'
+                    : 'bg-default border-dashed border-default/50'
+                "
               >
-                <span class="font-medium text-primary capitalize text-xs mb-0.5">{{
-                  formatKey(key)
-                }}</span>
-                <span class="text-default leading-snug">{{ val }}</span>
+                <span
+                  class="font-medium capitalize text-xs mb-0.5"
+                  :class="val ? 'text-primary' : 'text-dimmed'"
+                  >{{ formatKey(key) }}</span
+                >
+                <!-- eslint-disable-next-line narduk/no-native-input -- Lightweight inline edit -->
+                <input
+                  :value="editableOverrides[String(key)] ?? (val || '')"
+                  :placeholder="'Set ' + formatKey(key) + '...'"
+                  class="w-full bg-transparent text-default text-sm border-none outline-none focus:ring-1 focus:ring-primary/30 rounded px-1 -mx-1 placeholder:text-dimmed placeholder:italic placeholder:text-xs"
+                  @change="updateAttribute(String(key), ($event.target as HTMLInputElement).value)"
+                />
               </div>
             </div>
             <div class="flex flex-col gap-2">
@@ -546,25 +1034,50 @@ const groupedElements = computed(() => {
               >
                 Finalize as Prompt
               </UButton>
-              <UButton
-                block
-                color="neutral"
-                variant="soft"
-                icon="i-lucide-save"
-                :loading="savingBuilder"
-                @click="saveBuilderState"
-              >
-                Save as Preset
-              </UButton>
+              <div class="flex gap-2">
+                <UButton
+                  v-if="chatMode === 'person'"
+                  class="flex-1"
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-eye"
+                  :loading="generatingPreview"
+                  @click="generatePersonPreview"
+                >
+                  Preview
+                </UButton>
+                <UButton
+                  class="flex-1"
+                  color="neutral"
+                  variant="soft"
+                  icon="i-lucide-save"
+                  :loading="savingBuilder"
+                  @click="saveBuilderState"
+                >
+                  Save
+                </UButton>
+              </div>
             </div>
           </div>
 
           <div class="flex-1 overflow-y-auto p-4 space-y-6">
             <div v-for="(items, type) in groupedElements" :key="type">
               <template v-if="items.length > 0">
-                <h3 class="text-xs font-semibold text-muted uppercase tracking-wider mb-2 ml-1">
-                  {{ type }}s
-                </h3>
+                <div class="flex items-center justify-between mb-2 ml-1">
+                  <h3 class="text-xs font-semibold text-muted uppercase tracking-wider">
+                    {{ type }}s
+                  </h3>
+                  <UButton
+                    v-if="type !== 'prompt'"
+                    variant="ghost"
+                    color="primary"
+                    icon="i-lucide-plus"
+                    size="xs"
+                    class="-mr-1"
+                    :title="`New ${type} chat`"
+                    @click="startNewBuilderChat(String(type))"
+                  />
+                </div>
                 <div class="space-y-2">
                   <UButton
                     v-for="el in items"
@@ -572,13 +1085,29 @@ const groupedElements = computed(() => {
                     variant="soft"
                     color="neutral"
                     block
-                    class="justify-start text-left h-auto py-3"
-                    @click="insertIntoChat(el.content)"
+                    class="justify-start text-left h-auto py-3 group"
+                    @click="loadPresetAsBuilderState(el.content, el.type, el.metadata, el.id)"
                   >
-                    <div class="flex flex-col w-full overflow-hidden">
-                      <span class="text-sm font-medium text-default truncate">{{ el.name }}</span>
-                      <span class="text-xs text-dimmed truncate">{{ el.content }}</span>
+                    <div class="flex items-center gap-2 flex-1 overflow-hidden">
+                      <img
+                        v-if="el.metadata && JSON.parse(el.metadata).headshotUrl"
+                        :src="JSON.parse(el.metadata).headshotUrl"
+                        :alt="el.name"
+                        class="size-8 rounded-full object-cover shrink-0 ring-1 ring-default"
+                      />
+                      <div class="flex flex-col flex-1 overflow-hidden">
+                        <span class="text-sm font-medium text-default truncate">{{ el.name }}</span>
+                        <span class="text-xs text-dimmed truncate">{{ el.content }}</span>
+                      </div>
                     </div>
+                    <UButton
+                      variant="ghost"
+                      color="error"
+                      icon="i-lucide-trash-2"
+                      size="xs"
+                      class="shrink-0 ml-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity"
+                      @click.stop="handleDeletePreset(el.id, el.name)"
+                    />
                   </UButton>
                 </div>
               </template>

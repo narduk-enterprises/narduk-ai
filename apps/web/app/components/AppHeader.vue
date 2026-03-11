@@ -44,6 +44,7 @@ const navItems = computed<NavItem[]>(() => {
     { label: 'Create', to: '/generate', icon: 'i-lucide-sparkles' },
     { label: 'Chat', to: '/chat', icon: 'i-lucide-message-square' },
     { label: 'Gallery', to: '/gallery', icon: 'i-lucide-grid-3x3' },
+    { label: 'Presets', to: '/presets', icon: 'i-lucide-bookmark' },
     { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
   ]
 

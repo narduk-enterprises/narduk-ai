@@ -250,23 +250,35 @@ const resolutions = ['480p', '720p']
         </UFormField>
 
         <!-- Options Row -->
-        <div class="flex flex-wrap items-end gap-4">
+        <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
           <!-- Aspect Ratio -->
-          <UFormField v-if="activeTab === 't2i' || activeTab === 't2v'" label="Aspect Ratio">
-            <USelect v-model="aspectRatio" :items="aspectRatios" class="w-28" />
+          <UFormField
+            v-if="activeTab === 't2i' || activeTab === 't2v'"
+            label="Aspect Ratio"
+            class="w-full sm:w-auto"
+          >
+            <USelect v-model="aspectRatio" :items="aspectRatios" class="w-full sm:w-28" />
           </UFormField>
 
           <!-- Duration -->
-          <UFormField v-if="activeTab === 't2v' || activeTab === 'i2v'" label="Duration">
+          <UFormField
+            v-if="activeTab === 't2v' || activeTab === 'i2v'"
+            label="Duration"
+            class="w-full sm:w-auto"
+          >
             <div class="flex items-center gap-3">
-              <USlider v-model="duration" :min="1" :max="15" :step="1" class="w-32" />
+              <USlider v-model="duration" :min="1" :max="15" :step="1" class="flex-1 sm:w-32" />
               <span class="text-sm text-muted font-mono w-8">{{ duration }}s</span>
             </div>
           </UFormField>
 
           <!-- Resolution -->
-          <UFormField v-if="activeTab === 't2v' || activeTab === 'i2v'" label="Resolution">
-            <USelect v-model="resolution" :items="resolutions" class="w-24" />
+          <UFormField
+            v-if="activeTab === 't2v' || activeTab === 'i2v'"
+            label="Resolution"
+            class="w-full sm:w-auto"
+          >
+            <USelect v-model="resolution" :items="resolutions" class="w-full sm:w-24" />
           </UFormField>
         </div>
 
@@ -274,7 +286,7 @@ const resolutions = ['480p', '720p']
         <UFormField v-if="activeTab === 'i2v' || activeTab === 'i2i'" label="Source Image" required>
           <div
             v-if="userImages.length"
-            class="grid grid-cols-4 gap-2.5 sm:grid-cols-6 lg:grid-cols-8"
+            class="grid grid-cols-3 gap-2.5 sm:grid-cols-6 lg:grid-cols-8"
           >
             <UButton
               v-for="img in userImages"
@@ -360,7 +372,7 @@ const resolutions = ['480p', '720p']
               variant="outline"
               icon="i-lucide-video"
               size="sm"
-              class="rounded-full"
+              class="rounded-full min-h-11 flex-1 sm:flex-initial"
               @click="animateLatestImage"
             >
               Animate
@@ -370,7 +382,7 @@ const resolutions = ['480p', '720p']
               variant="outline"
               icon="i-lucide-layers"
               size="sm"
-              class="rounded-full"
+              class="rounded-full min-h-11 flex-1 sm:flex-initial"
               @click="editLatestImage"
             >
               Edit
@@ -380,7 +392,7 @@ const resolutions = ['480p', '720p']
               icon="i-lucide-grid-3x3"
               size="sm"
               to="/gallery"
-              class="rounded-full"
+              class="rounded-full min-h-11 flex-1 sm:flex-initial"
             >
               Gallery
             </UButton>

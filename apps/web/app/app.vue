@@ -3,6 +3,8 @@
  * Custom Application Shell — overrides the layer's app.vue.
  * Uses UApp directly with custom header/footer components.
  */
+const route = useRoute()
+const showFooter = computed(() => route.path !== '/chat')
 </script>
 
 <template>
@@ -24,7 +26,7 @@
         </NuxtLayout>
       </main>
 
-      <AppFooter />
+      <AppFooter v-if="showFooter" />
     </div>
   </UApp>
 </template>

@@ -5,6 +5,7 @@ const bodySchema = z.object({
   type: z.enum(['person', 'scene', 'framing', 'action', 'prompt']),
   name: z.string().min(1).max(100),
   content: z.string().min(1).max(2000),
+  metadata: z.string().max(10000).nullish(),
 })
 
 /**
@@ -27,6 +28,7 @@ export default defineEventHandler(async (event) => {
     type: body.type,
     name: body.name,
     content: body.content,
+    metadata: body.metadata ?? null,
     createdAt: now,
     updatedAt: now,
   }

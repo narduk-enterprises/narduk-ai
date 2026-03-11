@@ -4,8 +4,14 @@ export interface PromptElement {
   type: 'person' | 'scene' | 'framing' | 'action' | 'prompt'
   name: string
   content: string
+  metadata?: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface PresetMetadata {
+  headshotUrl?: string | null
+  fullBodyUrl?: string | null
 }
 
 export function usePromptElements() {
@@ -26,13 +32,18 @@ export function usePromptElements() {
     }
   }
 
-  async function createElement(type: string, name: string, content: string) {
+  async function createElement(
+    type: string,
+    name: string,
+    content: string,
+    metadata?: string | null,
+  ) {
     loading.value = true
     error.value = null
     try {
       const el = await $fetch<PromptElement>('/api/elements', {
         method: 'POST',
-        body: { type, name, content },
+        body: { type, name, content, metadata },
       })
       // Prepend to array since the API orders newest first
       elements.value.unshift(el)
@@ -63,7 +74,7 @@ export function usePromptElements() {
 
   async function updateElement(
     id: string,
-    updates: { type?: string; name?: string; content?: string },
+    updates: { type?: string; name?: string; content?: string; metadata?: string | null },
   ) {
     loading.value = true
     error.value = null

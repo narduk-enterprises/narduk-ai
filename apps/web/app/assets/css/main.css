@@ -38,6 +38,8 @@
 body {
   @apply antialiased text-default bg-default scheme-light dark:scheme-dark;
   font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 
 h1,
@@ -375,8 +377,9 @@ h4,
 /* ─── Mobile UX Utilities ─── */
 
 /* Safe-area bottom padding for notched devices (iPhone etc.) */
+/* Adds safe-area inset ON TOP of a 1rem base so it doesn't just replace padding */
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* Minimum 44×44px touch target (Apple HIG / WCAG 2.5.8) */
@@ -400,4 +403,29 @@ h4,
 .h-dvh {
   height: 100vh;
   height: 100dvh;
+}
+
+/* Prevent iOS auto-zoom on input focus (requires font-size ≥ 16px) */
+@media screen and (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Prevent unwanted horizontal scrolling on mobile */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Disable double-tap-to-zoom delay on interactive elements */
+button,
+a,
+input,
+textarea,
+select {
+  touch-action: manipulation;
 }

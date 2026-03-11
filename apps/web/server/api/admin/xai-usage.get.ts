@@ -1,10 +1,11 @@
+import type { XaiBalanceResponse, XaiInvoicePreview } from '#server/utils/xaiManagement'
+
 /**
  * GET /api/admin/xai-usage — Fetches xAI API usage stats and billing info.
  *
- * Aggregates three xAI Management API calls:
- *   1. Prepaid credit balance
- *   2. Historical usage data
- *   3. Postpaid invoice preview (null if not on postpaid)
+ * Aggregates two xAI Management API calls:
+ *   1. Prepaid credit balance + balance change history
+ *   2. Current-month invoice preview (contains per-model usage line items)
  */
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -15,20 +16,14 @@ export default defineEventHandler(async (event) => {
   if (!xaiManagementKey || !xaiTeamId) {
     return {
       configured: false,
-      balance: null,
-      usage: null,
-      invoicePreview: null,
+      balance: null as XaiBalanceResponse | null,
+      invoicePreview: null as XaiInvoicePreview | null,
     }
   }
 
-  // Fetch all three endpoints in parallel — each individually tolerates failure
-  const [balance, usage, invoicePreview] = await Promise.all([
+  const [balance, invoicePreview] = await Promise.all([
     xaiGetPrepaidBalance(xaiManagementKey, xaiTeamId).catch((err) => {
       console.error('[xai-usage] balance fetch failed:', err.message)
-      return null
-    }),
-    xaiGetUsage(xaiManagementKey, xaiTeamId).catch((err) => {
-      console.error('[xai-usage] usage fetch failed:', err.message)
       return null
     }),
     xaiGetInvoicePreview(xaiManagementKey, xaiTeamId).catch((err) => {
@@ -40,7 +35,6 @@ export default defineEventHandler(async (event) => {
   return {
     configured: true,
     balance,
-    usage,
     invoicePreview,
   }
 })

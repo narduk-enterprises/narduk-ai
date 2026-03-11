@@ -6,6 +6,7 @@ const bodySchema = z.object({
   type: z.enum(['person', 'scene', 'framing', 'action', 'prompt']).optional(),
   name: z.string().min(1).max(100).optional(),
   content: z.string().min(1).max(2000).optional(),
+  metadata: z.string().max(10000).nullish(),
 })
 
 /**
@@ -23,7 +24,7 @@ export default defineEventHandler(async (event) => {
 
   const body = await readValidatedBody(event, bodySchema.parse)
 
-  if (!body.type && !body.name && !body.content) {
+  if (!body.type && !body.name && !body.content && body.metadata === undefined) {
     throw createError({ statusCode: 400, message: 'No fields to update' })
   }
 
@@ -36,6 +37,7 @@ export default defineEventHandler(async (event) => {
       ...(body.type && { type: body.type }),
       ...(body.name && { name: body.name }),
       ...(body.content && { content: body.content }),
+      ...(body.metadata !== undefined && { metadata: body.metadata ?? null }),
       updatedAt: now,
     })
     .where(and(eq(promptElements.id, id), eq(promptElements.userId, user.id)))
