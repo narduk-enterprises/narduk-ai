@@ -203,7 +203,9 @@ export async function getQuickModifiersByCategory(
     return {
       attributeKey: key,
       appliesTo: parseAppliesTo(meta?.appliesTo || null),
-      selectionMode: (['single', 'multi'].includes(meta?.selectionMode || '') ? meta!.selectionMode : 'single') as 'single' | 'multi',
+      selectionMode: (['single', 'multi'].includes(meta?.selectionMode || '')
+        ? meta!.selectionMode
+        : 'single') as 'single' | 'multi',
       category: meta?.category || key,
       label: formatLabel(key),
       icon: CATEGORY_ICONS[key] || 'i-lucide-tag',

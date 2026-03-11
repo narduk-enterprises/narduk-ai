@@ -59,10 +59,10 @@ export function useFeelingLucky(deps: {
         prompt.value = cached.prompt
         activePresets.value = cached.presets
 
-        // Resolve preset names → IDs from loaded elements
+        // Resolve preset names → IDs from loaded elements (match by type + name)
         const ids: string[] = []
-        for (const [_type, name] of Object.entries(cached.presets)) {
-          const el = elements.value.find((e) => e.name === name)
+        for (const [type, name] of Object.entries(cached.presets)) {
+          const el = elements.value.find((e) => e.type === type && e.name === name)
           if (el) ids.push(el.id)
         }
         activePresetIds.value = ids

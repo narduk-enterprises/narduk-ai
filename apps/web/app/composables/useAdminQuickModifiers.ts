@@ -14,7 +14,11 @@ interface QuickModifierRow {
 }
 
 export function useAdminQuickModifiers() {
-  const { data: modifiers, refresh, status } = useFetch<QuickModifierRow[]>('/api/admin/quick-modifiers')
+  const {
+    data: modifiers,
+    refresh,
+    status,
+  } = useFetch<QuickModifierRow[]>('/api/admin/quick-modifiers')
 
   const toast = useToast()
   const saving = ref(false)
