@@ -244,6 +244,35 @@ export function useGenerate() {
     return null
   }
 
+  /**
+   * Upload an image to the media store and retrieve a synthetic generation record.
+   */
+  async function uploadImage(file: File): Promise<Generation | null> {
+    generating.value = true
+    error.value = null
+    try {
+      const reader = new FileReader()
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
+      const result = await $fetch<Generation>('/api/media/upload', {
+        method: 'POST',
+        body: {
+          imageBase64: dataUrl,
+        },
+      })
+      return result
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'Failed to upload image'
+      return null
+    } finally {
+      generating.value = false
+    }
+  }
+
   // Cleanup polling on unmount
   onUnmounted(() => {
     stopAllPolling()
@@ -263,5 +292,6 @@ export function useGenerate() {
     deleteGeneration,
     upscaleGeneration,
     retryGeneration,
+    uploadImage,
   }
 }

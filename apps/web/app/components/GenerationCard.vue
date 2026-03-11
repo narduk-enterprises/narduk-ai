@@ -29,7 +29,7 @@ const statusColors: Record<string, string> = {
 
 const aspectClass = computed(() => {
   const ratio = props.generation.aspectRatio
-  if (!ratio) return 'aspect-video'
+  if (!ratio) return props.generation.type === 'video' ? 'aspect-video' : 'aspect-square'
 
   const map: Record<string, string> = {
     '1:1': 'aspect-square',
@@ -40,7 +40,7 @@ const aspectClass = computed(() => {
     '3:2': 'aspect-[3/2]',
     '2:3': 'aspect-[2/3]',
   }
-  return map[ratio] || 'aspect-video'
+  return map[ratio] || (props.generation.type === 'video' ? 'aspect-video' : 'aspect-square')
 })
 
 const errorSummary = computed(() => {
@@ -83,11 +83,12 @@ function handleUpscale() {
     <!-- Media Preview -->
     <div :class="['relative w-full overflow-hidden bg-elevated/50', aspectClass]">
       <template v-if="generation.status === 'done' && generation.mediaUrl">
-        <img
+        <NuxtImg
           v-if="generation.type === 'image'"
           :src="generation.mediaUrl"
           :alt="generation.prompt"
           class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          placeholder
           loading="lazy"
         />
         <video

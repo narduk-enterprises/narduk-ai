@@ -12,10 +12,12 @@ const isZoomed = ref(false)
   <div class="relative overflow-hidden rounded-2xl neon-border bg-elevated/30">
     <template v-if="type === 'image'">
       <!-- Base Image -->
-      <img
+      <NuxtImg
         :src="src"
         :alt="alt || 'Generated image'"
         class="max-h-[60vh] w-full object-contain cursor-zoom-in transition-transform duration-300 hover:scale-[1.02]"
+        placeholder
+        loading="lazy"
         @click="isZoomed = true"
       />
 
@@ -31,10 +33,11 @@ const isZoomed = ref(false)
               size="xl"
               @click="isZoomed = false"
             />
-            <img
+            <NuxtImg
               :src="src"
               :alt="alt || 'Zoomed generated image'"
               class="max-h-[90vh] max-w-full object-contain"
+              placeholder
               @click="isZoomed = false"
             />
           </div>

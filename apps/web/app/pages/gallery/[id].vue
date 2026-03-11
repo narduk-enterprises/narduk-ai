@@ -295,10 +295,12 @@ const errorMessage = computed(() => {
               v-if="sourceGeneration?.mediaUrl"
               class="relative group rounded-xl overflow-hidden neon-border"
             >
-              <img
+              <NuxtImg
                 :src="sourceGeneration.mediaUrl"
                 :alt="sourceGeneration.prompt"
                 class="w-full h-auto aspect-square object-cover"
+                placeholder
+                loading="lazy"
               />
               <NuxtLink
                 :to="`/gallery/${sourceGeneration.id}`"

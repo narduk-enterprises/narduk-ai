@@ -18,6 +18,7 @@ export function useGenerationForm() {
     editImage,
     pollGeneration,
     fetchGenerations,
+    uploadImage,
   } = useGenerate()
 
   // ─── Form State ─────────────────────────────────────────────
@@ -172,8 +173,23 @@ export function useGenerationForm() {
 
   // ─── Actions ────────────────────────────────────────────────
 
-  function selectSourceImage(id: string) {
-    sourceGenerationId.value = id
+  const uploadingSource = ref(false)
+
+  async function handleSourceImageUpload(file: File) {
+    if (uploadingSource.value) return
+    uploadingSource.value = true
+    try {
+      const result = await uploadImage(file)
+      if (result) {
+        sourceGenerationId.value = result.id
+        await loadUserImages()
+      }
+    } catch (e) {
+      const err = e as { message?: string }
+      error.value = err.message || 'Failed to upload image'
+    } finally {
+      uploadingSource.value = false
+    }
   }
 
   function animateLatestImage() {
@@ -308,7 +324,7 @@ export function useGenerationForm() {
     handleGenerate,
     openEnhanceModal,
     enhanceCurrentPrompt,
-    selectSourceImage,
+    handleSourceImageUpload,
     animateLatestImage,
     editLatestImage,
     useGenerationAsSource,
@@ -316,5 +332,6 @@ export function useGenerationForm() {
     handleImageUpload,
     removeEnhanceImage,
     enhanceImageBase64,
+    uploadingSource,
   }
 }

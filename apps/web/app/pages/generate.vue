@@ -34,7 +34,6 @@ const {
   handleGenerate,
   openEnhanceModal,
   enhanceCurrentPrompt,
-  selectSourceImage,
   animateLatestImage,
   editLatestImage,
   useGenerationAsSource,
@@ -42,6 +41,8 @@ const {
   removeEnhanceImage,
   enhanceImageBase64,
   upscaleGeneration,
+  uploadingSource,
+  handleSourceImageUpload,
 } = useGenerationForm()
 
 const { elements, fetchElements, remixPrompt } = usePromptElements()
@@ -222,35 +223,12 @@ const resolutions = ['480p', '720p']
 
         <!-- Source Image Selector -->
         <UFormField v-if="activeTab === 'i2v' || activeTab === 'i2i'" label="Source Image" required>
-          <div
-            v-if="userImages.length"
-            class="grid grid-cols-3 gap-2.5 sm:grid-cols-6 lg:grid-cols-8"
-          >
-            <UButton
-              v-for="img in userImages"
-              :key="img.id"
-              variant="ghost"
-              :padded="false"
-              class="relative aspect-square overflow-hidden rounded-xl ring-2 transition-all duration-200 hover:scale-[1.03]"
-              :class="
-                sourceGenerationId === img.id
-                  ? 'ring-primary shadow-lg shadow-primary/20'
-                  : 'ring-transparent hover:ring-primary/40'
-              "
-              @click="selectSourceImage(img.id)"
-            >
-              <img :src="img.mediaUrl!" :alt="img.prompt" class="h-full w-full object-cover" />
-              <div
-                v-if="sourceGenerationId === img.id"
-                class="absolute inset-0 bg-primary/10 flex items-center justify-center"
-              >
-                <UIcon name="i-lucide-check" class="size-5 text-primary" />
-              </div>
-            </UButton>
-          </div>
-          <p v-else class="text-sm text-dimmed py-4 text-center">
-            No images yet. Generate some images first using Text → Image.
-          </p>
+          <ImageChooser
+            v-model="sourceGenerationId"
+            :user-images="userImages"
+            :uploading="uploadingSource"
+            @upload="handleSourceImageUpload"
+          />
         </UFormField>
 
         <!-- Error -->

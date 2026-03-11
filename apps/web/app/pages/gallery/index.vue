@@ -19,16 +19,59 @@ const generations = ref<Generation[]>([])
 const loading = ref(true)
 const activeFilter = computed(() => (route.query.filter as string) || 'all')
 
+const limit = 24
+const offset = ref(0)
+const isFinished = ref(false)
+const loadingMore = ref(false)
+
 async function load() {
   loading.value = true
+  offset.value = 0
+  isFinished.value = false
   try {
-    generations.value = await fetchGenerations(100)
+    generations.value = await fetchGenerations(limit, offset.value)
+    if (generations.value.length < limit) {
+      isFinished.value = true
+    }
   } finally {
     loading.value = false
   }
 }
 
-onMounted(load)
+async function loadMore() {
+  if (loadingMore.value || isFinished.value) return
+  loadingMore.value = true
+  offset.value += limit
+  try {
+    const nextBatch = await fetchGenerations(limit, offset.value)
+    if (nextBatch.length < limit) {
+      isFinished.value = true
+    }
+    generations.value.push(...nextBatch)
+  } catch {
+    // silent
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+const loadMoreTarget = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+onMounted(() => {
+  load()
+  observer = new IntersectionObserver(
+    ([entry]: IntersectionObserverEntry[]) => {
+      if (entry?.isIntersecting) {
+        loadMore()
+      }
+    },
+    { rootMargin: '400px' },
+  )
+  if (loadMoreTarget.value) {
+    observer.observe(loadMoreTarget.value)
+  }
+})
 
 // Auto-refresh while any generations are pending
 const hasPending = computed(() => generations.value.some((g) => g.status === 'pending'))
@@ -40,7 +83,18 @@ watch(
     if (pending && !refreshInterval) {
       refreshInterval = setInterval(async () => {
         try {
-          generations.value = await fetchGenerations(100)
+          // fetch only the first page for fast updates of pending items
+          const fresh = await fetchGenerations(limit, 0)
+
+          // update existing items in the generations array
+          for (const item of fresh) {
+            const index = generations.value.findIndex((g) => g.id === item.id)
+            if (index !== -1) {
+              generations.value[index] = item
+            } else if (activeFilter.value === 'all') {
+              generations.value.unshift(item)
+            }
+          }
         } catch {
           // silent
         }
@@ -57,6 +111,10 @@ onUnmounted(() => {
   if (refreshInterval) {
     clearInterval(refreshInterval)
     refreshInterval = null
+  }
+  if (observer) {
+    observer.disconnect()
+    observer = null
   }
 })
 
@@ -165,18 +223,33 @@ const filters = [
     </div>
 
     <!-- Grid -->
-    <div v-else class="columns-1 gap-5 sm:columns-2 lg:columns-3 stagger-children">
-      <GenerationCard
-        v-for="gen in filteredGenerations"
-        :key="gen.id"
-        :generation="gen"
-        class="break-inside-avoid mb-5"
-        @click="navigateTo(`/gallery/${gen.id}`)"
-        @use-as-source="handleUseAsSource"
-        @upscale="handleUpscale"
-        @delete="handleDelete"
-        @retry="handleRetry"
-      />
+    <div v-else class="space-y-8">
+      <div class="columns-1 gap-5 sm:columns-2 lg:columns-3 stagger-children">
+        <GenerationCard
+          v-for="gen in filteredGenerations"
+          :key="gen.id"
+          :generation="gen"
+          class="break-inside-avoid mb-5"
+          @click="navigateTo(`/gallery/${gen.id}`)"
+          @use-as-source="handleUseAsSource"
+          @upscale="handleUpscale"
+          @delete="handleDelete"
+          @retry="handleRetry"
+        />
+      </div>
+
+      <!-- Infinite Scroll Trigger -->
+      <div ref="loadMoreTarget" class="h-20 flex items-center justify-center w-full">
+        <div v-if="loadingMore" class="flex flex-col items-center gap-2">
+          <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-primary" />
+        </div>
+        <p
+          v-else-if="isFinished && filteredGenerations.length > 0"
+          class="text-sm text-dimmed uppercase tracking-widest font-semibold flex items-center gap-2"
+        >
+          <UIcon name="i-lucide-check-circle-2" class="size-4" /> End of Gallery
+        </p>
+      </div>
     </div>
   </div>
 </template>
