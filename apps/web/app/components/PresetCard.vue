@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PromptElement, PresetMetadata } from '~/composables/usePromptElements'
+import { PRESET_ATTRIBUTES } from '~/composables/usePresetEditor'
 
 const props = defineProps<{
   preset: PromptElement
@@ -54,21 +55,88 @@ const cardDescription = computed(() => {
 
 const isModalOpen = ref(false)
 
+/**
+ * Parse all attributes from preset.content (Key: value format)
+ * and fall back to the schema-defined attributes for the preset type.
+ */
 const parsedCharacteristics = computed(() => {
-  const meta = parsedMeta.value
-  // Exclude url-related keys and other generic fields
-  const exclude = ['headshotUrl', 'fullBodyUrl', 'other', 'id', 'name']
   const chars: { label: string; value: string }[] = []
-  for (const [key, val] of Object.entries(meta)) {
-    if (!exclude.includes(key) && val && typeof val === 'string' && val.trim() !== '') {
-      chars.push({
-        label: key.charAt(0).toUpperCase() + key.slice(1).replaceAll(/([A-Z])/g, ' $1'),
-        value: val,
-      })
+  const exclude = ['name', 'description']
+
+  // Parse from content lines ("Key: value" format)
+  const lines = props.preset.content.split('\n')
+  const contentMap = new Map<string, string>()
+  for (const line of lines) {
+    const idx = line.indexOf(':')
+    if (idx > 0) {
+      const rawKey = line.slice(0, idx).trim()
+      const val = line.slice(idx + 1).trim()
+      if (val) {
+        // Normalize key to snake_case for matching
+        const key = rawKey.toLowerCase().replaceAll(' ', '_')
+        contentMap.set(key, val)
+      }
     }
   }
+
+  // Use schema ordering if available
+  const schema = PRESET_ATTRIBUTES[props.preset.type]
+  if (schema) {
+    for (const attr of schema) {
+      if (exclude.includes(attr)) continue
+      const val = contentMap.get(attr)
+      if (val) {
+        chars.push({
+          label: attr.charAt(0).toUpperCase() + attr.slice(1).replaceAll('_', ' '),
+          value: val,
+        })
+        contentMap.delete(attr)
+      }
+    }
+  }
+
+  // Add any remaining attributes not in the schema
+  for (const [key, val] of contentMap) {
+    if (exclude.includes(key)) continue
+    chars.push({
+      label: key.charAt(0).toUpperCase() + key.slice(1).replaceAll('_', ' '),
+      value: val,
+    })
+  }
+
   return chars
 })
+
+/** Build a state object from content lines for generatePreview */
+function parseContentToState(): Record<string, string | null> {
+  const state: Record<string, string | null> = {}
+  for (const line of props.preset.content.split('\n')) {
+    const idx = line.indexOf(':')
+    if (idx > 0) {
+      const key = line.slice(0, idx).trim().toLowerCase().replaceAll(' ', '_')
+      const val = line.slice(idx + 1).trim()
+      if (val) state[key] = val
+    }
+  }
+  return state
+}
+
+const {
+  generatePreview,
+  generatingPreview,
+  previewImageUrl: generatedFullBodyUrl,
+  headshotUrl: generatedHeadshotUrl,
+} = usePresetEditor()
+
+/** Reactive display URL: prefer freshly generated, fall back to stored */
+const displayPreviewUrl = computed(
+  () => generatedFullBodyUrl.value || generatedHeadshotUrl.value || previewUrl.value,
+)
+
+async function handleGenerateImage() {
+  const state = parseContentToState()
+  await generatePreview(state, props.preset.type)
+}
 
 function handleEdit() {
   navigateTo(`/presets/${props.preset.id}`)
@@ -193,15 +261,15 @@ function openModal() {
         class="bg-black/5 dark:bg-black/40 relative aspect-video sm:aspect-21/9 shrink-0 flex items-center justify-center p-0 overflow-hidden"
       >
         <NuxtImg
-          v-if="previewUrl"
-          :src="previewUrl"
+          v-if="displayPreviewUrl"
+          :src="displayPreviewUrl"
           :alt="preset.name"
           class="w-full h-full object-cover transition-transform duration-[2s] hover:scale-110 opacity-70 blur-xl absolute inset-0 z-0"
           loading="lazy"
         />
         <NuxtImg
-          v-if="previewUrl"
-          :src="previewUrl"
+          v-if="displayPreviewUrl"
+          :src="displayPreviewUrl"
           :alt="preset.name"
           class="w-full h-full object-contain max-h-[35vh] z-10 relative drop-shadow-xl"
           loading="lazy"
@@ -212,6 +280,17 @@ function openModal() {
           :class="`preset-placeholder--${preset.type}`"
         >
           <UIcon :name="config!.icon" class="size-16 text-default/20" />
+        </div>
+
+        <!-- Generation loading overlay -->
+        <div
+          v-if="generatingPreview"
+          class="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        >
+          <div class="flex flex-col items-center gap-3 text-white">
+            <UIcon name="i-lucide-loader-2" class="size-8 animate-spin" />
+            <span class="text-sm font-medium">Generating image…</span>
+          </div>
         </div>
 
         <div class="absolute top-4 right-4 z-20 flex gap-2">
@@ -240,18 +319,30 @@ function openModal() {
             </h2>
           </div>
 
-          <UButton
-            variant="solid"
-            color="primary"
-            icon="i-lucide-pencil"
-            size="md"
-            class="rounded-full shadow-sm"
-            label="Edit Preset"
-            @click="handleEdit"
-          />
+          <div class="flex items-center gap-2 shrink-0">
+            <UButton
+              variant="subtle"
+              color="primary"
+              icon="i-lucide-image-plus"
+              size="md"
+              class="rounded-full shadow-sm"
+              label="Generate Image"
+              :loading="generatingPreview"
+              @click="handleGenerateImage"
+            />
+            <UButton
+              variant="solid"
+              color="primary"
+              icon="i-lucide-pencil"
+              size="md"
+              class="rounded-full shadow-sm"
+              label="Edit Preset"
+              @click="handleEdit"
+            />
+          </div>
         </div>
 
-        <div class="prose prose-sm dark:prose-invert text-dimmed mb-8 max-w-none text-base">
+        <div class="prose prose-sm dark:prose-invert text-dimmed mb-6 max-w-none text-base">
           <p>{{ cardDescription }}</p>
         </div>
 
@@ -260,7 +351,7 @@ function openModal() {
           <h3
             class="text-xs font-semibold text-default uppercase tracking-widest border-b border-default pb-2"
           >
-            Characteristics
+            Attributes
           </h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
             <div
