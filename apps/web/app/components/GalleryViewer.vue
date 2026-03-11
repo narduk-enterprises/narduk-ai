@@ -611,8 +611,8 @@ onUnmounted(() => {
               <p class="text-white/90 text-sm leading-relaxed line-clamp-2 flex-1">
                 "{{ currentItem.prompt }}"
               </p>
-              <CopyPromptButton
-                :prompt="currentItem.prompt"
+              <CopyButton
+                :text="currentItem.prompt"
                 class="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-white"
               />
             </div>

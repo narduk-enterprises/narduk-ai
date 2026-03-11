@@ -273,8 +273,8 @@ const parsedPresets = computed(() => {
             <p class="text-lg leading-relaxed text-default font-medium flex-1">
               "{{ generation.prompt }}"
             </p>
-            <CopyPromptButton
-              :prompt="generation.prompt"
+            <CopyButton
+              :text="generation.prompt"
               class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity mt-1"
             />
           </div>

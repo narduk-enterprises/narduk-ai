@@ -185,8 +185,8 @@ function handleRemix() {
         <p class="line-clamp-2 text-sm text-muted leading-relaxed pr-8">
           {{ generation.prompt }}
         </p>
-        <CopyPromptButton
-          :prompt="generation.prompt"
+        <CopyButton
+          :text="generation.prompt"
           class="absolute right-0 top-0 opacity-100 md:opacity-0 group-hover/prompt:opacity-100 transition-opacity"
         />
       </div>

@@ -62,7 +62,7 @@ const {
   activeModifiers,
   attachPerson,
   detachPerson,
-  compilePrompt,
+  compiledPrompt,
   setModifierDependencies,
   activePromptElements,
 } = useGenerationForm()
@@ -212,9 +212,9 @@ function handlePromptKeydown(e: KeyboardEvent) {
 // ── Prompt Parser ──────────────────────────────────────────
 const { parsing: promptParsing, parsePrompt } = usePromptParser()
 
-async function handleParsePrompt() {
+function handleParsePrompt() {
   if (!prompt.value.trim() || promptParsing.value) return
-  const result = await parsePrompt(prompt.value)
+  const result = parsePrompt(prompt.value)
   if (!result) return
 
   // Auto-select matched modifiers
@@ -226,8 +226,22 @@ async function handleParsePrompt() {
     }
   }
 
-  // Set remaining text as the prompt
-  if (result.remainingPrompt) {
+  // Build structured content from extracted attributes
+  const attrKeys = Object.keys(result.attributes || {})
+  if (attrKeys.length > 0) {
+    const attrLines = attrKeys
+      .filter((k) => result.attributes[k])
+      .map(
+        (k) =>
+          `${k.charAt(0).toUpperCase() + k.slice(1).replaceAll('_', ' ')}: ${result.attributes[k]}`,
+      )
+      .join('\n')
+
+    // Set the structured attributes as the prompt content, with remaining text appended
+    const parts = [attrLines, result.remainingPrompt].filter(Boolean)
+    prompt.value = parts.join('\n\n')
+  } else if (result.remainingPrompt) {
+    // No attributes extracted — just use the remaining prompt
     prompt.value = result.remainingPrompt
   }
 }
@@ -378,6 +392,7 @@ function editResult(gen: Generation) {
           <template #hint>
             <div class="flex flex-wrap items-center gap-3">
               <UButton
+                key="btn-library"
                 variant="ghost"
                 color="neutral"
                 size="sm"
@@ -389,6 +404,7 @@ function editResult(gen: Generation) {
               </UButton>
               <UDropdownMenu v-if="presetDropdownItems?.length" :items="presetDropdownItems">
                 <UButton
+                  key="btn-presets"
                   variant="ghost"
                   color="neutral"
                   size="sm"
@@ -399,6 +415,7 @@ function editResult(gen: Generation) {
                 </UButton>
               </UDropdownMenu>
               <UButton
+                key="btn-compose"
                 variant="ghost"
                 color="neutral"
                 size="sm"
@@ -410,6 +427,7 @@ function editResult(gen: Generation) {
                 Compose
               </UButton>
               <UButton
+                key="btn-parse"
                 variant="ghost"
                 color="neutral"
                 size="sm"
@@ -422,6 +440,7 @@ function editResult(gen: Generation) {
                 Parse
               </UButton>
               <UButton
+                key="btn-remix"
                 variant="ghost"
                 color="neutral"
                 size="sm"
@@ -434,6 +453,7 @@ function editResult(gen: Generation) {
                 Remix
               </UButton>
               <UButton
+                key="btn-enhance"
                 variant="ghost"
                 color="neutral"
                 size="sm"
@@ -587,7 +607,7 @@ function editResult(gen: Generation) {
             <span class="text-[10px] text-dimmed">{{ charCount }} chars</span>
           </div>
           <p class="text-sm text-default font-mono leading-relaxed wrap-break-word">
-            {{ compilePrompt() }}
+            {{ compiledPrompt }}
           </p>
         </div>
 
@@ -782,9 +802,9 @@ function editResult(gen: Generation) {
           </div>
           <div class="flex items-start gap-3 group w-full">
             <p class="text-sm text-muted flex-1">{{ latestResult?.prompt }}</p>
-            <CopyPromptButton
+            <CopyButton
               v-if="latestResult"
-              :prompt="latestResult.prompt"
+              :text="latestResult.prompt"
               class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
             />
           </div>
@@ -829,8 +849,8 @@ function editResult(gen: Generation) {
           </div>
           <div class="flex items-start gap-3 group w-full">
             <p class="text-sm text-muted flex-1">{{ latestResult.prompt }}</p>
-            <CopyPromptButton
-              :prompt="latestResult.prompt"
+            <CopyButton
+              :text="latestResult.prompt"
               class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
             />
           </div>

@@ -33,6 +33,7 @@ function isLandscape(gen: Generation): boolean {
         item: 'min-w-0 shrink-0 grow-0 basis-auto ps-4',
         container: 'flex items-start -ms-4',
       }"
+      wheel-gestures
       arrows
       class="w-full"
     >

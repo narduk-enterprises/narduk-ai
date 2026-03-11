@@ -42,14 +42,21 @@ function formatKey(key: string | number) {
           (!msg.parsedResponse && msg.content) ||
           (msg.role === 'assistant' && msg.content)
         "
-        class="p-4 rounded-2xl whitespace-pre-wrap text-sm md:text-base leading-relaxed"
+        class="p-4 rounded-2xl text-sm md:text-base leading-relaxed"
         :class="[
           msg.role === 'user'
-            ? 'bg-primary text-white rounded-tr-sm'
+            ? 'bg-primary text-white rounded-tr-sm whitespace-pre-wrap'
             : 'bg-elevated text-default border border-default rounded-tl-sm shadow-sm',
         ]"
       >
-        {{ msg.parsedResponse?.message || msg.content?.replace(/<[^>]+>/g, '') || '' }}
+        <!-- Render markdown for assistant messages, plain text for user -->
+        <MarkdownRenderer
+          v-if="msg.role === 'assistant'"
+          :content="msg.parsedResponse?.message || msg.content?.replace(/<[^>]+>/g, '') || ''"
+        />
+        <template v-else>
+          {{ msg.parsedResponse?.message || msg.content?.replace(/<[^>]+>/g, '') || '' }}
+        </template>
       </div>
 
       <!-- Generated Prompt Card -->
@@ -80,7 +87,7 @@ function formatKey(key: string | number) {
                 >
                   Save to Presets
                 </UButton>
-                <CopyPromptButton :prompt="msg.parsedResponse.prompt" />
+                <CopyButton :text="msg.parsedResponse.prompt" />
               </div>
             </div>
           </div>

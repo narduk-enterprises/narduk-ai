@@ -113,6 +113,23 @@ export function usePromptElements() {
       .map((t) => {
         const content = components[t]
         if (!content) return null
+
+        // Try to find the matching element for structured attributes
+        const element = elements.value.find((el) => el.type === t && el.content === content)
+        if (element?.attributes) {
+          try {
+            const attrs = JSON.parse(element.attributes) as Record<string, string>
+            const structured = Object.entries(attrs)
+              .filter(([, v]) => v)
+              .map(
+                ([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1).replaceAll('_', ' ')}: ${v}`,
+              )
+              .join('\n')
+            return `[${t}]\n${structured}`
+          } catch {
+            /* fall through to raw content */
+          }
+        }
         return `${t}: ${content}`
       })
       .filter(Boolean)

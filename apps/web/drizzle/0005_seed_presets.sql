@@ -1,3 +1,7 @@
+-- Ensure mock user exists (required for FK constraint)
+INSERT OR IGNORE INTO users (id, email, password_hash, is_admin, created_at, updated_at)
+VALUES ('00000000-0000-0000-0000-000000000003', 'seed@example.com', 'seeded_pass', 1, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+
 INSERT OR IGNORE INTO prompt_elements (id, user_id, type, name, content, metadata, created_at, updated_at)
 VALUES
   ('5459f280-57b4-49ac-ab41-758a8082a6a2', '00000000-0000-0000-0000-000000000003', 'person', 'Brawny Blacksmith', 'Name: Brawny Blacksmith

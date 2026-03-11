@@ -56,21 +56,8 @@ export default defineEventHandler(async (event) => {
     )
     .join('\n')
 
-  // Inline schema context (app/utils not accessible from server)
-  const schemas = `Person attributes:
-  - name, description, age, gender, ethnicity, body_type, height, skin_tone, hair_color, hair_style, eye_color, face_shape, expression, breasts, clothing, accessories, makeup, tattoos_piercings, vibe, distinguishing_features, extended_detail, other
-
-Scene attributes:
-  - name, description, setting, time_of_day, weather, season, lighting, color_palette, architecture, vegetation, props, atmosphere, depth, ground_surface
-
-Framing attributes:
-  - name, description, shot_type, camera_angle, camera_height, lens, focal_length, depth_of_field, focus_point, camera_movement, composition_rule, aspect_ratio
-
-Action attributes:
-  - name, description, primary_action, body_position, hand_placement, head_direction, facial_expression, motion_blur, energy_level, interaction, emotion
-
-Style attributes:
-  - name, description, art_medium, color_palette, lighting, brushwork_or_texture, influence_or_era, mood, level_of_detail, key_elements`
+  // Use shared schema context from server util
+  const schemas = serverSchemaContext()
 
   const systemPrompt = `You are an expert prompt analyst for AI image and video generation.
 Given a raw generation prompt, decompose it into structured components.
