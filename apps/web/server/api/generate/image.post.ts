@@ -4,8 +4,9 @@ import { generations, appSettings } from '../../database/schema'
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
-
   aspectRatio: z.string().optional(),
+  promptElements: z.array(z.string()).optional(),
+  userPromptId: z.string().optional(),
 })
 
 /**
@@ -82,6 +83,8 @@ export default defineEventHandler(async (event) => {
     r2Key,
     mediaUrl: `/api/media/${r2Key}`,
     aspectRatio: body.aspectRatio || null,
+    promptElements: body.promptElements ? JSON.stringify(body.promptElements) : null,
+    userPromptId: body.userPromptId || null,
     metadata: JSON.stringify({ revised_prompt: imageData.revised_prompt }),
     createdAt: now,
     updatedAt: now,

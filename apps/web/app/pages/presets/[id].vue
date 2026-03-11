@@ -22,6 +22,7 @@ const {
   loadChatHistory,
   clearChatHistory,
   fetchPresetById,
+  resetState,
 } = usePresetEditor()
 
 // ── Load Preset ──────────────────────────────────────────
@@ -300,7 +301,7 @@ const filteredGroupedElements = computed(() => {
   return groups
 })
 
-function parseMeta(metadata: string | null) {
+function parseMeta(metadata: string | null | undefined) {
   if (!metadata) return null
   try {
     return JSON.parse(metadata) as {
@@ -313,7 +314,7 @@ function parseMeta(metadata: string | null) {
   }
 }
 
-function presetThumb(metadata: string | null) {
+function presetThumb(metadata: string | null | undefined) {
   const meta = parseMeta(metadata)
   if (!meta) return null
   return meta.headshotUrl || meta.previewImageUrl || meta.fullBodyUrl || null
@@ -649,7 +650,7 @@ function presetThumb(metadata: string | null) {
             />
           </div>
           <div class="flex-1 overflow-y-auto p-4 space-y-4">
-            <div v-for="(items, type) in groupedElements" :key="type">
+            <div v-for="(items, type) in filteredGroupedElements" :key="type">
               <template v-if="items.length > 0">
                 <h3 class="text-xs font-semibold text-muted uppercase tracking-wider mb-2 ml-1">
                   {{ type }}s

@@ -12,13 +12,21 @@ export function useGenerate() {
   /**
    * Generate an image from text (T2I).
    */
-  async function generateImage(prompt: string, aspectRatio?: string): Promise<Generation | null> {
+  async function generateImage(
+    prompt: string,
+    options?: { aspectRatio?: string; promptElements?: string[]; userPromptId?: string },
+  ): Promise<Generation | null> {
     generating.value = true
     error.value = null
     try {
       const result = await $fetch<Generation>('/api/generate/image', {
         method: 'POST',
-        body: { prompt, aspectRatio },
+        body: {
+          prompt,
+          aspectRatio: options?.aspectRatio,
+          promptElements: options?.promptElements,
+          userPromptId: options?.userPromptId,
+        },
       })
       return result
     } catch (err: unknown) {
@@ -32,13 +40,22 @@ export function useGenerate() {
   /**
    * Edit an image with a prompt (I2I).
    */
-  async function editImage(prompt: string, sourceGenerationId: string): Promise<Generation | null> {
+  async function editImage(
+    prompt: string,
+    sourceGenerationId: string,
+    options?: { promptElements?: string[]; userPromptId?: string },
+  ): Promise<Generation | null> {
     generating.value = true
     error.value = null
     try {
       const result = await $fetch<Generation>('/api/generate/image-edit', {
         method: 'POST',
-        body: { prompt, sourceGenerationId },
+        body: {
+          prompt,
+          sourceGenerationId,
+          promptElements: options?.promptElements,
+          userPromptId: options?.userPromptId,
+        },
       })
       return result
     } catch (err: unknown) {
@@ -54,7 +71,13 @@ export function useGenerate() {
    */
   async function generateVideo(
     prompt: string,
-    options?: { duration?: number; aspectRatio?: string; resolution?: string },
+    options?: {
+      duration?: number
+      aspectRatio?: string
+      resolution?: string
+      promptElements?: string[]
+      userPromptId?: string
+    },
   ): Promise<Generation | null> {
     generating.value = true
     error.value = null
@@ -66,6 +89,8 @@ export function useGenerate() {
           duration: options?.duration || 6,
           aspectRatio: options?.aspectRatio || '16:9',
           resolution: options?.resolution || '720p',
+          promptElements: options?.promptElements,
+          userPromptId: options?.userPromptId,
         },
       })
       return result
@@ -83,7 +108,12 @@ export function useGenerate() {
   async function generateVideoFromImage(
     prompt: string,
     sourceGenerationId: string,
-    options?: { duration?: number; resolution?: string },
+    options?: {
+      duration?: number
+      resolution?: string
+      promptElements?: string[]
+      userPromptId?: string
+    },
   ): Promise<Generation | null> {
     generating.value = true
     error.value = null
@@ -95,6 +125,8 @@ export function useGenerate() {
           sourceGenerationId,
           duration: options?.duration || 6,
           resolution: options?.resolution || '720p',
+          promptElements: options?.promptElements,
+          userPromptId: options?.userPromptId,
         },
       })
       return result
@@ -194,7 +226,7 @@ export function useGenerate() {
    */
   async function retryGeneration(gen: Generation): Promise<Generation | null> {
     if (gen.mode === 't2i') {
-      return await generateImage(gen.prompt, gen.aspectRatio || undefined)
+      return await generateImage(gen.prompt, { aspectRatio: gen.aspectRatio || undefined })
     } else if (gen.mode === 't2v') {
       return await generateVideo(gen.prompt, {
         duration: gen.duration || 6,

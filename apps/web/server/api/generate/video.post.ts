@@ -11,6 +11,8 @@ const bodySchema = z.object({
     .optional()
     .default('16:9'),
   resolution: z.enum(['480p', '720p']).optional().default('720p'),
+  promptElements: z.array(z.string()).optional(),
+  userPromptId: z.string().optional(),
 })
 
 /**
@@ -81,6 +83,8 @@ export default defineEventHandler(async (event) => {
     duration: body.duration,
     aspectRatio: body.aspectRatio,
     resolution: body.resolution,
+    promptElements: body.promptElements ? JSON.stringify(body.promptElements) : null,
+    userPromptId: body.userPromptId || null,
     createdAt: now,
     updatedAt: now,
   }

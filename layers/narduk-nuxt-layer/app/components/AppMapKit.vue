@@ -1,6 +1,6 @@
 <!-- eslint-disable narduk/no-fetch-in-component -- $fetch is used to load Texas outline GeoJSON for mask overlay -->
 <script lang="ts">
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapKit JS untyped global
 declare const mapkit: any
 </script>
 
@@ -172,7 +172,7 @@ function getTexasMaskColor(): string {
   }
   /* eslint-disable narduk/no-inline-hex -- MapKit overlay mask colours */
   return isDark ? '#0a0a0a' : '#ffffff'
-  /* eslint-enable narduk/no-inline-hex */
+  /* eslint-enable narduk/no-inline-hex -- MapKit overlay mask colours */
 }
 
 /**
@@ -429,7 +429,7 @@ function defaultOverlayStyle(): OverlayStyle {
     fillOpacity: 0.2,
     lineWidth: 1.5,
   }
-  /* eslint-enable narduk/no-inline-hex */
+  /* eslint-enable narduk/no-inline-hex -- MapKit overlay defaults */
 }
 
 function buildPolygonRings(
@@ -486,7 +486,7 @@ function buildClusterElement(cluster: {
   if (props.createClusterElement) {
     el = props.createClusterElement(cluster, count)
   } else {
-    // eslint-disable-next-line narduk/no-ssr-dom-access
+    // eslint-disable-next-line narduk/no-ssr-dom-access -- Guarded by import.meta.client implicitly via logic
     el = document.createElement('div')
     el.className = 'mapkit-cluster'
     el.innerHTML = `<div class="mapkit-cluster-bubble"><span class="mapkit-cluster-count">${count}</span></div>`

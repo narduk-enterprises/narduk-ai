@@ -44,27 +44,19 @@ const {
   upscaleGeneration,
 } = useGenerationForm()
 
-const { elements, groupedByType, fetchElements, createElement, composeElements, remixPrompt } =
-  usePromptElements()
+const { elements, fetchElements, remixPrompt } = usePromptElements()
 
 const isComposeModalOpen = ref(false)
-const composeSelection = reactive<Record<string, string | null>>({
-  person: null,
-  scene: null,
-  framing: null,
-  action: null,
-})
+const isLibraryModalOpen = ref(false)
 
 function openComposeModal() {
   isComposeModalOpen.value = true
 }
 
-function toggleComposeSelection(type: string, content: string) {
-  composeSelection[type] = composeSelection[type] === content ? null : content
+function handleUseBuilderPrompt(newPrompt: string) {
+  prompt.value = newPrompt
 }
 
-const composing = ref(false)
-const composedResult = ref<string | null>(null)
 const remixing = ref(false)
 
 async function handleRemix() {
@@ -77,70 +69,6 @@ async function handleRemix() {
   } finally {
     remixing.value = false
   }
-}
-
-async function composeWithGrok() {
-  composing.value = true
-  composedResult.value = null
-  try {
-    composedResult.value = await composeElements(composeSelection)
-  } catch (e) {
-    console.error('Compose failed:', e)
-    // Fallback to simple join
-    composedResult.value = ['person', 'scene', 'framing', 'action']
-      .map((t) => composeSelection[t])
-      .filter(Boolean)
-      .join('. ')
-  } finally {
-    composing.value = false
-  }
-}
-
-async function useComposedPrompt() {
-  if (!composedResult.value) return
-  prompt.value = composedResult.value
-
-  // Auto-save to library
-  const componentNames = ['person', 'scene', 'framing', 'action']
-    .filter((t) => composeSelection[t])
-    .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
-  const autoName = `Composed: ${componentNames.join(' + ')}`
-  try {
-    await createElement('prompt', autoName, composedResult.value)
-  } catch (_e) {
-    // Non-blocking — prompt is already in the field
-  }
-
-  // Close and reset
-  isComposeModalOpen.value = false
-  composedResult.value = null
-  for (const key of Object.keys(composeSelection)) {
-    composeSelection[key] = null
-  }
-}
-
-const composeSelectionCount = computed(() => Object.values(composeSelection).filter(Boolean).length)
-
-const composeTypeIcons: Record<string, string> = {
-  person: 'i-lucide-user',
-  scene: 'i-lucide-image',
-  framing: 'i-lucide-camera',
-  action: 'i-lucide-activity',
-}
-
-const composeCategories: Record<string, string> = {
-  person: 'Person / Character',
-  scene: 'Scene / Environment',
-  framing: 'Framing / Camera',
-  action: 'Action / Pose',
-}
-
-function isElementSelected(el: { type: string; content: string }) {
-  return composeSelection[el.type] === el.content
-}
-
-function handleComposeToggle(el: { type: string; content: string }) {
-  toggleComposeSelection(el.type, el.content)
 }
 
 onMounted(() => {
@@ -209,6 +137,16 @@ const resolutions = ['480p', '720p']
           </div>
           <template #hint>
             <div class="flex items-center gap-3 flex-wrap">
+              <UButton
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                icon="i-lucide-library"
+                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
+                @click="isLibraryModalOpen = true"
+              >
+                Library
+              </UButton>
               <UButton
                 variant="ghost"
                 color="neutral"
@@ -529,96 +467,10 @@ const resolutions = ['480p', '720p']
       </template>
     </UModal>
 
-    <!-- Compose from Parts Modal -->
-    <UModal v-model:open="isComposeModalOpen">
-      <template #header>
-        <div class="flex items-center justify-between">
-          <h3 class="font-display font-semibold text-lg flex items-center gap-2">
-            <UIcon name="i-lucide-puzzle" class="size-5 text-primary" />
-            Compose Prompt
-          </h3>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-x"
-            class="-my-1"
-            @click="isComposeModalOpen = false"
-          />
-        </div>
-      </template>
+    <!-- Prompt Builder Modal -->
+    <PromptBuilder v-model:open="isComposeModalOpen" @use-prompt="handleUseBuilderPrompt" />
 
-      <template #body>
-        <div class="space-y-5">
-          <p class="text-sm text-muted">
-            Pick one element from each category to assemble a complete prompt.
-          </p>
-
-          <div v-for="(typeLabel, typeKey) in composeCategories" :key="typeKey" class="space-y-2">
-            <h4
-              class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-1.5"
-            >
-              <UIcon :name="composeTypeIcons[typeKey] || 'i-lucide-folder'" class="size-3.5" />
-              {{ typeLabel }}
-            </h4>
-            <div v-if="groupedByType[typeKey]?.length" class="flex flex-wrap gap-2">
-              <UButton
-                v-for="el in groupedByType[typeKey]"
-                :key="el.id"
-                :variant="isElementSelected(el) ? 'solid' : 'outline'"
-                :color="isElementSelected(el) ? 'primary' : 'neutral'"
-                size="sm"
-                class="rounded-full transition-all duration-200"
-                :class="isElementSelected(el) ? 'shadow-md shadow-primary/20' : ''"
-                @click="handleComposeToggle(el)"
-              >
-                {{ el.name }}
-              </UButton>
-            </div>
-            <p v-else class="text-xs text-dimmed italic">No {{ typeKey }} presets yet.</p>
-          </div>
-        </div>
-      </template>
-
-      <template #footer>
-        <!-- Composed result preview -->
-        <div v-if="composedResult" class="space-y-3">
-          <div
-            class="rounded-xl border border-primary/20 bg-primary/5 p-4 max-h-40 overflow-y-auto"
-          >
-            <p class="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-              Assembled Prompt
-            </p>
-            <p class="text-sm text-default leading-relaxed">
-              {{ composedResult }}
-            </p>
-          </div>
-          <div class="flex justify-end gap-3">
-            <UButton color="neutral" variant="ghost" @click="composedResult = null"> Back </UButton>
-            <UButton color="primary" icon="i-lucide-check" @click="useComposedPrompt">
-              Use Prompt
-            </UButton>
-          </div>
-        </div>
-
-        <!-- Selection controls -->
-        <div v-else class="flex items-center justify-between">
-          <span class="text-xs text-muted"> {{ composeSelectionCount }} of 4 selected </span>
-          <div class="flex gap-3">
-            <UButton color="neutral" variant="ghost" @click="isComposeModalOpen = false">
-              Cancel
-            </UButton>
-            <UButton
-              color="primary"
-              icon="i-lucide-sparkles"
-              :disabled="composeSelectionCount === 0"
-              :loading="composing"
-              @click="composeWithGrok"
-            >
-              Compose with Grok
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
+    <!-- Prompt Library Modal -->
+    <PromptLibraryModal v-model:open="isLibraryModalOpen" @use-prompt="handleUseBuilderPrompt" />
   </div>
 </template>

@@ -29,7 +29,19 @@ export function useGenerationForm() {
   const resolution = ref(defaultResolution.value)
   const sourceGenerationId = ref((route.query.source as string) || '')
 
-  // ─── Chat State Removed (Moved to useChatForm) ──────────────
+  // Storage for builder context
+  const activePromptElements = ref<string[]>([])
+  const activeUserPromptId = ref<string | null>(null)
+
+  function setBuilderContext(
+    newPrompt: string,
+    presets: Record<string, string>,
+    promptId?: string,
+  ) {
+    prompt.value = newPrompt
+    activePromptElements.value = Object.values(presets).filter(Boolean) as string[]
+    activeUserPromptId.value = promptId || null
+  }
 
   // ─── Generation Results ─────────────────────────────────────
 
@@ -56,7 +68,11 @@ export function useGenerationForm() {
     error.value = null
 
     if (activeTab.value === 't2i') {
-      const result = await generateImage(prompt.value, aspectRatio.value)
+      const result = await generateImage(prompt.value, {
+        aspectRatio: aspectRatio.value,
+        promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
+        userPromptId: activeUserPromptId.value || undefined,
+      })
       if (result) {
         latestResult.value = result
         await loadUserImages()
@@ -66,6 +82,8 @@ export function useGenerationForm() {
         duration: duration.value,
         aspectRatio: aspectRatio.value,
         resolution: resolution.value,
+        promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
+        userPromptId: activeUserPromptId.value || undefined,
       })
       if (result) {
         startPolling(result)
@@ -78,6 +96,8 @@ export function useGenerationForm() {
       const result = await generateVideoFromImage(prompt.value, sourceGenerationId.value, {
         duration: duration.value,
         resolution: resolution.value,
+        promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
+        userPromptId: activeUserPromptId.value || undefined,
       })
       if (result) {
         startPolling(result)
@@ -87,12 +107,19 @@ export function useGenerationForm() {
         error.value = 'Select a source image first'
         return
       }
-      const result = await editImage(prompt.value, sourceGenerationId.value)
+      const result = await editImage(prompt.value, sourceGenerationId.value, {
+        promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
+        userPromptId: activeUserPromptId.value || undefined,
+      })
       if (result) {
         latestResult.value = result
         await loadUserImages()
       }
     }
+
+    // Clear builder state after successful dispatch so subsequent generations aren't falsely tagged unless specifically re-selected.
+    activePromptElements.value = []
+    activeUserPromptId.value = null
   }
 
   /**
@@ -256,6 +283,7 @@ export function useGenerationForm() {
     duration,
     resolution,
     sourceGenerationId,
+    setBuilderContext,
 
     // Results
     latestResult,
