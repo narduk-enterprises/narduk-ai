@@ -4,7 +4,7 @@ export interface PromptElement {
   type: 'person' | 'scene' | 'framing' | 'action' | 'style' | 'prompt'
   name: string
   content: string
-  attributes?: Record<string, string | null> | null
+  attributes?: string | null
   metadata?: string | null
   chatHistory?: string | null
   createdAt: string

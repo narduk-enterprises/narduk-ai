@@ -63,9 +63,17 @@ function parseChars(excludeKeys: string[] = []) {
   const chars: { label: string; value: string }[] = []
 
   // Prefer structured attributes JSON if available
-  if (props.preset.attributes && typeof props.preset.attributes === 'object') {
+  let attrs: Record<string, string> | null = null
+  if (props.preset.attributes) {
+    try {
+      attrs = JSON.parse(props.preset.attributes) as Record<string, string>
+    } catch {
+      /* ignore invalid JSON — fall through to content parse */
+    }
+  }
+
+  if (attrs) {
     const schema = PRESET_ATTRIBUTES[props.preset.type]
-    const attrs = props.preset.attributes
 
     // Use schema ordering if available
     if (schema) {

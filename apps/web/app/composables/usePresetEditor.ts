@@ -264,6 +264,7 @@ export function usePresetEditor() {
         await updateElement(id, {
           ...(name && { name }),
           content: latestContent,
+          attributes: buildAttributesJson(state),
           metadata: buildMetadata(),
         })
         await fetchElements()

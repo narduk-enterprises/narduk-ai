@@ -8,6 +8,7 @@ const bodySchema = z.object({
   promptElements: z.array(z.string()).optional(),
   presets: z.record(z.string(), z.string()).optional(),
   userPromptId: z.string().optional(),
+  lineage: z.string().max(50000).optional(),
 })
 
 /**
@@ -124,6 +125,7 @@ export default defineEventHandler(async (event) => {
     mediaUrl: `/api/media/${r2Key}`,
     promptElements: body.promptElements ? JSON.stringify(body.promptElements) : null,
     presets: body.presets ? JSON.stringify(body.presets) : null,
+    lineage: body.lineage || null,
     userPromptId: body.userPromptId || null,
     metadata: JSON.stringify({ revised_prompt: imageData.revised_prompt }),
     generationTimeMs,

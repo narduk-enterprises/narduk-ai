@@ -20,6 +20,7 @@ export function useGenerate() {
       promptElements?: string[]
       presets?: Record<string, string>
       userPromptId?: string
+      lineage?: string
     },
   ): Promise<Generation | null> {
     generating.value = true
@@ -33,6 +34,7 @@ export function useGenerate() {
           promptElements: options?.promptElements,
           presets: options?.presets,
           userPromptId: options?.userPromptId,
+          lineage: options?.lineage,
         },
       })
       return result
@@ -54,6 +56,7 @@ export function useGenerate() {
       promptElements?: string[]
       presets?: Record<string, string>
       userPromptId?: string
+      lineage?: string
     },
   ): Promise<Generation | null> {
     generating.value = true
@@ -67,6 +70,7 @@ export function useGenerate() {
           promptElements: options?.promptElements,
           presets: options?.presets,
           userPromptId: options?.userPromptId,
+          lineage: options?.lineage,
         },
       })
       return result
@@ -90,6 +94,7 @@ export function useGenerate() {
       promptElements?: string[]
       presets?: Record<string, string>
       userPromptId?: string
+      lineage?: string
     },
   ): Promise<Generation | null> {
     generating.value = true
@@ -105,6 +110,7 @@ export function useGenerate() {
           promptElements: options?.promptElements,
           presets: options?.presets,
           userPromptId: options?.userPromptId,
+          lineage: options?.lineage,
         },
       })
       return result
@@ -128,6 +134,7 @@ export function useGenerate() {
       promptElements?: string[]
       presets?: Record<string, string>
       userPromptId?: string
+      lineage?: string
     },
   ): Promise<Generation | null> {
     generating.value = true
@@ -143,6 +150,7 @@ export function useGenerate() {
           promptElements: options?.promptElements,
           presets: options?.presets,
           userPromptId: options?.userPromptId,
+          lineage: options?.lineage,
         },
       })
       return result

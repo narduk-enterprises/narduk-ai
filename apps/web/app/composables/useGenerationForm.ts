@@ -302,6 +302,16 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
 
   // ─── Generate Handlers ──────────────────────────────────────
 
+  function buildLineage(compiledPrompt: string): string {
+    return JSON.stringify({
+      presetIds: activePromptElements.value,
+      modifierIds: activeModifiers.value.map((m: { id: string }) => m.id),
+      userPrompt: prompt.value,
+      compiledPrompt,
+      activePresets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
+    })
+  }
+
   async function handleGenerate() {
     const compiled = compilePrompt()
     if (!compiled.trim()) return
@@ -314,13 +324,7 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
       const count = imageCount.value
 
       // Build structured lineage for generation tracking
-      const lineage = JSON.stringify({
-        presetIds: activePromptElements.value,
-        modifierIds: activeModifiers.value.map((m: { id: string }) => m.id),
-        userPrompt: prompt.value,
-        compiledPrompt: compiled,
-        activePresets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
-      })
+      const lineage = buildLineage(compiled)
 
       const opts = {
         aspectRatio: aspectRatio.value,
@@ -358,6 +362,7 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
         }
       }
     } else if (activeTab.value === 't2v') {
+      const lineage = buildLineage(compiled)
       const result = await generateVideo(compiled, {
         duration: duration.value,
         aspectRatio: aspectRatio.value,
@@ -365,6 +370,7 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
         presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
         userPromptId: activeUserPromptId.value || undefined,
+        lineage,
       })
       if (result) {
         startPolling(result)
@@ -374,12 +380,14 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
         error.value = 'Select a source image first'
         return
       }
+      const lineage = buildLineage(compiled)
       const result = await generateVideoFromImage(compiled, sourceGenerationId.value, {
         duration: duration.value,
         resolution: resolution.value,
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
         presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
         userPromptId: activeUserPromptId.value || undefined,
+        lineage,
       })
       if (result) {
         startPolling(result)
@@ -389,10 +397,12 @@ export function useGenerationForm(recordUsage?: (ids: string[]) => Promise<void>
         error.value = 'Select a source image first'
         return
       }
+      const lineage = buildLineage(compiled)
       const result = await editImage(compiled, sourceGenerationId.value, {
         promptElements: activePromptElements.value.length ? activePromptElements.value : undefined,
         presets: Object.keys(activePresets.value).length ? activePresets.value : undefined,
         userPromptId: activeUserPromptId.value || undefined,
+        lineage,
       })
       if (result) {
         latestResult.value = result
