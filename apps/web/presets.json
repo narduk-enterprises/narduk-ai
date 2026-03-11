@@ -1,4 +1,3 @@
-
 {
   "error": {
     "text": "no such column: is_system at offset 36: SQLITE_ERROR"
