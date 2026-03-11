@@ -27,7 +27,7 @@ Makeup: light with lip gloss
 Tattoos piercings: ear piercings
 Vibe: playful and charming
 Distinguishing features: dimples',
-   '{"headshotUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/ddb02819-c96a-4a5c-a72c-085ebba3d998.png","fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/7c6da69b-c90f-4f6e-b5ae-d08f3a1eb049.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+   '{"headshotUrl":"/presets/jessica_headshot_1773209387523.png","fullBodyUrl":"/presets/jessica_fullbody_1773209399523.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
 
   ('e0000001-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000003', 'person',
    'Lola Lux',
@@ -50,7 +50,7 @@ Makeup: Bold lipstick
 Tattoos piercings: Ear piercings
 Vibe: Confident and alluring
 Distinguishing features: Piercing eyes',
-   '{"headshotUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/67b0a6ef-6e0a-4bd8-ae4a-b063ba43af4a.png","fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/debccd56-a225-4ae7-a246-9d674dc79227.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+   '{"headshotUrl":"/presets/lola_headshot_1773209411743.png","fullBodyUrl":"/presets/lola_fullbody_1773209423931.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
 
   ('e0000001-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003', 'person',
    'Emily Parker',
@@ -73,7 +73,7 @@ Makeup: None
 Tattoos piercings: None
 Vibe: Warm and relatable
 Distinguishing features: Freckles on cheeks',
-   '{"headshotUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/33618858-3add-4d86-a4ba-0ff7f3d4e7e7.png","fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/feeee524-7372-4ba0-b4b9-74e54d2f6e6d.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+   '{"headshotUrl":"/presets/emily_headshot_1773209437733.png","fullBodyUrl":"/presets/emily_fullbody_1773209451616.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
 
 -- ─── Scenes ────────────────────────────────────────
 
@@ -95,7 +95,7 @@ Props: Rustic Wooden Idols, Flowering Plants
 Atmosphere: Adventurous and Energetic
 Depth: Layered with Distant Mountains
 Ground surface: Mossy Forest Floor',
-   '{"fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/a4e425b8-be28-4924-8999-7c2bed2900c8.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+   '{"fullBodyUrl":"/presets/scene_jungle_1773209465437.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
 
   ('e0000002-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000003', 'scene',
    'Rainy City Rooftop',
@@ -113,7 +113,7 @@ Props: Rusted vents, puddles
 Atmosphere: Moody and isolated
 Depth: Layered city skyline
 Ground surface: Slippery wet concrete',
-   '{"fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/58b8d338-aa25-4810-8d17-3807f7253ac4.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+   '{"fullBodyUrl":"/presets/scene_rooftop_1773209481094.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
 
   ('e0000002-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003', 'scene',
    'Sunny Bahamas Shore',
@@ -131,7 +131,7 @@ Props: Lounge chairs and shells
 Atmosphere: Relaxed serene escape
 Depth: Layered ocean horizon
 Ground surface: Soft white sand',
-   '{"fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/ea7c81f1-776c-4113-8aee-0e469e5de843.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+   '{"fullBodyUrl":"/presets/scene_bahamas_1773209495445.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
 
 -- ─── Framings ────────────────────────────────────────
 
@@ -151,7 +151,7 @@ Focus point: horizon
 Camera movement: static
 Composition rule: rule of thirds
 Aspect ratio: 16:9',
-   '{"fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/07a0b9bc-3596-4dcd-896d-92fbc5790c8c.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+   '{"fullBodyUrl":"/presets/hero_landscape_1773209526375.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
 
   ('e0000003-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000003', 'framing',
    'Epic Hero Framing',
@@ -167,7 +167,7 @@ Focus point: Central Character
 Camera movement: Slow Pan
 Composition rule: Rule of Thirds
 Aspect ratio: 2.35:1',
-   '{"fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/d9cbfc25-6128-4a99-8ae8-f188edb22a83.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+   '{"fullBodyUrl":"/presets/hero_epic_1773209509717.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
 
   ('e0000003-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003', 'framing',
    'Epic Landscape View',
@@ -183,7 +183,7 @@ Focus point: horizon
 Camera movement: static
 Composition rule: rule of thirds
 Aspect ratio: 16:9',
-   '{"fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/08b15b12-eaf1-4b34-a95f-5d3edad84b01.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+   '{"fullBodyUrl":"/presets/hero_landscape_1773209526375.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
 
 -- ─── Actions ────────────────────────────────────────
 
@@ -202,7 +202,7 @@ Motion blur: High for speed
 Energy level: High intensity
 Interaction: Engaging enemy
 Emotion: Fierce determination',
-   '{"fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/4ff8c61b-d262-4394-8a59-87869e77499b.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+   '{"fullBodyUrl":"/presets/action_sword_1773209540311.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
 
   ('e0000004-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000003', 'action',
    'Diving into Water',
@@ -217,7 +217,7 @@ Motion blur: moderate splash effect
 Energy level: high dynamic
 Interaction: with pool surface
 Emotion: thrilling excitement',
-   '{"fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/ca488e00-752f-4a5d-9a58-e2f8f58672ec.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+   '{"fullBodyUrl":"/presets/action_dive_1773209556601.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
 
   ('e0000004-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003', 'action',
    'Heroic Sword Strike',
@@ -232,4 +232,4 @@ Motion blur: High
 Energy level: High
 Interaction: Engaging enemy
 Emotion: Courageous',
-   '{"fullBodyUrl":"/api/media/generations/00000000-0000-0000-0000-000000000003/34a0712e-cbb9-44db-82ba-3a3e794e55d7.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+   '{"fullBodyUrl":"/presets/heroic_sword_1773209583045.png"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');

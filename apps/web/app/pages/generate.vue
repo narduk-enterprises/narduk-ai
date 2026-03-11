@@ -123,7 +123,22 @@ const resolutions = ['480p', '720p']
       <!-- Generation Form -->
       <div class="glass-card p-6 space-y-5">
         <!-- Prompt Input -->
-        <UFormField label="Prompt" required>
+        <UFormField required>
+          <template #label>
+            <div class="flex items-center gap-1.5">
+              <span>Prompt</span>
+              <UTooltip
+                v-if="activeTab === 'i2i' || activeTab === 'i2v'"
+                text="When using a source image, describe the entire desired output, not just the changes. The AI will redesign the image using both the source and your description as inspiration."
+                :ui="{ content: 'max-w-xs text-center' }"
+              >
+                <UIcon
+                  name="i-lucide-info"
+                  class="size-4 text-muted hover:text-primary transition-colors cursor-help"
+                />
+              </UTooltip>
+            </div>
+          </template>
           <div class="prompt-input p-1">
             <UTextarea
               v-model="prompt"
@@ -137,7 +152,7 @@ const resolutions = ['480p', '720p']
             />
           </div>
           <template #hint>
-            <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex flex-wrap items-center gap-3">
               <UButton
                 variant="ghost"
                 color="neutral"
