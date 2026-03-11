@@ -175,6 +175,21 @@ export function useGenerate() {
   }
 
   /**
+   * Upscale an image to 2K resolution.
+   */
+  async function upscaleGeneration(generationId: string): Promise<Generation | null> {
+    try {
+      return await $fetch<Generation>('/api/generate/upscale', {
+        method: 'POST',
+        body: { generationId },
+      })
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'Failed to upscale image'
+      return null
+    }
+  }
+
+  /**
    * Retry a failed/expired generation by re-dispatching based on mode.
    */
   async function retryGeneration(gen: Generation): Promise<Generation | null> {
@@ -214,6 +229,7 @@ export function useGenerate() {
     fetchGenerations,
     fetchGeneration,
     deleteGeneration,
+    upscaleGeneration,
     retryGeneration,
   }
 }

@@ -223,6 +223,29 @@ export function useGenerationForm() {
     }
   }
 
+  // ─── Upscale ──────────────────────────────────────────────────
+  const upscaling = ref(false)
+
+  async function upscaleGeneration(generationId: string) {
+    if (upscaling.value) return
+    upscaling.value = true
+    error.value = null
+    try {
+      const result = await $fetch<Generation>('/api/generate/upscale', {
+        method: 'POST',
+        body: { generationId },
+      })
+      // Add upscaled image to recent generations
+      recentGenerations.value.unshift(result)
+      latestResult.value = result
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Upscale failed'
+      error.value = message
+    } finally {
+      upscaling.value = false
+    }
+  }
+
   // ─── Chat Actions Removed (Moved to useChatForm) ────────────
 
   return {
@@ -242,6 +265,7 @@ export function useGenerationForm() {
     // Status
     generating,
     enhancing,
+    upscaling,
     isEnhanceModalOpen,
     enhanceInstructions,
     error,
@@ -260,6 +284,7 @@ export function useGenerationForm() {
     animateLatestImage,
     editLatestImage,
     useGenerationAsSource,
+    upscaleGeneration,
     handleImageUpload,
     removeEnhanceImage,
     enhanceImageBase64,

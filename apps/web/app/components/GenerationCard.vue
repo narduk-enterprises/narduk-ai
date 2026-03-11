@@ -8,6 +8,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   click: []
   'use-as-source': [generation: Generation]
+  upscale: [generation: Generation]
   delete: [generation: Generation]
   retry: [generation: Generation]
 }>()
@@ -67,6 +68,10 @@ function handleRetry() {
 
 function handleDelete() {
   emit('delete', props.generation)
+}
+
+function handleUpscale() {
+  emit('upscale', props.generation)
 }
 </script>
 
@@ -182,6 +187,15 @@ function handleDelete() {
             icon="i-lucide-refresh-cw"
             title="Retry"
             @click.stop.prevent="handleRetry"
+          />
+          <UButton
+            v-if="generation.type === 'image' && generation.status === 'done'"
+            size="xs"
+            variant="ghost"
+            color="primary"
+            icon="i-lucide-maximize-2"
+            title="Upscale to 2K"
+            @click.stop.prevent="handleUpscale"
           />
           <UButton
             v-if="generation.type === 'image' && generation.status === 'done'"

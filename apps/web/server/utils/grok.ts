@@ -131,6 +131,7 @@ interface GrokImageEditParams {
   prompt: string
   imageUrl: string
   model?: string
+  resolution?: '1k' | '2k'
 }
 
 /**
@@ -189,6 +190,7 @@ export async function grokEditImage(
       model: params.model || 'grok-imagine-image',
       prompt: params.prompt,
       image: { url: params.imageUrl, type: 'image_url' },
+      ...(params.resolution && { resolution: params.resolution }),
     }),
   })
 

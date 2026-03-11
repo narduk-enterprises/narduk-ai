@@ -12,7 +12,7 @@ useWebPageSchema({
   description: 'Browse your AI-generated images and videos.',
 })
 
-const { fetchGenerations, deleteGeneration } = useGenerate()
+const { fetchGenerations, deleteGeneration, upscaleGeneration } = useGenerate()
 
 const route = useRoute()
 const generations = ref<Generation[]>([])
@@ -82,6 +82,13 @@ function handleUseAsSource(gen: Generation) {
 
 function handleRetry(gen: Generation) {
   navigateTo({ path: '/generate', query: { prompt: gen.prompt, mode: gen.mode } })
+}
+
+async function handleUpscale(gen: Generation) {
+  const result = await upscaleGeneration(gen.id)
+  if (result) {
+    generations.value.unshift(result)
+  }
 }
 
 const filters = [
@@ -161,6 +168,7 @@ const filters = [
         class="break-inside-avoid mb-5"
         @click="navigateTo(`/gallery/${gen.id}`)"
         @use-as-source="handleUseAsSource"
+        @upscale="handleUpscale"
         @delete="handleDelete"
         @retry="handleRetry"
       />

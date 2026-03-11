@@ -41,6 +41,7 @@ const {
   handleImageUpload,
   removeEnhanceImage,
   enhanceImageBase64,
+  upscaleGeneration,
 } = useGenerationForm()
 
 const { elements, groupedByType, fetchElements, createElement, composeElements, remixPrompt } =
@@ -416,6 +417,7 @@ const resolutions = ['480p', '720p']
             class="break-inside-avoid mb-4"
             @click="navigateTo(`/gallery/${gen.id}`)"
             @use-as-source="useGenerationAsSource"
+            @upscale="(gen) => upscaleGeneration(gen.id)"
           />
         </div>
       </div>
