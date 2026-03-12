@@ -108,10 +108,10 @@ export function useChatForm() {
       let baseSystemPrompt = prompts.value[`chat_${chatMode.value}`]
       if (!baseSystemPrompt) {
         try {
-          // Pass cookies from the current request to ensure auth works
-          const headers = useRequestHeaders(['cookie']) as Record<string, string>
+          // Pass cookies from the current request to ensure auth works (SSR only)
+          const headers = import.meta.server ? useRequestHeaders(['cookie']) as Record<string, string> : undefined
           const fresh = await $fetch<Record<string, string>>('/api/system-prompts', {
-            headers,
+            ...(headers && { headers }),
           })
           baseSystemPrompt = fresh[`chat_${chatMode.value}`] || ''
         } catch (e) {
