@@ -29,7 +29,7 @@ const emit = defineEmits<{
           </h3>
           <p class="text-sm text-muted">
             Test-only flow: parse the provided schema, preview it in the prompt field, then submit
-            it with the OpenAI Batch API.
+            it through the existing xAI image generation flow.
           </p>
         </div>
         <UButton
@@ -66,7 +66,8 @@ const emit = defineEmits<{
     <template #footer>
       <div class="flex items-center justify-between gap-3">
         <p class="text-xs text-dimmed">
-          The prompt field will show a preview only. Batch submission happens when you generate.
+          The prompt field will show a preview only. Generate will fan out the imported prompts
+          through xAI.
         </p>
         <div class="flex items-center gap-2">
           <UButton color="neutral" variant="ghost" @click="isOpen = false"> Cancel </UButton>

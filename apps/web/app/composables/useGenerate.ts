@@ -4,7 +4,6 @@ import type {
   ImageComparison,
   ImageComparisonVoteResponse,
 } from '~/types/imageComparison'
-import type { CharacterBatchImportInput, CharacterBatchSubmission } from '~/utils/characterBatch'
 
 /**
  * Composable for AI media generation.
@@ -54,29 +53,48 @@ export function useGenerate() {
     }
   }
 
-  /**
-   * Submit a test-only character JSON import as an OpenAI Batch API job.
-   */
-  async function submitCharacterImageBatch(
-    input: CharacterBatchImportInput,
+  async function generateImageBatch(
+    requests: Array<{
+      prompt: string
+      model?: string | null
+    }>,
     options?: {
       aspectRatio?: string
     },
-  ): Promise<CharacterBatchSubmission | null> {
+  ): Promise<{ successes: Generation[]; failures: number }> {
     generating.value = true
     error.value = null
     try {
-      const result = await $fetch<CharacterBatchSubmission>('/api/generate/image-batch', {
-        method: 'POST',
-        body: {
-          input,
-          aspectRatio: options?.aspectRatio,
-        },
-      })
-      return result
+      const settled = await Promise.allSettled(
+        requests.map((request) =>
+          $fetch<Generation>('/api/generate/image', {
+            method: 'POST',
+            body: {
+              prompt: request.prompt,
+              aspectRatio: options?.aspectRatio,
+              model: request.model || undefined,
+            },
+          }),
+        ),
+      )
+
+      const successes = settled
+        .filter(
+          (result): result is PromiseFulfilledResult<Generation> => result.status === 'fulfilled',
+        )
+        .map((result) => result.value)
+      const failures = settled.length - successes.length
+
+      if (successes.length === 0) {
+        error.value = 'All imported image generations failed. Please try again.'
+      } else if (failures > 0) {
+        error.value = `${failures} imported image request${failures === 1 ? '' : 's'} failed.`
+      }
+
+      return { successes, failures }
     } catch (err: unknown) {
-      error.value = err instanceof Error ? err.message : 'Failed to submit image batch'
-      return null
+      error.value = err instanceof Error ? err.message : 'Failed to generate imported images'
+      return { successes: [], failures: requests.length }
     } finally {
       generating.value = false
     }
@@ -551,7 +569,7 @@ export function useGenerate() {
     remixing,
     error,
     generateImage,
-    submitCharacterImageBatch,
+    generateImageBatch,
     editImage,
     generateVideo,
     generateVideoFromImage,

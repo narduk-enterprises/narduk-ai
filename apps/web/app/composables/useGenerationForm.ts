@@ -5,7 +5,6 @@ import {
   getCharacterInputParseErrorMessage,
   parseCharacterInputJson,
   type CharacterBatchImportInput,
-  type CharacterBatchSubmission,
 } from '~/utils/characterBatch'
 import type { PromptElement } from './usePromptElements'
 
@@ -22,7 +21,7 @@ export function useGenerationForm() {
   const toast = useToast()
   const { defaultAspectRatio, defaultDuration, defaultResolution } = useSettings()
   const generationStore = useGenerationsStore()
-  const { fetchGeneration, submitCharacterImageBatch, error: submitBatchError } = useGenerate()
+  const { fetchGeneration, generateImageBatch } = useGenerate()
   const supportedModes = new Set(['t2i', 't2v', 'i2v', 'i2i'])
 
   function parseQueryPrompt(value: unknown): string {
@@ -182,10 +181,8 @@ export function useGenerationForm() {
   const characterJsonInput = ref('')
   const characterJsonError = ref<string | null>(null)
   const parsingCharacterJson = ref(false)
-  const batchSubmitting = ref(false)
   const importedCharacterBatch = ref<CharacterBatchImportInput | null>(null)
   const importedCharacterBatchPreview = ref('')
-  const latestBatchSubmission = ref<CharacterBatchSubmission | null>(null)
 
   const hasCharacterBatchImport = computed(() => importedCharacterBatch.value !== null)
   const isCharacterBatchReady = computed(
@@ -200,7 +197,6 @@ export function useGenerationForm() {
     importedCharacterBatch.value = null
     importedCharacterBatchPreview.value = ''
     characterJsonError.value = null
-    latestBatchSubmission.value = null
   }
 
   function clearStructuredInputsForCharacterBatch() {
@@ -227,7 +223,6 @@ export function useGenerationForm() {
 
       importedCharacterBatch.value = parsed
       importedCharacterBatchPreview.value = previewPrompt
-      latestBatchSubmission.value = null
       activeTab.value = 't2i'
       clearStructuredInputsForCharacterBatch()
       prompt.value = previewPrompt
@@ -253,35 +248,41 @@ export function useGenerationForm() {
     if (hasCharacterBatchImport.value) {
       if (!isCharacterBatchReady.value || !importedCharacterBatch.value) return
 
-      batchSubmitting.value = true
       error.value = null
       latestResult.value = null
       latestResults.value = []
 
-      try {
-        const result = await submitCharacterImageBatch(importedCharacterBatch.value, {
-          aspectRatio: aspectRatio.value,
-        })
+      const requests = buildCharacterBatchRequests(importedCharacterBatch.value).map((request) => ({
+        prompt: request.prompt,
+        model: request.requestedModel || selectedImageModel.value,
+      }))
 
-        if (!result) {
-          error.value = submitBatchError.value || 'Failed to submit image batch'
-          return
+      const { successes, failures } = await generateImageBatch(requests, {
+        aspectRatio: aspectRatio.value,
+      })
+
+      if (successes.length > 0) {
+        latestResult.value = successes[0]!
+        latestResults.value = successes
+        for (const success of successes) {
+          generationStore.upsert(success)
         }
 
-        latestBatchSubmission.value = result
         toast.add({
-          title: 'Image Batch Submitted',
-          description: `${result.requestCount} request${result.requestCount === 1 ? '' : 's'} queued for ${result.characterCount} character${result.characterCount === 1 ? '' : 's'}.`,
-          color: 'success',
-          icon: 'i-lucide-layers-3',
+          title:
+            failures > 0 ? 'Imported Images Generated With Failures' : 'Imported Images Generated',
+          description:
+            failures > 0
+              ? `${successes.length} image${successes.length === 1 ? '' : 's'} succeeded and ${failures} failed.`
+              : `${successes.length} imported image${successes.length === 1 ? '' : 's'} generated with xAI.`,
+          color: failures > 0 ? 'warning' : 'success',
+          icon: failures > 0 ? 'i-lucide-alert-triangle' : 'i-lucide-images',
         })
-        return
-      } finally {
-        batchSubmitting.value = false
       }
+
+      return
     }
 
-    latestBatchSubmission.value = null
     await dispatchGenerate()
   }
 
@@ -514,7 +515,7 @@ export function useGenerationForm() {
   // ─── Computed ───────────────────────────────────────────────
 
   const charCount = computed(() => compiledPrompt.value.length)
-  const isGenerating = computed(() => generating.value || batchSubmitting.value)
+  const isGenerating = computed(() => generating.value)
   const isGenerateDisabled = computed(() => {
     if (hasCharacterBatchImport.value && !isCharacterBatchReady.value) {
       return true
@@ -607,7 +608,6 @@ export function useGenerationForm() {
     hasCharacterBatchImport,
     isCharacterBatchReady,
     characterBatchRequestCount,
-    latestBatchSubmission,
 
     // Results
     latestResult,
@@ -621,7 +621,6 @@ export function useGenerationForm() {
 
     // Status
     generating,
-    batchSubmitting,
     isGenerating,
     enhancing,
     upscaling,

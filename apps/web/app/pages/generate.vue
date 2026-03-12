@@ -33,13 +33,11 @@ const {
   hasCharacterBatchImport,
   isCharacterBatchReady,
   characterBatchRequestCount,
-  latestBatchSubmission,
   latestResult,
   latestResults,
   recentGenerations,
   userImages,
   generating,
-  batchSubmitting,
   isGenerating,
   enhancing,
   isEnhanceModalOpen,
@@ -276,8 +274,7 @@ const imageCounts = [1, 2, 3, 4]
 const generateButtonLabel = computed(() => {
   if (hasCharacterBatchImport.value) {
     if (!isCharacterBatchReady.value) return 'Switch To Text To Image'
-    if (batchSubmitting.value) return 'Submitting Batch...'
-    return `Submit ${characterBatchRequestCount.value} Batch Request${characterBatchRequestCount.value === 1 ? '' : 's'}`
+    return `Generate ${characterBatchRequestCount.value} Imported Image${characterBatchRequestCount.value === 1 ? '' : 's'}`
   }
 
   if (isGenerating.value && !feelingLucky.value) {
@@ -636,10 +633,14 @@ function editResult(gen: Generation) {
                     characterBatchRequestCount === 1 ? '' : 's'
                   }}
                   prepared from the imported character schema. The prompt field is a preview only.
-                  Generate will submit an OpenAI batch job.
+                  Generate will fan these out as standard xAI image requests.
                 </p>
                 <p v-if="!isCharacterBatchReady" class="text-xs text-warning">
                   Switch back to Text to Image to submit this imported batch.
+                </p>
+                <p class="text-xs text-dimmed">
+                  xAI Batch API does not currently support image generation, so this test flow stays
+                  on xAI and submits the prompts individually.
                 </p>
               </div>
               <div class="flex items-center gap-2 shrink-0">
@@ -864,40 +865,6 @@ function editResult(gen: Generation) {
           @retry="handleRetry"
           @dismiss="handleDismiss"
         />
-        <div
-          v-else-if="latestBatchSubmission"
-          class="glass-card min-h-[420px] flex flex-col justify-center gap-5 p-8"
-        >
-          <div class="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <UIcon name="i-lucide-layers-3" class="size-8 text-primary/70" />
-          </div>
-          <div class="space-y-2">
-            <h2 class="font-display text-2xl font-semibold">Batch Submitted</h2>
-            <p class="text-sm text-muted">
-              {{ latestBatchSubmission.requestCount }} request{{
-                latestBatchSubmission.requestCount === 1 ? '' : 's'
-              }}
-              queued across {{ latestBatchSubmission.characterCount }} character{{
-                latestBatchSubmission.characterCount === 1 ? '' : 's'
-              }}
-              for this test import flow.
-            </p>
-          </div>
-          <div class="grid gap-3 text-sm">
-            <div class="rounded-xl border border-default/50 bg-muted/35 px-4 py-3">
-              <p class="text-xs uppercase tracking-[0.2em] text-dimmed mb-1">Batch ID</p>
-              <p class="font-mono text-sm break-all">{{ latestBatchSubmission.batchId }}</p>
-            </div>
-            <div class="rounded-xl border border-default/50 bg-muted/35 px-4 py-3">
-              <p class="text-xs uppercase tracking-[0.2em] text-dimmed mb-1">Status</p>
-              <p class="font-medium">{{ latestBatchSubmission.status }}</p>
-            </div>
-          </div>
-          <p class="text-xs text-dimmed">
-            This test path submits work to the OpenAI Batch API in the background, so results will
-            not appear instantly in the live result viewer.
-          </p>
-        </div>
         <!-- Desktop placeholder when no result yet -->
         <div
           v-else
