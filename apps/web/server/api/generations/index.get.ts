@@ -44,25 +44,23 @@ export default defineEventHandler(async (event) => {
     filters.push(eq(generations.mode, mode))
   }
   if (since) {
-    filters.push(gt(generations.createdAt, since))
+    filters.push(gt(generations.updatedAt, since))
   }
 
-  const baseQuery = db
+  // Find and refresh all pending video generations for this user regardless of the query limit/since
+  const pendingVideos = await db
     .select()
     .from(generations)
-    .where(and(...filters))
+    .where(
+      and(
+        eq(generations.userId, user.id),
+        eq(generations.status, 'pending'),
+        eq(generations.type, 'video'),
+      ),
+    )
+    .limit(50)
 
-  // When polling with `since`, skip pagination — always return newest delta
-  const rows = since
-    ? await baseQuery.orderBy(desc(generations.createdAt)).limit(100)
-    : await baseQuery.orderBy(desc(generations.createdAt)).limit(limit).offset(offset)
-
-  // Refresh pending video generations from xAI
-  const pendingVideos = rows.filter(
-    (r) => r.status === 'pending' && r.xaiRequestId && config.xaiApiKey,
-  )
-
-  if (pendingVideos.length) {
+  if (pendingVideos.length && config.xaiApiKey) {
     const now = new Date().toISOString()
 
     await Promise.all(
@@ -145,6 +143,16 @@ export default defineEventHandler(async (event) => {
       }),
     )
   }
+
+  const baseQuery = db
+    .select()
+    .from(generations)
+    .where(and(...filters))
+
+  // When polling with `since`, skip pagination — always return newest delta
+  const rows = since
+    ? await baseQuery.orderBy(desc(generations.updatedAt)).limit(100)
+    : await baseQuery.orderBy(desc(generations.createdAt)).limit(limit).offset(offset)
 
   log.debug('Generations listed', { userId: user.id, count: rows.length, limit, offset })
 

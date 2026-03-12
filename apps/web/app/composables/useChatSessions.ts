@@ -1,10 +1,10 @@
-import type { ChatMessage, ChatMode, ChatModelId } from '~/composables/useChatForm'
+import type { ChatMessage, ChatMode } from '~/composables/useChatForm'
 
 export interface ChatSession {
   id: string
   userId: string
   mode: ChatMode
-  model: ChatModelId
+  model: string
   title: string | null
   createdAt: string
   updatedAt: string
@@ -43,7 +43,7 @@ export function useChatSessions() {
     }
   }
 
-  async function createSession(mode: ChatMode, model: ChatModelId): Promise<string | null> {
+  async function createSession(mode: ChatMode, model: string): Promise<string | null> {
     try {
       const result = await $fetch<{ id: string }>('/api/chat/sessions', {
         method: 'POST',

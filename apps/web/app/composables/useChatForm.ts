@@ -1,20 +1,5 @@
 export type ChatMode = 'general' | 'person' | 'scene' | 'framing' | 'action' | 'style'
 
-export type ChatModelId = 'grok-3-mini' | 'grok-3' | 'grok-2-1212' | 'grok-2-vision-1212'
-
-export interface ChatModel {
-  id: ChatModelId
-  label: string
-  supportsVision: boolean
-}
-
-export const CHAT_MODELS: ChatModel[] = [
-  { id: 'grok-3-mini', label: 'Grok 3 Mini', supportsVision: false },
-  { id: 'grok-3', label: 'Grok 3', supportsVision: false },
-  { id: 'grok-2-1212', label: 'Grok 2', supportsVision: false },
-  { id: 'grok-2-vision-1212', label: 'Grok 2 Vision', supportsVision: true },
-]
-
 export type ContentPart =
   | { type: 'text'; text: string }
   | { type: 'image_url'; image_url: { url: string } }
@@ -45,7 +30,7 @@ export function useChatForm() {
   const isChatting = ref(false)
   const generatingInline = ref(false)
   const error = ref<string | null>(null)
-  const selectedModel = ref<ChatModelId>('grok-3-mini')
+  const selectedModel = ref<string>('grok-3-mini')
 
   watch(chatMode, () => {
     chatMessages.value = []
@@ -61,7 +46,7 @@ export function useChatForm() {
     if (latestSession) {
       // Resume existing session
       chatMode.value = (latestSession.mode as ChatMode) || 'general'
-      selectedModel.value = (latestSession.model as ChatModelId) || 'grok-3-mini'
+      selectedModel.value = latestSession.model || 'grok-3-mini'
       const persisted = await sessions.loadSession(latestSession.id)
       if (persisted.length > 0) {
         // Re-inject the system message slot (rebuilt at send-time, blank for display purposes)
@@ -404,10 +389,6 @@ export function useChatForm() {
       { type: 'image_url', image_url: { url: imageUrl } },
     ]
 
-    const originalModel = selectedModel.value
-    const needsVisionSwitch = selectedModel.value !== 'grok-2-vision-1212'
-    if (needsVisionSwitch) selectedModel.value = 'grok-2-vision-1212'
-
     const userMessage: ChatMessage = { role: 'user', content: visionContent }
     chatMessages.value.push(userMessage)
     isChatting.value = true
@@ -434,7 +415,7 @@ export function useChatForm() {
         role: 'assistant',
         content: '',
         parsedResponse: {
-          message: needsVisionSwitch ? '_(Switched to Grok 2 Vision for image analysis)_' : '',
+          message: '',
           prompt: null,
           suggested_name: null,
           builder_state: null,
@@ -451,7 +432,7 @@ export function useChatForm() {
         },
         body: JSON.stringify({
           chatMode: chatMode.value,
-          model: 'grok-2-vision-1212',
+          model: selectedModel.value,
           messages: payloadMessages
             .map((m) => ({ role: m.role, content: m.content }))
             .filter((m) => contentAsString(m.content).trim().length > 0),
@@ -532,7 +513,6 @@ export function useChatForm() {
       }
     } finally {
       isChatting.value = false
-      if (needsVisionSwitch) selectedModel.value = originalModel
     }
   }
 

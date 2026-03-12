@@ -27,8 +27,8 @@ export function useGenerationsStore() {
 
   function advanceLastSeen(rows: Generation[]) {
     for (const row of rows) {
-      if (row.createdAt > lastSeenAt.value) {
-        lastSeenAt.value = row.createdAt
+      if (row.updatedAt > lastSeenAt.value) {
+        lastSeenAt.value = row.updatedAt
       }
     }
   }
@@ -112,8 +112,8 @@ export function useGenerationsStore() {
     } else {
       items.value.unshift(gen)
     }
-    if (gen.createdAt > lastSeenAt.value) {
-      lastSeenAt.value = gen.createdAt
+    if (gen.updatedAt > lastSeenAt.value) {
+      lastSeenAt.value = gen.updatedAt
     }
   }
 

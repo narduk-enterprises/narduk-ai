@@ -3,8 +3,6 @@ import { eq } from 'drizzle-orm'
 import { appSettings } from '../../database/schema'
 import { grokChatStream, type GrokChatMessage } from '../../utils/grok'
 
-const ALLOWED_CHAT_MODELS = ['grok-3-mini', 'grok-3', 'grok-2-1212', 'grok-2-vision-1212'] as const
-
 const contentPartSchema = z.object({
   type: z.enum(['text', 'image_url']),
   text: z.string().optional(),
@@ -23,7 +21,7 @@ const bodySchema = z.object({
     .default('general'),
   messages: z.array(messageSchema).max(50), // Max 50 messages in history
   stream: z.boolean().optional().default(false),
-  model: z.enum(ALLOWED_CHAT_MODELS).optional(),
+  model: z.string().optional(),
 })
 
 /**
@@ -60,7 +58,7 @@ export default defineEventHandler(async (event) => {
         .where(eq(appSettings.id, 1))
         .get()
       if (settings?.promptEnhanceModel) {
-        chatModel = settings.promptEnhanceModel as (typeof ALLOWED_CHAT_MODELS)[number]
+        chatModel = settings.promptEnhanceModel
       }
     } catch (err) {
       log.warn('Could not fetch appSettings for chatModel', { err })

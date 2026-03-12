@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { CHAT_MODELS } from '~/composables/useChatForm'
-
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({
@@ -95,7 +93,7 @@ async function handleShareImage(imageUrl: string) {
   await shareImageWithAgent(imageUrl)
 }
 
-const modelOptions = CHAT_MODELS.map((m) => ({ label: m.label, value: m.id }))
+const { chatModels } = useXaiModels()
 </script>
 
 <template>
@@ -112,9 +110,7 @@ const modelOptions = CHAT_MODELS.map((m) => ({ label: m.label, value: m.id }))
         <!-- Model picker -->
         <USelectMenu
           v-model="selectedModel"
-          :items="modelOptions"
-          value-key="value"
-          label-key="label"
+          :items="chatModels.length ? chatModels : ['grok-3-mini']"
           size="sm"
           class="w-36 hidden sm:flex"
           :ui="{ base: 'rounded-lg' }"
