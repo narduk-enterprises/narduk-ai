@@ -9,7 +9,6 @@ export interface PromptBuilderStreamCallbacks {
   onTitle: (title: string) => void
 }
 
-// eslint-disable-next-line narduk/require-use-prefix-for-composables -- plain async utility, not a composable
 export async function usePromptBuilderStream(
   messages: { role: string; content: string }[],
   callbacks: PromptBuilderStreamCallbacks,
