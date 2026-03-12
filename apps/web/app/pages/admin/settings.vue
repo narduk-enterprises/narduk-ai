@@ -35,6 +35,14 @@ const state = reactive<SettingsFields>({
   promptEnhanceModel: currentSettings.value?.promptEnhanceModel || 'grok-3-mini',
 })
 
+// Sync form state once the async data resolves (currentSettings is null during SSR/pending)
+watch(currentSettings, (settings) => {
+  if (!settings) return
+  state.videoModel = settings.videoModel
+  state.imageModel = settings.imageModel
+  state.promptEnhanceModel = settings.promptEnhanceModel
+})
+
 const isSaving = ref(false)
 
 // Select Options

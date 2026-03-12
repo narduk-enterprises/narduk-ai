@@ -8,7 +8,7 @@
     "dev": "pnpm --filter narduk-ai dev",
     "prebuild": "node tools/check-setup.cjs",
     "build": "doppler run -- pnpm -r build",
-    "preship": "node tools/check-setup.cjs && pnpm install --frozen-lockfile && npx tsx tools/check-drift-ci.ts && npx tsx tools/check-sync-health.ts && pnpm run quality && pnpm -r --if-present test:unit",
+    "preship": "node tools/check-setup.cjs && pnpm run format && pnpm install --frozen-lockfile && npx tsx tools/check-drift-ci.ts && npx tsx tools/check-sync-health.ts && pnpm run quality && pnpm -r --if-present test:unit",
     "ship": "npx tsx tools/ship.ts",
     "ship:fleet": "npx tsx tools/ship-fleet.ts",
     "lint": "turbo run lint",

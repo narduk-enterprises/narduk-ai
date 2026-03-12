@@ -97,6 +97,29 @@ const otherPresetTypes = computed(() => {
     .sort((a, b) => a.order - b.order)
 })
 
+// ── Preset select items (USelectMenu format) ─────────────────────
+const personSelectItems = computed(() =>
+  personElements.value.map((p) => ({ label: p.name, value: p.id })),
+)
+
+function getTypeSelectItems(type: string) {
+  return elements.value
+    .filter((el) => el.type === type)
+    .map((el) => ({ label: el.name, value: el.id }))
+}
+
+function handlePersonSelect(item: { label: string; value: string } | null) {
+  if (!item) return
+  const p = personElements.value.find((e) => e.id === item.value)
+  if (p) attachPerson(p)
+}
+
+function handlePresetSelect(type: string, item: { label: string; value: string } | null) {
+  if (!item) return
+  const el = elements.value.find((e) => e.type === type && e.id === item.value)
+  if (el) attachPreset(type, el)
+}
+
 function getPersonPreviewUrl(el: { metadata?: string | null }): string | null {
   if (!el.metadata) return null
   try {
@@ -226,10 +249,8 @@ function editResult(gen: Generation) {
 
     <!-- Desktop: 2-col split. Mobile: single col -->
     <div class="lg:grid lg:grid-cols-[1fr_400px] lg:gap-6 lg:items-start space-y-6 lg:space-y-0">
-
       <!-- ── LEFT COLUMN: Form ─────────────────────────────────────── -->
       <div class="space-y-4">
-
         <!-- Mode Selector -->
         <div class="space-y-1.5">
           <div class="flex flex-wrap gap-2">
@@ -251,7 +272,6 @@ function editResult(gen: Generation) {
 
         <!-- Generation Form Card -->
         <div class="glass-card p-5 space-y-4">
-
           <!-- ── Preset Slot Tray ───────────────────────────────────── -->
           <div
             v-if="personElements.length || otherPresetTypes.length"
@@ -284,38 +304,25 @@ function editResult(gen: Generation) {
                   @click="detachPerson()"
                 />
               </div>
-              <!-- Unselected: popover -->
-              <UPopover v-else :ui="{ content: 'p-2 max-w-64 max-h-56 overflow-y-auto' }">
-                <UButton size="xs" variant="outline" color="neutral" icon="i-lucide-user" class="rounded-full text-muted hover:text-primary">
+              <!-- Unselected: searchable select -->
+              <USelectMenu
+                v-else
+                :items="personSelectItems"
+                searchable
+                :search-attributes="['label']"
+                placeholder="Search person..."
+                @update:model-value="handlePersonSelect"
+              >
+                <UButton
+                  size="xs"
+                  variant="outline"
+                  color="neutral"
+                  icon="i-lucide-user"
+                  class="rounded-full text-muted hover:text-primary"
+                >
                   Person
                 </UButton>
-                <template #content>
-                  <div class="flex flex-col gap-1">
-                    <UButton
-                      v-for="p in personElements"
-                      :key="p.id"
-                      size="xs"
-                      variant="ghost"
-                      color="neutral"
-                      class="justify-start rounded-lg"
-                      @click="attachPerson(p)"
-                    >
-                      <template #leading>
-                        <NuxtImg
-                          v-if="getPersonPreviewUrl(p)"
-                          :src="getPersonPreviewUrl(p)!"
-                          class="size-4 rounded-full object-cover"
-                          width="16"
-                          height="16"
-                          loading="lazy"
-                        />
-                        <UIcon v-else name="i-lucide-user" class="size-3.5" />
-                      </template>
-                      {{ p.name }}
-                    </UButton>
-                  </div>
-                </template>
-              </UPopover>
+              </USelectMenu>
             </template>
 
             <!-- Other preset type slots -->
@@ -337,27 +344,25 @@ function editResult(gen: Generation) {
                   @click="detachPreset(pt.type)"
                 />
               </div>
-              <!-- Popover button -->
-              <UPopover v-else :ui="{ content: 'p-2 max-w-64 max-h-56 overflow-y-auto' }">
-                <UButton size="xs" variant="outline" color="neutral" :icon="pt.icon" class="rounded-full text-muted hover:text-primary">
+              <!-- Searchable select -->
+              <USelectMenu
+                v-else
+                :items="getTypeSelectItems(pt.type)"
+                searchable
+                :search-attributes="['label']"
+                :placeholder="`Search ${pt.label.toLowerCase()}...`"
+                @update:model-value="(item) => handlePresetSelect(pt.type, item)"
+              >
+                <UButton
+                  size="xs"
+                  variant="outline"
+                  color="neutral"
+                  :icon="pt.icon"
+                  class="rounded-full text-muted hover:text-primary"
+                >
                   {{ pt.label }}
                 </UButton>
-                <template #content>
-                  <div class="flex flex-col gap-1">
-                    <UButton
-                      v-for="el in pt.elements"
-                      :key="el.id"
-                      size="xs"
-                      variant="ghost"
-                      color="neutral"
-                      class="justify-start rounded-lg"
-                      @click="attachPreset(pt.type, el)"
-                    >
-                      {{ el.name }}
-                    </UButton>
-                  </div>
-                </template>
-              </UPopover>
+              </USelectMenu>
             </template>
 
             <!-- Quick Modifiers button -->
@@ -371,7 +376,9 @@ function editResult(gen: Generation) {
               class="rounded-full text-muted hover:text-primary"
               @click="isModifierSlideoverOpen = true"
             >
-              Modifiers<span v-if="selectedTagsList.length" class="ml-1 text-primary font-bold">{{ selectedTagsList.length }}</span>
+              Modifiers<span v-if="selectedTagsList.length" class="ml-1 text-primary font-bold">{{
+                selectedTagsList.length
+              }}</span>
             </UButton>
 
             <!-- Clear button -->
@@ -407,13 +414,18 @@ function editResult(gen: Generation) {
           <UFormField required>
             <template #label>
               <div class="flex items-center gap-1.5">
-                <span>{{ activeTab === 'i2i' || activeTab === 'i2v' ? 'Final Prompt' : 'Prompt' }}</span>
+                <span>{{
+                  activeTab === 'i2i' || activeTab === 'i2v' ? 'Final Prompt' : 'Prompt'
+                }}</span>
                 <UTooltip
                   v-if="activeTab === 'i2i' || activeTab === 'i2v'"
                   text="When using a source image, describe the entire desired output, not just the changes."
                   :popper="{ placement: 'top' }"
                 >
-                  <UIcon name="i-lucide-info" class="size-4 text-muted hover:text-primary transition-colors cursor-help" />
+                  <UIcon
+                    name="i-lucide-info"
+                    class="size-4 text-muted hover:text-primary transition-colors cursor-help"
+                  />
                 </UTooltip>
               </div>
             </template>
@@ -424,18 +436,42 @@ function editResult(gen: Generation) {
               class="space-y-3 mb-3 bg-black/5 dark:bg-black/20 p-3 rounded-xl border border-default/10"
             >
               <UFormField label="Original Prompt">
-                <UTextarea :model-value="sourceGeneration.prompt" :rows="2" :maxrows="4" autoresize disabled class="w-full opacity-70" />
+                <UTextarea
+                  :model-value="sourceGeneration.prompt"
+                  :rows="2"
+                  :maxrows="4"
+                  autoresize
+                  disabled
+                  class="w-full opacity-70"
+                />
               </UFormField>
               <UFormField label="Additional Changes">
-                <UTextarea v-model="i2iInstructions" placeholder="e.g. Make it a snowy winter scene..." :rows="2" autoresize class="w-full" />
+                <UTextarea
+                  v-model="i2iInstructions"
+                  placeholder="e.g. Make it a snowy winter scene..."
+                  :rows="2"
+                  autoresize
+                  class="w-full"
+                />
               </UFormField>
-              <UButton color="primary" variant="soft" icon="i-lucide-wand-2" size="sm" :loading="generatingI2IPrompt" class="w-full justify-center" @click="generateI2IPrompt">
+              <UButton
+                color="primary"
+                variant="soft"
+                icon="i-lucide-wand-2"
+                size="sm"
+                :loading="generatingI2IPrompt"
+                class="w-full justify-center"
+                @click="generateI2IPrompt"
+              >
                 Generate Final Prompt
               </UButton>
             </div>
 
             <div class="prompt-input p-1 relative">
-              <div v-if="generatingI2IPrompt" class="absolute inset-0 bg-default/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
+              <div
+                v-if="generatingI2IPrompt"
+                class="absolute inset-0 bg-default/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl"
+              >
                 <UIcon name="i-lucide-loader-2" class="size-6 text-primary animate-spin" />
               </div>
               <UTextarea
@@ -451,13 +487,38 @@ function editResult(gen: Generation) {
             </div>
             <template #hint>
               <div class="flex flex-wrap items-center gap-2">
-                <UButton variant="ghost" color="neutral" size="sm" icon="i-lucide-library" class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9" @click="isLibraryModalOpen = true">
+                <UButton
+                  variant="ghost"
+                  color="neutral"
+                  size="sm"
+                  icon="i-lucide-library"
+                  class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
+                  @click="isLibraryModalOpen = true"
+                >
                   Library
                 </UButton>
-                <UButton variant="ghost" color="neutral" size="sm" icon="i-lucide-shuffle" :loading="remixing" :disabled="!prompt.trim() || generating || remixing" class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9" @click="handleRemix">
+                <UButton
+                  variant="ghost"
+                  color="neutral"
+                  size="sm"
+                  icon="i-lucide-shuffle"
+                  :loading="remixing"
+                  :disabled="!prompt.trim() || generating || remixing"
+                  class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
+                  @click="handleRemix"
+                >
                   Remix
                 </UButton>
-                <UButton variant="ghost" color="neutral" size="sm" icon="i-lucide-wand-2" :loading="enhancing" :disabled="!prompt.trim() || generating || enhancing" class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9" @click="openEnhanceModal">
+                <UButton
+                  variant="ghost"
+                  color="neutral"
+                  size="sm"
+                  icon="i-lucide-wand-2"
+                  :loading="enhancing"
+                  :disabled="!prompt.trim() || generating || enhancing"
+                  class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
+                  @click="openEnhanceModal"
+                >
                   Enhance
                 </UButton>
                 <span class="text-xs text-dimmed">{{ charCount }} chars</span>
@@ -467,28 +528,58 @@ function editResult(gen: Generation) {
 
           <!-- Options Row -->
           <div class="flex flex-wrap items-end gap-4">
-            <UFormField v-if="activeTab === 't2i' || activeTab === 't2v'" label="Aspect Ratio" class="w-auto">
+            <UFormField
+              v-if="activeTab === 't2i' || activeTab === 't2v'"
+              label="Aspect Ratio"
+              class="w-auto"
+            >
               <USelect v-model="aspectRatio" :items="aspectRatios" class="w-28" />
             </UFormField>
             <UFormField v-if="activeTab === 't2i'" label="Images" class="w-auto">
               <div class="flex gap-1">
-                <UButton v-for="count in imageCounts" :key="count" :label="String(count)" :variant="imageCount === count ? 'solid' : 'outline'" :color="imageCount === count ? 'primary' : 'neutral'" size="sm" class="min-w-9" @click="imageCount = count" />
+                <UButton
+                  v-for="count in imageCounts"
+                  :key="count"
+                  :label="String(count)"
+                  :variant="imageCount === count ? 'solid' : 'outline'"
+                  :color="imageCount === count ? 'primary' : 'neutral'"
+                  size="sm"
+                  class="min-w-9"
+                  @click="imageCount = count"
+                />
               </div>
             </UFormField>
-            <UFormField v-if="activeTab === 't2v' || activeTab === 'i2v'" label="Duration" class="w-auto">
+            <UFormField
+              v-if="activeTab === 't2v' || activeTab === 'i2v'"
+              label="Duration"
+              class="w-auto"
+            >
               <div class="flex items-center gap-3">
                 <USlider v-model="duration" :min="1" :max="15" :step="1" class="w-32" />
                 <span class="text-sm text-muted font-mono w-8">{{ duration }}s</span>
               </div>
             </UFormField>
-            <UFormField v-if="activeTab === 't2v' || activeTab === 'i2v'" label="Resolution" class="w-auto">
+            <UFormField
+              v-if="activeTab === 't2v' || activeTab === 'i2v'"
+              label="Resolution"
+              class="w-auto"
+            >
               <USelect v-model="resolution" :items="resolutions" class="w-24" />
             </UFormField>
           </div>
 
           <!-- Source Image -->
-          <UFormField v-if="activeTab === 'i2v' || activeTab === 'i2i'" label="Source Image" required>
-            <ImageChooser v-model="sourceGenerationId" :user-images="userImages" :uploading="uploadingSource" @upload="handleSourceImageUpload" />
+          <UFormField
+            v-if="activeTab === 'i2v' || activeTab === 'i2i'"
+            label="Source Image"
+            required
+          >
+            <ImageChooser
+              v-model="sourceGenerationId"
+              :user-images="userImages"
+              :uploading="uploadingSource"
+              @upload="handleSourceImageUpload"
+            />
           </UFormField>
 
           <!-- Error -->
@@ -502,10 +593,19 @@ function editResult(gen: Generation) {
               :loading="generating && !feelingLucky"
               :disabled="isGenerateDisabled || feelingLucky"
               class="flex-1 rounded-xl shadow-lg hover:shadow-primary/20 transition-shadow"
-              :label="generating && !feelingLucky ? 'Generating...' : imageCount > 1 && activeTab === 't2i' ? `Generate ${imageCount} Images` : 'Generate'"
+              :label="
+                generating && !feelingLucky
+                  ? 'Generating...'
+                  : imageCount > 1 && activeTab === 't2i'
+                    ? `Generate ${imageCount} Images`
+                    : 'Generate'
+              "
               @click="handleGenerate"
             />
-            <UTooltip v-if="activeTab === 't2i' || activeTab === 't2v'" text="Pick random presets and auto-generate">
+            <UTooltip
+              v-if="activeTab === 't2i' || activeTab === 't2v'"
+              text="Pick random presets and auto-generate"
+            >
               <UButton
                 size="lg"
                 icon="i-lucide-dice-5"
@@ -550,7 +650,10 @@ function editResult(gen: Generation) {
           @dismiss="handleDismiss"
         />
         <!-- Desktop placeholder when no result yet -->
-        <div v-else class="hidden lg:flex flex-col items-center justify-center glass-card min-h-[420px] text-center gap-3 p-8">
+        <div
+          v-else
+          class="hidden lg:flex flex-col items-center justify-center glass-card min-h-[420px] text-center gap-3 p-8"
+        >
           <div class="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
             <UIcon name="i-lucide-image" class="size-8 text-primary/50" />
           </div>

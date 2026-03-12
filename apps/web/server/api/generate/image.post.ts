@@ -48,6 +48,8 @@ export default defineEventHandler(async (event) => {
     log.warn('Could not fetch appSettings for imageModel', { err })
   }
 
+  log.info('T2I using model', { imageModel })
+
   // Call Grok Imagine API
   const startTimeMs = Date.now()
   const result = await grokGenerateImage(config.xaiApiKey, {

@@ -86,6 +86,8 @@ export default defineEventHandler(async (event) => {
     log.warn('Could not fetch appSettings for imageModel', { err })
   }
 
+  log.info('I2I using model', { imageModel })
+
   // Call Grok Image Edit API
   const startTimeMs = Date.now()
   const result = await grokEditImage(config.xaiApiKey, {
