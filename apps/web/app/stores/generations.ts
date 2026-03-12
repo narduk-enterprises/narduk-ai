@@ -38,13 +38,14 @@ export const useGenerationsStore = defineStore('generations', () => {
     loading.value = true
     isFinished.value = false
     try {
-      const rows = await useAppFetch<Generation[]>('/api/generations', {
+      const rows = await $fetch<Generation[]>('/api/generations', {
         query: {
           limit,
           search: search || undefined,
           type: filters?.type || undefined,
           mode: filters?.mode || undefined,
         },
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
       })
       items.value = rows
       if (rows.length < limit) isFinished.value = true
@@ -60,7 +61,7 @@ export const useGenerationsStore = defineStore('generations', () => {
     if (loadingMore.value || isFinished.value) return
     loadingMore.value = true
     try {
-      const rows = await useAppFetch<Generation[]>('/api/generations', {
+      const rows = await $fetch<Generation[]>('/api/generations', {
         query: {
           limit,
           offset: items.value.length,
@@ -68,6 +69,7 @@ export const useGenerationsStore = defineStore('generations', () => {
           type: filters?.type || undefined,
           mode: filters?.mode || undefined,
         },
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
       })
       if (rows.length < limit) isFinished.value = true
       items.value.push(...rows)
