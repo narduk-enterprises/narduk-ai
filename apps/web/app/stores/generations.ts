@@ -62,7 +62,7 @@ export function useGenerationsStore() {
     if (loadingMore.value || isFinished.value) return
     loadingMore.value = true
     try {
-      const rows = await $fetch<Generation[]>('/api/generations', {
+      const rows = await apiFetch<Generation[]>('/api/generations', {
         query: {
           limit,
           offset: items.value.length,
