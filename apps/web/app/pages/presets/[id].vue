@@ -216,6 +216,28 @@ function handleUsePrompt(promptText: string) {
   navigateTo({ path: '/generate', query: { prompt: promptText } })
 }
 
+const { deleteElement } = usePromptElements()
+const deletingPreset = ref(false)
+
+async function handleDeletePreset() {
+  if (!preset.value) return
+  if (!confirm(`Delete "${preset.value.name}"? This cannot be undone.`)) return
+  deletingPreset.value = true
+  try {
+    await deleteElement(preset.value.id)
+    navigateTo('/presets')
+  } catch {
+    useToast().add({
+      title: 'Delete Failed',
+      description: 'Could not delete this preset.',
+      icon: 'i-lucide-alert-triangle',
+      color: 'error',
+    })
+  } finally {
+    deletingPreset.value = false
+  }
+}
+
 async function handleSavePrompt(promptText: string) {
   const elementType = preset.value?.type || 'scene'
   const lastAssistant = [...chatMessages.value].reverse().find((m) => m.role === 'assistant')
@@ -637,6 +659,15 @@ function presetThumb(metadata: string | null | undefined) {
               size="sm"
               class="md:hidden"
               @click="isMobilePresetsOpen = true"
+            />
+            <UButton
+              color="error"
+              variant="ghost"
+              icon="i-lucide-trash-2"
+              size="sm"
+              :loading="deletingPreset"
+              title="Delete this preset"
+              @click="handleDeletePreset"
             />
             <UButton
               color="neutral"

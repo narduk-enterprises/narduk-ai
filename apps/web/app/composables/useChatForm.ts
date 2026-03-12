@@ -40,7 +40,7 @@ export function useChatForm() {
       const baseSystemPrompt = prompts.value[promptKey] || ''
       const mediaContext =
         mode === 'general' && mediaType.value === 'video'
-          ? '\\n\\nIMPORTANT: The user is currently creating a VIDEO prompt for Grok Imagine. Optimize all prompts for video generation — emphasize motion, temporal progression, camera movement, pacing, and cinematic dynamics rather than static composition.'
+          ? '\n\nIMPORTANT: The user is currently creating a VIDEO prompt for Grok Imagine. Optimize all prompts for video generation — emphasize motion, temporal progression, camera movement, pacing, and cinematic dynamics rather than static composition.'
           : ''
 
       chatMessages.value = [
@@ -119,18 +119,20 @@ export function useChatForm() {
 
       const mediaContext =
         chatMode.value === 'general' && mediaType.value === 'video'
-          ? '\\n\\nIMPORTANT: The user is currently creating a VIDEO prompt for Grok Imagine. Optimize all prompts for video generation — emphasize motion, temporal progression, camera movement, pacing, and cinematic dynamics rather than static composition.'
+          ? '\n\nIMPORTANT: The user is currently creating a VIDEO prompt for Grok Imagine. Optimize all prompts for video generation — emphasize motion, temporal progression, camera movement, pacing, and cinematic dynamics rather than static composition.'
           : ''
 
       // Replace the default system message with our enhanced one
       const payloadMessages = [...chatMessages.value]
       payloadMessages[0] = {
         role: 'system',
-        content: `${baseSystemPrompt}${mediaContext}\\n\\n${elementsContext}${modifiersContext}${schemaContext}${pipelineContext}`,
+        content: `${baseSystemPrompt}${mediaContext}\n\n${elementsContext}${modifiersContext}${schemaContext}${pipelineContext}`,
       }
 
-      // Also backfill the client-side system message so it saves correctly
-      if (chatMessages.value.length > 0 && chatMessages.value[0]?.role === 'system') {
+      // Backfill the client-side system message so it saves correctly.
+      // Guard: only overwrite when baseSystemPrompt is non-empty to prevent
+      // corrupting the slot when prompts haven't loaded yet (timing issue on preset editor).
+      if (baseSystemPrompt && chatMessages.value.length > 0 && chatMessages.value[0]?.role === 'system') {
         chatMessages.value[0].content = `${baseSystemPrompt}${mediaContext}`
       }
 
@@ -159,7 +161,22 @@ export function useChatForm() {
         }),
       })
 
-      if (!res.ok || !res.body) throw new Error('API Error')
+      if (!res.ok) throw new Error(`API Error (${res.status})`)
+
+      // On Cloudflare edge nodes, sendStream() can occasionally return a null body
+      // on an otherwise successful 200 response. Bail out gracefully instead of
+      // showing a false error to the user.
+      if (!res.body) {
+        console.warn('[useChatForm] res.body is null on a 200 OK — skipping stream read')
+        if (assistantIndex >= 0) {
+          const msg = chatMessages.value[assistantIndex]
+          if (msg) {
+            msg.content = '<message>Sorry, the response was empty. Please try again.</message>'
+            msg.parsedResponse = { message: 'Sorry, the response was empty. Please try again.', prompt: null, suggested_name: null, builder_state: null }
+          }
+        }
+        return
+      }
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
