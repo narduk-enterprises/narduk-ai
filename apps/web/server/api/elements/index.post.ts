@@ -4,9 +4,10 @@ import { promptElements } from '../../database/schema'
 const bodySchema = z.object({
   type: z.enum(['person', 'scene', 'framing', 'action', 'style', 'prompt']),
   name: z.string().min(1).max(100),
-  content: z.string().min(1).max(2000),
-  attributes: z.string().max(20000).nullish(),
-  metadata: z.string().max(10000).nullish(),
+  content: z.string().min(1).max(100_000),
+  attributes: z.string().max(100_000).nullish(),
+  metadata: z.string().max(100_000).nullish(),
+  chatHistory: z.string().max(500_000).nullish(),
 })
 
 /**
@@ -31,6 +32,7 @@ export default defineEventHandler(async (event) => {
     content: body.content,
     attributes: body.attributes ?? null,
     metadata: body.metadata ?? null,
+    chatHistory: body.chatHistory ?? null,
     createdAt: now,
     updatedAt: now,
   }
