@@ -1,3 +1,5 @@
+import { VISION_MODEL, payloadNeedsVision, resolveVisionImageUrl } from '~/utils/visionImage'
+
 export type ChatMode = 'general' | 'person' | 'scene' | 'framing' | 'action' | 'style'
 
 export type ContentPart =
@@ -122,6 +124,38 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     return content.map((p) => (p.type === 'text' ? p.text : '[image]')).join(' ')
   }
 
+  async function buildApiContent(content: string | ContentPart[]): Promise<string | ContentPart[]> {
+    if (!Array.isArray(content) || !import.meta.client) {
+      return content
+    }
+
+    return await Promise.all(
+      content.map(async (part) => {
+        if (part.type !== 'image_url') {
+          return part
+        }
+
+        return {
+          ...part,
+          image_url: {
+            url: await resolveVisionImageUrl(part.image_url.url, window.location.origin),
+          },
+        }
+      }),
+    )
+  }
+
+  async function buildApiMessages(messages: ChatMessage[]) {
+    const serialized = await Promise.all(
+      messages.map(async (message) => ({
+        role: message.role,
+        content: await buildApiContent(message.content),
+      })),
+    )
+
+    return serialized.filter((message) => contentAsString(message.content).trim().length > 0)
+  }
+
   async function sendChatMessage(contextString?: string) {
     if (!chatInput.value.trim() || isChatting.value) return
 
@@ -201,6 +235,8 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       })
       assistantIndex = chatMessages.value.length - 1
 
+      const apiMessages = await buildApiMessages(payloadMessages)
+
       const res = await fetch('/api/generate/chat', {
         method: 'POST',
         headers: {
@@ -209,10 +245,8 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         },
         body: JSON.stringify({
           chatMode: chatMode.value,
-          model: selectedModel.value,
-          messages: payloadMessages
-            .map((m) => ({ role: m.role, content: m.content }))
-            .filter((m) => contentAsString(m.content).trim().length > 0),
+          model: payloadNeedsVision(payloadMessages) ? VISION_MODEL : selectedModel.value,
+          messages: apiMessages,
           stream: true,
         }),
       })
@@ -391,7 +425,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
 
   /**
    * Send a generated image back to the chat agent as a vision message.
-   * Automatically switches to grok-2-vision-1212 for that turn.
+   * Local/private media is inlined so the model can actually read it.
    */
   async function shareImageWithAgent(imageUrl: string, userComment?: string) {
     if (isChatting.value) return
@@ -440,6 +474,8 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       chatMessages.value.push(assistantPlaceholder)
       assistantIndex = chatMessages.value.length - 1
 
+      const apiMessages = await buildApiMessages(payloadMessages)
+
       const res = await fetch('/api/generate/chat', {
         method: 'POST',
         headers: {
@@ -448,10 +484,8 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         },
         body: JSON.stringify({
           chatMode: chatMode.value,
-          model: selectedModel.value,
-          messages: payloadMessages
-            .map((m) => ({ role: m.role, content: m.content }))
-            .filter((m) => contentAsString(m.content).trim().length > 0),
+          model: payloadNeedsVision(payloadMessages) ? VISION_MODEL : selectedModel.value,
+          messages: apiMessages,
           stream: true,
         }),
       })

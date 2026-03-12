@@ -137,6 +137,25 @@ export function normalizePresetElementState(input: {
   }
 }
 
+export function resolveAttributesInputForUpdate(input: {
+  contentProvided: boolean
+  attributes: string | null | undefined
+  attributesProvided: boolean
+  existingAttributes: string | null | undefined
+}): string | null {
+  if (input.attributesProvided) {
+    return input.attributes ?? null
+  }
+
+  // When the user edits raw content directly, treat that content as the
+  // source of truth instead of letting stale structured attributes rewrite it.
+  if (input.contentProvided) {
+    return null
+  }
+
+  return input.existingAttributes ?? null
+}
+
 function normalizeJsonBlob(
   raw: string | null | undefined,
   expectedShape: 'array' | 'object',

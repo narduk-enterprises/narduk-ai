@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
+import { GENERATION_MODES } from '~/utils/generationModes'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -253,32 +254,7 @@ function handleDismiss() {
   latestResult.value = null
 }
 
-const modes = [
-  {
-    value: 't2i',
-    label: 'Text → Image',
-    icon: 'i-lucide-image',
-    desc: 'Create an image from a text description',
-  },
-  {
-    value: 't2v',
-    label: 'Text → Video',
-    icon: 'i-lucide-video',
-    desc: 'Generate a video from a text description',
-  },
-  {
-    value: 'i2v',
-    label: 'Image → Video',
-    icon: 'i-lucide-wand-2',
-    desc: 'Animate an existing image into a video',
-  },
-  {
-    value: 'i2i',
-    label: 'Image → Image',
-    icon: 'i-lucide-layers',
-    desc: 'Edit or transform an existing image',
-  },
-]
+const modes = GENERATION_MODES
 
 const activeMode = computed(() => modes.find((m) => m.value === activeTab.value))
 
@@ -330,7 +306,15 @@ function editResult(gen: Generation) {
               @click="activeTab = mode.value"
             />
           </div>
-          <p v-if="activeMode" class="text-xs text-muted pl-1">{{ activeMode.desc }}</p>
+          <div v-if="activeMode" class="flex flex-wrap items-center gap-2 pl-1">
+            <p class="text-xs text-muted">{{ activeMode.description }}</p>
+            <UBadge color="neutral" variant="subtle" size="sm">
+              Input: {{ activeMode.inputLabel }}
+            </UBadge>
+            <UBadge color="neutral" variant="subtle" size="sm">
+              Output: {{ activeMode.outputLabel }}
+            </UBadge>
+          </div>
         </div>
 
         <!-- Generation Form Card -->
@@ -476,7 +460,7 @@ function editResult(gen: Generation) {
           </div>
 
           <!-- Prompt Input -->
-          <UFormField required>
+          <UFormField>
             <template #label>
               <div class="flex items-center gap-1.5">
                 <span>{{ promptFieldLabel }}</span>
@@ -595,7 +579,16 @@ function editResult(gen: Generation) {
           >
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div class="space-y-1">
-                <p class="text-sm font-medium text-default">Final Prompt</p>
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-default">Final Prompt</p>
+                  <UBadge
+                    color="neutral"
+                    variant="subtle"
+                    size="sm"
+                    icon="i-lucide-lock"
+                    label="Read only"
+                  />
+                </div>
                 <p class="text-xs text-muted">
                   This is the exact prompt that will be sent after presets and modifiers are merged.
                 </p>
@@ -614,15 +607,11 @@ function editResult(gen: Generation) {
               </div>
             </div>
 
-            <UTextarea
-              :model-value="compiledPrompt"
-              :rows="4"
-              :maxrows="12"
-              autoresize
-              readonly
-              class="w-full"
-              :ui="{ base: 'bg-default/80' }"
-            />
+            <div
+              class="rounded-xl border border-default/50 bg-muted/35 px-4 py-3 font-mono text-sm leading-relaxed text-muted whitespace-pre-wrap max-h-72 overflow-y-auto select-text cursor-text"
+            >
+              {{ compiledPrompt }}
+            </div>
           </div>
 
           <!-- Options Row -->

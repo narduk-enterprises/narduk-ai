@@ -6,6 +6,7 @@ import {
   normalizeChatHistoryJson,
   normalizeMetadataJson,
   normalizePresetElementState,
+  resolveAttributesInputForUpdate,
 } from '#server/utils/promptElementData'
 
 const bodySchema = z.object({
@@ -60,8 +61,12 @@ export default defineEventHandler(async (event) => {
   const nextType = body.type ?? existing.type
   const nextName = body.name ?? existing.name
   const nextContentInput = body.content ?? existing.content
-  const nextAttributesInput =
-    body.attributes !== undefined ? (body.attributes ?? null) : (existing.attributes ?? null)
+  const nextAttributesInput = resolveAttributesInputForUpdate({
+    contentProvided: body.content !== undefined,
+    attributes: body.attributes,
+    attributesProvided: body.attributes !== undefined,
+    existingAttributes: existing.attributes,
+  })
 
   let normalizedPresetState: ReturnType<typeof normalizePresetElementState>
   let normalizedMetadata: string | null

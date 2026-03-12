@@ -27,7 +27,9 @@ function parseXaiError(body: string): string | null {
 
 export interface GrokChatMessage {
   role: 'system' | 'user' | 'assistant'
-  content: string
+  content:
+    | string
+    | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>
 }
 
 export async function grokChat(

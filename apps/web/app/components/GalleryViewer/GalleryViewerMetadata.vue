@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
+import { GENERATION_MODE_LABELS } from '~/utils/generationModes'
 
 const props = defineProps<{
   item: Generation
@@ -8,14 +9,6 @@ const props = defineProps<{
 defineEmits<{
   presetClick: [string]
 }>()
-
-// Mode Labels
-const modeLabels: Record<string, string> = {
-  t2i: 'Text → Image',
-  t2v: 'Text → Video',
-  i2v: 'Image → Video',
-  i2i: 'Image → Image',
-}
 
 const formattedDate = computed(() => {
   if (!props.item) return ''
@@ -56,7 +49,7 @@ const parsedPresets = computed(() => {
       <!-- Metadata Row -->
       <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/50">
         <span class="capitalize">{{ item.type }}</span>
-        <span>{{ modeLabels[item.mode] || item.mode }}</span>
+        <span>{{ GENERATION_MODE_LABELS[item.mode] || item.mode }}</span>
         <span>{{ formattedDate }}</span>
         <span v-if="item.aspectRatio">{{ item.aspectRatio }}</span>
         <span v-if="item.resolution">{{ item.resolution }}</span>

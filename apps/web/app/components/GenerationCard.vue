@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
+import { GENERATION_MODE_LABELS } from '~/utils/generationModes'
 
 const props = defineProps<{
   generation: Generation
@@ -15,13 +16,6 @@ const emit = defineEmits<{
   retry: [generation: Generation]
   remix: [generation: Generation]
 }>()
-
-const modeLabels: Record<string, string> = {
-  t2i: 'Text → Image',
-  t2v: 'Text → Video',
-  i2v: 'Image → Video',
-  i2i: 'Image → Image',
-}
 
 const statusColors: Record<string, string> = {
   done: 'success',
@@ -164,7 +158,7 @@ function handleRemix() {
           :label="generation.status"
         />
         <span class="text-xs text-dimmed">{{
-          modeLabels[generation.mode] || generation.mode
+          GENERATION_MODE_LABELS[generation.mode] || generation.mode
         }}</span>
       </div>
 

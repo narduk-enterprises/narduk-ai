@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
+import { GENERATION_MODE_LABELS } from '~/utils/generationModes'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -51,13 +52,6 @@ async function load() {
 }
 
 onMounted(load)
-
-const modeLabels: Record<string, string> = {
-  t2i: 'Text → Image',
-  t2v: 'Text → Video',
-  i2v: 'Image → Video',
-  i2i: 'Image → Image',
-}
 
 async function handleDelete() {
   if (!generation.value) return
@@ -133,7 +127,7 @@ const metadataItems = computed(() => {
   if (!generation.value) return []
   const items = [
     { label: 'Type', value: generation.value.type, capitalize: true },
-    { label: 'Mode', value: modeLabels[generation.value.mode] },
+    { label: 'Mode', value: GENERATION_MODE_LABELS[generation.value.mode] },
     { label: 'Created', value: formattedCreatedAt.value },
   ]
   if (generation.value.duration)
@@ -209,7 +203,7 @@ const parsedPresets = computed(() => {
             class="rounded-full shrink-0"
           />
           <h1 class="font-display text-2xl sm:text-3xl font-bold truncate">
-            {{ modeLabels[generation.mode] || generation.mode }}
+            {{ GENERATION_MODE_LABELS[generation.mode] || generation.mode }}
           </h1>
           <UBadge :color="statusBadgeColor" :label="generation.status" class="shrink-0" />
         </div>
