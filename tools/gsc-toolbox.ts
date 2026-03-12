@@ -19,6 +19,12 @@ import 'dotenv/config'
 
 const siteUrl = process.argv[3] || process.env.SITE_URL
 
+function resolvePublicDir(): string {
+  const monorepoPublic = join(process.cwd(), 'apps', 'web', 'public')
+  if (existsSync(monorepoPublic)) return monorepoPublic
+  return join(process.cwd(), 'public')
+}
+
 function loadCredentials(): Record<string, any> {
   // Option A: file path (recommended)
   const keyFilePath = process.env.GSC_SERVICE_ACCOUNT_JSON_PATH?.trim()
@@ -195,19 +201,22 @@ async function main() {
           const content = token.includes('google-site-verification:')
             ? token
             : `google-site-verification: ${fileName}`
-          const publicDir = join(process.cwd(), 'public')
+          const publicDir = resolvePublicDir()
           if (!existsSync(publicDir)) mkdirSync(publicDir)
           const filePath = join(publicDir, fileName)
           writeFileSync(filePath, content)
-          console.log(`💾 Verification file created: public/${fileName}`)
+          console.log(`💾 Verification file created: ${filePath.replace(`${process.cwd()}/`, '')}`)
 
           // Cloudflare Pages (and some hosting setups) may redirect `/foo.html` -> `/foo`.
           // Create a no-extension copy too so verification still succeeds.
           if (fileName.toLowerCase().endsWith('.html')) {
             const noExt = fileName.slice(0, -'.html'.length)
             if (noExt && noExt !== fileName) {
-              writeFileSync(join(publicDir, noExt), content)
-              console.log(`💾 Verification file created: public/${noExt}`)
+              const noExtPath = join(publicDir, noExt)
+              writeFileSync(noExtPath, content)
+              console.log(
+                `💾 Verification file created: ${noExtPath.replace(`${process.cwd()}/`, '')}`,
+              )
             }
           }
 

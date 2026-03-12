@@ -165,6 +165,7 @@ async function main() {
     const hubChecks: Array<{ key: string; hub: string; config: string }> = [
       { key: 'CLOUDFLARE_API_TOKEN', hub: TEMPLATE_NAME, config: 'prd' },
       { key: 'CLOUDFLARE_ACCOUNT_ID', hub: TEMPLATE_NAME, config: 'prd' },
+      { key: 'GITHUB_TOKEN_PACKAGES_READ', hub: TEMPLATE_NAME, config: 'prd' },
       { key: 'POSTHOG_PUBLIC_KEY', hub: TEMPLATE_NAME, config: 'prd' },
     ]
 
