@@ -1,6 +1,6 @@
 <!-- eslint-disable narduk/no-fetch-in-component -- $fetch is used to load Texas outline GeoJSON for mask overlay -->
 <script lang="ts">
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- MapKit JS untyped global
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mapkit is a global injected by Apple's CDN script, no type definitions available
 declare const mapkit: any
 </script>
 
@@ -170,9 +170,8 @@ function getTexasMaskColor(): string {
   if (import.meta.client) {
     isDark = document.documentElement.classList.contains('dark')
   }
-  /* eslint-disable narduk/no-inline-hex -- MapKit overlay mask colours */
+  // eslint-disable-next-line narduk/no-inline-hex -- MapKit overlay style requires raw hex; no Tailwind utility available in JS context
   return isDark ? '#0a0a0a' : '#ffffff'
-  /* eslint-enable narduk/no-inline-hex -- MapKit overlay mask colours */
 }
 
 /**
@@ -421,15 +420,13 @@ function extractAllPoints(geometry: GeoJSONGeometry): Array<[number, number]> {
 }
 
 function defaultOverlayStyle(): OverlayStyle {
-  /* eslint-disable narduk/no-inline-hex -- MapKit overlay defaults */
   return {
-    strokeColor: '#065f46',
+    strokeColor: '#065f46', // eslint-disable-line narduk/no-inline-hex -- MapKit Style API requires raw hex values; Tailwind utilities cannot be used in JS objects
     strokeOpacity: 1,
-    fillColor: '#10b981',
+    fillColor: '#10b981', // eslint-disable-line narduk/no-inline-hex -- MapKit Style API requires raw hex values; Tailwind utilities cannot be used in JS objects
     fillOpacity: 0.2,
     lineWidth: 1.5,
   }
-  /* eslint-enable narduk/no-inline-hex -- MapKit overlay defaults */
 }
 
 function buildPolygonRings(
@@ -486,7 +483,7 @@ function buildClusterElement(cluster: {
   if (props.createClusterElement) {
     el = props.createClusterElement(cluster, count)
   } else {
-    // eslint-disable-next-line narduk/no-ssr-dom-access -- Guarded by import.meta.client implicitly via logic
+    // eslint-disable-next-line narduk/no-ssr-dom-access -- guarded by `import.meta.client` check above; document access is safe here
     el = document.createElement('div')
     el.className = 'mapkit-cluster'
     el.innerHTML = `<div class="mapkit-cluster-bubble"><span class="mapkit-cluster-count">${count}</span></div>`

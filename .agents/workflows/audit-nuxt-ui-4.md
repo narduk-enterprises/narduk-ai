@@ -145,6 +145,12 @@ Applicable if the app uses `@nuxt/content`:
    - Buttons and interactive elements must be at least 44×44px on mobile
      (Tailwind: `min-h-11 min-w-11`).
 
+4. **Input Sizing:** // turbo
+   `grep -rn '<UInput\|<UTextarea' app/ 2>/dev/null | grep -v 'w-full' | head -10`
+   - Input components like `<UTextarea>` and `<UInput>` do not take 100% of
+     their container's width by default. Always apply `class="w-full"` unless
+     explicitly designing a narrow inline field.
+
 ---
 
 ## 5. Dark Mode Audit

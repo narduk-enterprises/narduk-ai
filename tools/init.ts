@@ -360,6 +360,15 @@ async function main() {
   // 2. Database Provisioning (per-app — each app gets its own D1 database)
   console.log('\nStep 2/10: Provisioning D1 Databases...')
 
+  // If D1_DATABASE_ID is pre-provisioned by Control Plane API, skip wrangler creation
+  const preProvisionedD1Id = process.env.D1_DATABASE_ID
+  const preProvisionedD1Name = process.env.D1_DATABASE_NAME
+  if (preProvisionedD1Id) {
+    console.log(`  ⏭ D1 database pre-provisioned by Control Plane API.`)
+    console.log(`  📋 Database ID: ${preProvisionedD1Id}`)
+    console.log(`  📋 Database Name: ${preProvisionedD1Name || `${APP_NAME}-db`}`)
+  }
+
   /**
    * Provision a D1 database by name. Returns the database_id or null on failure.
    * Safe to call multiple times — skips if the database already exists.
@@ -368,6 +377,12 @@ async function main() {
    * not hoisted to root node_modules/.bin in pnpm monorepos.
    */
   function provisionD1(name: string): string | null {
+    // Use pre-provisioned ID if the name matches
+    if (preProvisionedD1Id && (name === preProvisionedD1Name || name === `${APP_NAME}-db`)) {
+      console.log(`  ⏭ Using pre-provisioned D1 ID for ${name}: ${preProvisionedD1Id}`)
+      return preProvisionedD1Id
+    }
+
     // Try to create first
     try {
       console.log(`  Running: pnpm exec wrangler d1 create ${name}`)
@@ -513,7 +528,10 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
 
   // 5. Doppler Registration (additive — won't clobber existing secrets)
   console.log('\nStep 5/10: Provisioning Doppler Project...')
-  if (!DOPPLER_AVAILABLE) {
+  if (process.env.DOPPLER_PRE_PROVISIONED) {
+    console.log('  ⏭ Doppler project pre-provisioned by Control Plane API.')
+    completed.push('Doppler project + hub secrets (pre-provisioned)')
+  } else if (!DOPPLER_AVAILABLE) {
     console.log('  ⏭ Doppler CLI not configured; skipping Doppler project provisioning.')
     console.log('     Run `doppler setup` and re-run with --repair to complete this step.')
     deferred.push('Doppler project + secrets (CLI not installed — re-run with --repair)')
@@ -543,6 +561,7 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         CLOUDFLARE_API_TOKEN: '${narduk-nuxt-template.prd.CLOUDFLARE_API_TOKEN}',
         CLOUDFLARE_ACCOUNT_ID: '${narduk-nuxt-template.prd.CLOUDFLARE_ACCOUNT_ID}',
         CONTROL_PLANE_API_KEY: '${narduk-nuxt-template.prd.CONTROL_PLANE_API_KEY}',
+        GITHUB_TOKEN_PACKAGES_READ: '${narduk-nuxt-template.prd.GITHUB_TOKEN_PACKAGES_READ}',
         POSTHOG_PUBLIC_KEY: '${narduk-nuxt-template.prd.POSTHOG_PUBLIC_KEY}',
         POSTHOG_PROJECT_ID: '${narduk-nuxt-template.prd.POSTHOG_PROJECT_ID}',
         POSTHOG_HOST: '${narduk-nuxt-template.prd.POSTHOG_HOST}',
@@ -638,7 +657,10 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
 
   // 6. Doppler Service Token → GitHub Secret (skip if token exists)
   console.log('\nStep 6/10: Adding Doppler token to GitHub repository...')
-  if (!DOPPLER_AVAILABLE) {
+  if (process.env.DOPPLER_PRE_PROVISIONED) {
+    console.log('  ⏭ Doppler token + GitHub secrets pre-provisioned by Control Plane API.')
+    completed.push('GitHub DOPPLER_TOKEN secret (pre-provisioned)')
+  } else if (!DOPPLER_AVAILABLE) {
     console.log('  ⏭ Doppler CLI not configured; skipping GitHub secret setup.')
     console.log('     Run `doppler setup` and re-run with --repair to complete this step.')
     deferred.push('GitHub DOPPLER_TOKEN secret (needs Doppler)')
@@ -760,7 +782,15 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
 
   // 7. Analytics Provisioning (each service internally skips if already configured)
   console.log('\nStep 7/10: Bootstrapping Google Analytics & IndexNow...')
-  if (!DOPPLER_AVAILABLE) {
+  if (process.env.GA_PROPERTY_ID && process.env.GA_MEASUREMENT_ID) {
+    console.log('  ⏭ GA4 pre-provisioned by Control Plane API.')
+    console.log(`  📋 Property ID: ${process.env.GA_PROPERTY_ID}`)
+    console.log(`  📋 Measurement ID: ${process.env.GA_MEASUREMENT_ID}`)
+    if (process.env.INDEXNOW_KEY) {
+      console.log(`  📋 IndexNow Key: ${process.env.INDEXNOW_KEY}`)
+    }
+    completed.push('Analytics provisioning (pre-provisioned)')
+  } else if (!DOPPLER_AVAILABLE) {
     console.log('  ⏭ Doppler CLI not configured; skipping analytics provisioning.')
     console.log('     Run `doppler setup` and re-run with --repair to complete this step.')
     deferred.push('Analytics provisioning (needs Doppler)')

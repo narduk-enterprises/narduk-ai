@@ -23,7 +23,8 @@ withDefaults(
     title: 'Article Title',
     description: 'This OG image is generated for article-type pages.',
     category: 'Article',
-    primaryColor: '#0ea5e9', // eslint-disable-line narduk/no-inline-hex
+    // eslint-disable-next-line narduk/no-inline-hex -- OG image default brand color; Tailwind utilities are not available in component props defaults
+    primaryColor: '#0ea5e9',
   },
 )
 </script>

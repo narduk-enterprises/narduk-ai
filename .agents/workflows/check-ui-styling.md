@@ -98,3 +98,10 @@ Nuxt UI tokens (e.g. text-foreground) by `atx/no-invalid-nuxt-ui-token`.
         `grep -rnl 'DashboardGroup\|DashboardSidebar\|DashboardPanel\|DashboardNavbar' app/pages/ app/layouts/ 2>/dev/null || echo "No Pro dashboard components found — verify if dashboard pages exist"`
     - If the app has dashboard pages built with custom sidebar/panel layouts,
       flag for migration to Pro components.
+
+11. **Check Input Sizing**
+    - Input components like `<UTextarea>` and `<UInput>` do not take 100% of
+      their container's width by default, which can result in squished or ugly
+      inputs. Always apply `class="w-full"` to inputs unless explicitly
+      designing a narrow inline field. // turbo
+      `grep -rn '<UInput\|<UTextarea' app/ 2>/dev/null | grep -v 'w-full' | head -10 || echo "No inputs missing w-full found (pass)"`

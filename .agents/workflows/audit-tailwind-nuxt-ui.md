@@ -295,6 +295,18 @@ grep -rn 'name="heroicons\|name="mdi-\|icon="heroicons' app/ 2>/dev/null | head 
 **Fix:** Replace `heroicons:icon-name` with `i-lucide-icon-name` (or
 `i-heroicons-icon-name` if the heroicons collection is installed).
 
+### 6.5 Input Sizing
+
+Input components like `<UTextarea>` and `<UInput>` do not take 100% of their
+container's width by default, which can cause squished layouts.
+
+```bash
+grep -rn '<UInput\|<UTextarea' app/ 2>/dev/null | grep -v 'w-full' | head -10 || echo "PASS: no inputs missing w-full"
+```
+
+**Fix:** Always apply `class="w-full"` to `<UInput>` and `<UTextarea>` unless
+explicitly designing a narrow inline field.
+
 ---
 
 ## Phase 7 — Hardcoded Colors & Raw Tailwind Colors

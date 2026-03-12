@@ -119,12 +119,13 @@ export async function withD1Cache<T>(
           log.debug(`Cache STALE ${cacheKey}`)
           const parsed = JSON.parse(row.value) as T
           // Background refresh (fire-and-forget)
-          Promise.resolve()
+          void Promise.resolve()
             .then(() => fetcher())
             .then((fresh) => {
               if (d1 && fresh !== undefined) {
                 return setCache(d1, cacheKey, JSON.stringify(fresh), ttlSeconds)
               }
+              return
             })
             .catch((err) =>
               log.error(`Background refresh failed ${cacheKey}`, { error: String(err) }),

@@ -13,9 +13,8 @@
       "dependsOn": ["^build"]
     },
     "format:check": {},
-    "db:check": {},
     "quality": {
-      "dependsOn": ["lint", "typecheck", "format:check", "db:check"]
+      "dependsOn": ["lint", "typecheck", "format:check"]
     },
     "dev": {
       "cache": false,

@@ -43,11 +43,7 @@ export default defineEventHandler(async (event) => {
     isAdmin: false,
   }
   await setUserSession(event, { user })
-  log.info('AUDIT: User registered', {
-    action: 'user_register',
-    email: normalizedEmail,
-    userId: newUserId,
-  })
+  log.info('User registered', { email: normalizedEmail, userId: newUserId })
 
   return { user }
 })

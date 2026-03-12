@@ -5,8 +5,10 @@ export default defineNuxtPlugin(() => {
   const posthogApiKey = runtimeConfig.public.posthogPublicKey
   const posthogHost = runtimeConfig.public.posthogHost
   const appName = (runtimeConfig.public.appName as string) || 'Unknown App'
+  const isLocalhost =
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 
-  if (!posthogApiKey || import.meta.server) return
+  if (!posthogApiKey || import.meta.server || isLocalhost) return
 
   const posthogClient = posthog.init(posthogApiKey as string, {
     api_host: (posthogHost as string) || 'https://us.i.posthog.com',
@@ -25,12 +27,6 @@ export default defineNuxtPlugin(() => {
       if (import.meta.dev) ph.debug()
     },
   })
-
-  // Opt out on localhost
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    posthog.opt_out_capturing()
-    return
-  }
 
   // Expose broadly for any legacy integration
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Legacy integration global injection
