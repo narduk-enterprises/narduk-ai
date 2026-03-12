@@ -29,5 +29,12 @@ export default defineEventHandler(async (event) => {
     updatedAt: now,
   })
 
-  return { id, mode: body.mode, model: body.model, title: body.title || null, createdAt: now, updatedAt: now }
+  return {
+    id,
+    mode: body.mode,
+    model: body.model,
+    title: body.title || null,
+    createdAt: now,
+    updatedAt: now,
+  }
 })

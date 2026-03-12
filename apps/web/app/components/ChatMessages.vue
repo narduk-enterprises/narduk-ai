@@ -63,10 +63,7 @@ function getDisplayContent(msg: ChatMessage): string {
         </div>
         <!-- Multimodal: text part -->
         <template v-else-if="Array.isArray(msg.content)">
-          <div
-            v-for="(part, pi) in msg.content"
-            :key="pi"
-          >
+          <div v-for="(part, pi) in msg.content" :key="pi">
             <div
               v-if="part.type === 'text'"
               class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-primary text-white rounded-tr-sm whitespace-pre-wrap mb-2"
@@ -81,7 +78,7 @@ function getDisplayContent(msg: ChatMessage): string {
                 :src="part.image_url.url"
                 alt="Shared image"
                 class="w-full h-auto object-cover"
-              >
+              />
             </div>
           </div>
         </template>
@@ -110,7 +107,7 @@ function getDisplayContent(msg: ChatMessage): string {
               :src="msg.parsedResponse.imageUrl"
               :alt="msg.parsedResponse.prompt || 'Generated image'"
               class="w-full h-auto object-cover rounded-t-lg"
-            >
+            />
             <div class="p-3 flex flex-wrap gap-2 border-t border-default/50">
               <UButton
                 color="primary"
@@ -201,7 +198,7 @@ function getDisplayContent(msg: ChatMessage): string {
                 :src="headshotUrl"
                 alt="Headshot"
                 class="size-7 rounded-full object-cover ring-1 ring-primary/30 shrink-0"
-              >
+              />
               <UIcon v-else name="i-lucide-hammer" class="size-4 text-primary" />
               <span class="text-xs font-semibold text-primary">Attributes Updated</span>
             </div>

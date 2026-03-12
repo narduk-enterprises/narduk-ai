@@ -65,10 +65,7 @@ export function useChatForm() {
       const persisted = await sessions.loadSession(latestSession.id)
       if (persisted.length > 0) {
         // Re-inject the system message slot (rebuilt at send-time, blank for display purposes)
-        chatMessages.value = [
-          { role: 'system', content: '' },
-          ...persisted,
-        ]
+        chatMessages.value = [{ role: 'system', content: '' }, ...persisted]
         return
       }
     }
@@ -123,9 +120,7 @@ export function useChatForm() {
    */
   function contentAsString(content: string | ContentPart[]): string {
     if (typeof content === 'string') return content
-    return content
-      .map((p) => (p.type === 'text' ? p.text : '[image]'))
-      .join(' ')
+    return content.map((p) => (p.type === 'text' ? p.text : '[image]')).join(' ')
   }
 
   async function sendChatMessage(contextString?: string) {
@@ -151,7 +146,9 @@ export function useChatForm() {
       const elementsContext = elements.value.length
         ? `The user has the following saved Prompt Elements in their library:\n${elements.value
             .map((e) => `- [${e.type}] "${e.name}": ${e.content}`)
-            .join('\n')}\n\nMake sure to deeply reference or combine these if the user asks for them.`
+            .join(
+              '\n',
+            )}\n\nMake sure to deeply reference or combine these if the user asks for them.`
         : 'The user has no saved Prompt Elements yet.'
 
       const modifiersContext = `\n\nThe app supports "Quick Modifiers" organized by attribute key. When suggesting modifications, emit attribute-value pairs in your <builder_state> JSON response using the attribute keys defined in the schema (e.g. {"hair_color": "blonde", "lighting": "golden hour"}).`
@@ -342,16 +339,14 @@ export function useChatForm() {
     const placeholderIndex = chatMessages.value.length - 1
 
     try {
-      const result = await $fetch<{ mediaUrl: string; id: string }>(
-        '/api/generate/image',
-        {
-          method: 'POST',
-          headers: { 'X-Requested-With': 'XMLHttpRequest' },
-          body: { prompt },
-        },
-      )
+      const result = await $fetch<{ mediaUrl: string; id: string }>('/api/generate/image', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: { prompt },
+      })
 
-      const successMsg = "Here's your generated image! You can share it with me to get feedback or ideas for next steps."
+      const successMsg =
+        "Here's your generated image! You can share it with me to get feedback or ideas for next steps."
       const msg = chatMessages.value[placeholderIndex]
       if (msg) {
         msg.content = `<message>${successMsg}</message>`
@@ -438,7 +433,12 @@ export function useChatForm() {
       const assistantPlaceholder: ChatMessage = {
         role: 'assistant',
         content: '',
-        parsedResponse: { message: needsVisionSwitch ? '_(Switched to Grok 2 Vision for image analysis)_' : '', prompt: null, suggested_name: null, builder_state: null },
+        parsedResponse: {
+          message: needsVisionSwitch ? '_(Switched to Grok 2 Vision for image analysis)_' : '',
+          prompt: null,
+          suggested_name: null,
+          builder_state: null,
+        },
       }
       chatMessages.value.push(assistantPlaceholder)
       assistantIndex = chatMessages.value.length - 1
@@ -484,14 +484,20 @@ export function useChatForm() {
 
         const msgMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
         const promptMatch = fullContent.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
-        const titleMatch = fullContent.match(/<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i)
+        const titleMatch = fullContent.match(
+          /<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i,
+        )
         const stateMatch = fullContent.match(/<builder_state>([\s\S]*?)(?:<\/builder_state>|$)/i)
 
         if (msgMatch?.[1]) parsed.message = msgMatch[1].trim()
         if (promptMatch?.[1]) parsed.prompt = promptMatch[1].trim()
         if (titleMatch?.[1]) parsed.suggested_name = titleMatch[1].trim()
         if (stateMatch?.[1]) {
-          try { parsed.builder_state = JSON.parse(stateMatch[1].trim()) } catch { /* wait */ }
+          try {
+            parsed.builder_state = JSON.parse(stateMatch[1].trim())
+          } catch {
+            /* wait */
+          }
         }
 
         const msg = chatMessages.value[assistantIndex]!

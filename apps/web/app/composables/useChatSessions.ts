@@ -68,28 +68,27 @@ export function useChatSessions() {
       )
       activeSessionId.value = sessionId
 
-      return data.messages
-        .map((m): ChatMessage => {
-          let parsedContent: ChatMessage['content']
+      return data.messages.map((m): ChatMessage => {
+        let parsedContent: ChatMessage['content']
+        try {
+          const parsed = JSON.parse(m.content)
+          // If it parsed as an array it's multimodal, otherwise plain string
+          parsedContent = Array.isArray(parsed) ? parsed : m.content
+        } catch {
+          parsedContent = m.content
+        }
+
+        let parsedResponse: ChatMessage['parsedResponse']
+        if (m.parsedResponse) {
           try {
-            const parsed = JSON.parse(m.content)
-            // If it parsed as an array it's multimodal, otherwise plain string
-            parsedContent = Array.isArray(parsed) ? parsed : m.content
+            parsedResponse = JSON.parse(m.parsedResponse)
           } catch {
-            parsedContent = m.content
+            parsedResponse = undefined
           }
+        }
 
-          let parsedResponse: ChatMessage['parsedResponse']
-          if (m.parsedResponse) {
-            try {
-              parsedResponse = JSON.parse(m.parsedResponse)
-            } catch {
-              parsedResponse = undefined
-            }
-          }
-
-          return { role: m.role, content: parsedContent, parsedResponse }
-        })
+        return { role: m.role, content: parsedContent, parsedResponse }
+      })
     } catch (e) {
       console.error('[useChatSessions] Failed to load session messages', e)
       return []

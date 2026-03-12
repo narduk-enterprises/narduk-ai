@@ -177,4 +177,3 @@ export const chatMessages = sqliteTable(
     index('chat_messages_created_idx').on(table.createdAt),
   ],
 )
-
