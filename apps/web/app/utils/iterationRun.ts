@@ -4,6 +4,9 @@ export interface IterationStepResult {
   revisedPrompt: string
   changeSummary: string
   message?: string | null
+  renderedPrompt?: string | null
+  imageUrl?: string | null
+  imageAnalysis?: string | null
 }
 
 interface RunIterationLoopOptions {
@@ -101,6 +104,9 @@ export async function runIterationLoop(options: RunIterationLoopOptions): Promis
         prompt: result.revisedPrompt.trim(),
         changeSummary: result.changeSummary.trim(),
         message: result.message?.trim() || null,
+        renderedPrompt: result.renderedPrompt?.trim() || null,
+        imageUrl: result.imageUrl?.trim() || null,
+        imageAnalysis: result.imageAnalysis?.trim() || null,
       }
 
       run.steps = [...run.steps, step]

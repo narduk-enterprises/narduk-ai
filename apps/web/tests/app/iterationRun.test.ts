@@ -13,6 +13,9 @@ describe('iteration run helpers', () => {
           revisedPrompt: `${prompt} :: step-${iteration}`,
           changeSummary: `Applied pass ${iteration}.`,
           message: `Pass ${iteration} done.`,
+          renderedPrompt: `rendered-${iteration}`,
+          imageUrl: `/api/media/iteration-${iteration}.png`,
+          imageAnalysis: `Review for pass ${iteration}.`,
         }
       },
     })
@@ -21,6 +24,11 @@ describe('iteration run helpers', () => {
     expect(run.completedIterations).toBe(5)
     expect(run.steps).toHaveLength(5)
     expect(run.currentPrompt).toContain('step-5')
+    expect(run.steps[0]).toMatchObject({
+      renderedPrompt: 'rendered-1',
+      imageUrl: '/api/media/iteration-1.png',
+      imageAnalysis: 'Review for pass 1.',
+    })
   })
 
   it('stops cleanly when the active pass aborts', async () => {
@@ -101,6 +109,9 @@ describe('iteration run helpers', () => {
               iteration: 1,
               prompt: 'portrait prompt :: step-1',
               changeSummary: 'Added dramatic lighting.',
+              renderedPrompt: 'portrait prompt :: render-1',
+              imageUrl: '/api/media/render-1.png',
+              imageAnalysis: 'The pose is close, but the anatomy still needs refinement.',
             },
           ],
         },
@@ -111,5 +122,6 @@ describe('iteration run helpers', () => {
     expect(message.parsedResponse?.iterationRun?.steps[0]?.changeSummary).toBe(
       'Added dramatic lighting.',
     )
+    expect(message.parsedResponse?.iterationRun?.steps[0]?.imageUrl).toBe('/api/media/render-1.png')
   })
 })

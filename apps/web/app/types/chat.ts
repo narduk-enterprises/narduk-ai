@@ -9,6 +9,9 @@ export interface IterationStep {
   prompt: string
   changeSummary: string
   message?: string | null
+  renderedPrompt?: string | null
+  imageUrl?: string | null
+  imageAnalysis?: string | null
 }
 
 export interface IterationRun {

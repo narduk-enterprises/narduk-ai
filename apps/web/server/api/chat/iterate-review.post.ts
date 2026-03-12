@@ -1,8 +1,7 @@
 import { z } from 'zod'
-import { eq } from 'drizzle-orm'
-import { appSettings } from '#server/database/schema'
-import { grokChat } from '#server/utils/grok'
+import { grokChat, grokListModels } from '#server/utils/grok'
 import { getSystemPrompt } from '#server/utils/systemPrompts'
+import { buildXaiModelCatalog, isVisionCapableChatModel } from '~/utils/xaiModels'
 
 const priorStepSchema = z.object({
   iteration: z.number().int().min(1).max(50),
@@ -14,8 +13,9 @@ const priorStepSchema = z.object({
 })
 
 const bodySchema = z.object({
-  prompt: z.string().min(1).max(20_000),
+  renderedPrompt: z.string().min(1).max(20_000),
   goal: z.string().min(1).max(4_000),
+  imageUrl: z.string().min(1).max(20_000_000),
   iteration: z.number().int().min(1).max(50),
   totalIterations: z.number().int().min(1).max(50),
   priorSteps: z.array(priorStepSchema).max(50).default([]),
@@ -29,14 +29,17 @@ const grokResponseSchema = z
     changeSummary: z.string().min(1).optional(),
     summary: z.string().min(1).optional(),
     message: z.string().min(1).optional(),
+    imageAnalysis: z.string().min(1).optional(),
+    analysis: z.string().min(1).optional(),
   })
   .transform((value) => ({
     revisedPrompt: value.revisedPrompt || value.prompt || '',
     changeSummary: value.changeSummary || value.summary || value.message || '',
     message: value.message || null,
+    imageAnalysis: value.imageAnalysis || value.analysis || '',
   }))
 
-function buildIterationUserContent(body: z.infer<typeof bodySchema>): string {
+function buildIterationReviewContent(body: z.infer<typeof bodySchema>): string {
   const priorSteps =
     body.priorSteps.length > 0
       ? body.priorSteps
@@ -57,19 +60,19 @@ function buildIterationUserContent(body: z.infer<typeof bodySchema>): string {
   return [
     `Goal:\n${body.goal}`,
     `Current pass: ${body.iteration} of ${body.totalIterations}`,
-    `Current prompt:\n${body.prompt}`,
+    `Prompt used to render this image:\n${body.renderedPrompt}`,
     `Prior completed passes:\n${priorSteps}`,
-    'Improve the prompt by one pass and return JSON only.',
+    'Review the attached image against the goal, then return JSON only with the next prompt revision.',
   ].join('\n\n')
 }
 
 /**
- * POST /api/chat/iterate-step — Runs one isolated prompt-improvement pass.
+ * POST /api/chat/iterate-review — Reviews one generated image and revises the next pass.
  */
 export default defineEventHandler(async (event) => {
-  const log = useLogger(event).child('ChatIterateStep')
+  const log = useLogger(event).child('ChatIterateReview')
   const user = await requireAuth(event)
-  await enforceRateLimit(event, 'chat-iterate-step', 60, 60_000)
+  await enforceRateLimit(event, 'chat-iterate-review', 60, 60_000)
   const body = await readValidatedBody(event, bodySchema.parse)
   const config = useRuntimeConfig(event)
 
@@ -77,62 +80,67 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
   }
 
-  const db = useDatabase(event)
-  let chatModel = body.model || 'grok-3-mini'
-  if (!body.model) {
-    try {
-      const settings = await db
-        .select({ promptEnhanceModel: appSettings.promptEnhanceModel })
-        .from(appSettings)
-        .where(eq(appSettings.id, 1))
-        .get()
-      if (settings?.promptEnhanceModel) {
-        chatModel = settings.promptEnhanceModel
-      }
-    } catch (error) {
-      log.warn('Could not fetch appSettings for iterate-step model', { error })
-    }
-  }
-
   try {
-    const systemPrompt = await getSystemPrompt(event, 'chat_iteration_step')
+    const systemPrompt = await getSystemPrompt(event, 'chat_iteration_review')
+    let visionModel: string | null = body.model ?? null
+
+    if (!visionModel || !isVisionCapableChatModel(visionModel)) {
+      const catalog = buildXaiModelCatalog(
+        (await grokListModels(config.xaiApiKey)).map((m) => m.id),
+      )
+      visionModel = catalog.preferredVisionModel
+    }
+
+    if (!visionModel) {
+      throw createError({
+        statusCode: 500,
+        message: 'No vision-capable xAI model is available for iteration review.',
+      })
+    }
+
     const content = await grokChat(
       config.xaiApiKey,
       [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: buildIterationUserContent(body) },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: buildIterationReviewContent(body) },
+            { type: 'image_url', image_url: { url: body.imageUrl } },
+          ],
+        },
       ],
-      chatModel,
+      visionModel,
       { type: 'json_object' },
     )
 
     const parsedJson = JSON.parse(content)
     const parsed = grokResponseSchema.parse(parsedJson)
 
-    if (!parsed.revisedPrompt || !parsed.changeSummary) {
+    if (!parsed.revisedPrompt || !parsed.changeSummary || !parsed.imageAnalysis) {
       throw createError({
         statusCode: 500,
-        message: 'Iteration step returned an incomplete response.',
+        message: 'Iteration review returned an incomplete response.',
       })
     }
 
-    log.info('Iteration step completed', {
+    log.info('Iteration review completed', {
       userId: user.id,
       iteration: body.iteration,
       totalIterations: body.totalIterations,
-      model: chatModel,
+      model: visionModel,
     })
 
     return parsed
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : 'Failed to run prompt iteration step'
+      error instanceof Error ? error.message : 'Failed to run iteration image review'
     const statusCode =
       error && typeof error === 'object' && 'statusCode' in error
         ? Number((error as { statusCode?: number }).statusCode) || 500
         : 500
 
-    log.error('Iteration step failed', {
+    log.error('Iteration review failed', {
       userId: user.id,
       iteration: body.iteration,
       error: errorMessage,
@@ -140,7 +148,7 @@ export default defineEventHandler(async (event) => {
 
     throw createError({
       statusCode,
-      message: errorMessage || 'Failed to run prompt iteration step',
+      message: errorMessage || 'Failed to run iteration image review',
     })
   }
 })

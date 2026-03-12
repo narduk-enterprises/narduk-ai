@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatMessage, IterationRun } from '~/types/chat'
+import type { ChatMessage, IterationRun, IterationStep } from '~/types/chat'
 import type { Generation } from '~/types/generation'
 
 const props = defineProps<{
@@ -163,6 +163,16 @@ function handleSharedImageKeydown(event: KeyboardEvent, imageUrl: string) {
 
 function handleInlineImageKeydown(event: KeyboardEvent, msg: ChatMessage) {
   handleViewerKeydown(event, () => openInlineViewer(msg))
+}
+
+function openIterationStepViewer(step: IterationStep) {
+  if (!step.imageUrl) return
+
+  openInViewer(step.imageUrl, step.renderedPrompt || step.prompt)
+}
+
+function handleIterationImageKeydown(event: KeyboardEvent, step: IterationStep) {
+  handleViewerKeydown(event, () => openIterationStepViewer(step))
 }
 
 function getIterationStatusTone(status: IterationRun['status']) {
@@ -388,6 +398,50 @@ function getIterationStatusLabel(run: IterationRun) {
                 <p class="mt-1 text-sm text-default whitespace-pre-wrap">
                   {{ step.changeSummary }}
                 </p>
+                <div v-if="step.imageUrl || step.renderedPrompt || step.imageAnalysis" class="mt-3">
+                  <div class="flex flex-col gap-3 md:flex-row md:items-start">
+                    <div
+                      v-if="step.imageUrl"
+                      class="w-fit rounded-xl overflow-hidden ring-1 ring-primary/20 hover:ring-primary/50 transition-all hover:scale-[1.01] shadow-card cursor-zoom-in"
+                      role="button"
+                      tabindex="0"
+                      @click="openIterationStepViewer(step)"
+                      @keydown="handleIterationImageKeydown($event, step)"
+                    >
+                      <img
+                        :src="step.imageUrl"
+                        :alt="step.renderedPrompt || `Iteration pass ${step.iteration}`"
+                        class="h-36 w-auto max-w-[180px] object-cover"
+                      />
+                    </div>
+
+                    <div class="min-w-0 flex-1 space-y-3">
+                      <div v-if="step.renderedPrompt" class="space-y-1">
+                        <p
+                          class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed"
+                        >
+                          Render Prompt
+                        </p>
+                        <p
+                          class="text-xs text-default/90 leading-relaxed font-mono whitespace-pre-wrap break-words"
+                        >
+                          {{ step.renderedPrompt }}
+                        </p>
+                      </div>
+
+                      <div v-if="step.imageAnalysis" class="space-y-1">
+                        <p
+                          class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed"
+                        >
+                          Image Review
+                        </p>
+                        <p class="text-xs text-default/90 leading-relaxed whitespace-pre-wrap">
+                          {{ step.imageAnalysis }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div

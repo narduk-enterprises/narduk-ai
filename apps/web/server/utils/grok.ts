@@ -10,6 +10,46 @@
 
 import type OpenAI from 'openai'
 
+const SYSTEM_PROMPT_COMPAT_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bmulti[- ]agent\b/gi, 'multi-step'],
+  [/\banother agent\b/gi, 'a later continuation'],
+  [/\bfor another agent\b/gi, 'to help the work resume later'],
+  [/\bexpert prompt iteration agent\b/gi, 'expert prompt iteration assistant'],
+  [/\bprompt iteration agent\b/gi, 'prompt iteration assistant'],
+  [/\bagent\b/gi, 'assistant'],
+]
+
+function sanitizeGrokSystemContent(content: string): string {
+  return SYSTEM_PROMPT_COMPAT_REPLACEMENTS.reduce(
+    (nextContent, [pattern, replacement]) => nextContent.replace(pattern, replacement),
+    content,
+  )
+}
+
+function normalizeGrokMessages(messages: GrokChatMessage[]): GrokChatMessage[] {
+  return messages.map((message) => {
+    if (message.role !== 'system') return message
+
+    if (typeof message.content === 'string') {
+      return {
+        ...message,
+        content: sanitizeGrokSystemContent(message.content),
+      }
+    }
+
+    if (!Array.isArray(message.content)) {
+      return message
+    }
+
+    return {
+      ...message,
+      content: message.content.map((part) =>
+        part.type === 'text' ? { ...part, text: sanitizeGrokSystemContent(part.text) } : part,
+      ),
+    }
+  })
+}
+
 /**
  * Parse xAI error response body to extract a user-friendly error message.
  * xAI returns: { "code": "...", "error": "human-readable message", ... }
@@ -38,6 +78,7 @@ export async function grokChat(
   model?: string,
   responseFormat?: { type: 'json_object' | 'text' },
 ): Promise<string> {
+  const normalizedMessages = normalizeGrokMessages(messages)
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -46,7 +87,7 @@ export async function grokChat(
     },
     body: JSON.stringify({
       model: model || 'grok-3-mini',
-      messages,
+      messages: normalizedMessages,
       temperature: 0.7,
       ...(responseFormat && { response_format: responseFormat }),
     }),
@@ -71,6 +112,7 @@ export async function grokChatStream(
   messages: GrokChatMessage[],
   model?: string,
 ): Promise<ReadableStream<Uint8Array>> {
+  const normalizedMessages = normalizeGrokMessages(messages)
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -79,7 +121,7 @@ export async function grokChatStream(
     },
     body: JSON.stringify({
       model: model || 'grok-3-mini',
-      messages,
+      messages: normalizedMessages,
       temperature: 0.7,
       stream: true,
     }),
@@ -148,7 +190,7 @@ export async function grokEnhancePrompt(
   model?: string,
   imageBase64?: string,
 ): Promise<string> {
-  const userContent = imageBase64
+  const userContent: GrokChatMessage['content'] = imageBase64
     ? [
         { type: 'text', text: prompt },
         { type: 'image_url', image_url: { url: imageBase64 } },
@@ -163,7 +205,7 @@ export async function grokEnhancePrompt(
     },
     body: JSON.stringify({
       model: model || 'grok-3-mini',
-      messages: [
+      messages: normalizeGrokMessages([
         {
           role: 'system',
           content: systemContent,
@@ -172,7 +214,7 @@ export async function grokEnhancePrompt(
           role: 'user',
           content: userContent,
         },
-      ],
+      ]),
       temperature: 0.7,
     }),
   })
@@ -197,7 +239,7 @@ export async function grokEnhancePromptStream(
   model?: string,
   imageBase64?: string,
 ): Promise<ReadableStream<Uint8Array>> {
-  const userContent = imageBase64
+  const userContent: GrokChatMessage['content'] = imageBase64
     ? [
         { type: 'text', text: prompt },
         { type: 'image_url', image_url: { url: imageBase64 } },
@@ -212,7 +254,7 @@ export async function grokEnhancePromptStream(
     },
     body: JSON.stringify({
       model: model || 'grok-3-mini',
-      messages: [
+      messages: normalizeGrokMessages([
         {
           role: 'system',
           content: systemContent,
@@ -221,7 +263,7 @@ export async function grokEnhancePromptStream(
           role: 'user',
           content: userContent,
         },
-      ],
+      ]),
       temperature: 0.7,
       stream: true,
     }),

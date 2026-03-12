@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
+  grokChat,
   grokEnhancePrompt,
   grokGenerateImage,
   grokEditImage,
@@ -24,6 +25,40 @@ beforeEach(() => {
 
 describe('grok server utilities error handling', () => {
   const API_KEY = 'test-key'
+
+  it('grokChat sanitizes provider-incompatible multi-agent phrasing in system prompts', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: 'ok' } }],
+      }),
+    })
+
+    await grokChat(
+      API_KEY,
+      [
+        {
+          role: 'system',
+          content:
+            'You are an expert prompt iteration agent. Help another agent continue the work.',
+        },
+        { role: 'user', content: 'Make this prompt better.' },
+      ],
+      'grok-3-mini',
+      { type: 'json_object' },
+    )
+
+    const request = mockFetch.mock.calls[0]?.[1] as { body?: string }
+    const payload = JSON.parse(request.body || '{}') as {
+      messages?: Array<{ role: string; content: string }>
+    }
+
+    expect(payload.messages?.[0]).toMatchObject({
+      role: 'system',
+      content:
+        'You are an expert prompt iteration assistant. Help a later continuation continue the work.',
+    })
+  })
 
   it('grokEnhancePrompt wraps raw errors with a generic message', async () => {
     mockFetch.mockResolvedValueOnce({

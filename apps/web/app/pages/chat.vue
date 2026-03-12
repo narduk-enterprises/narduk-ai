@@ -309,7 +309,8 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
               Stop
             </UButton>
             <p class="text-xs text-dimmed">
-              The loop stays focused on the prompt and goal only. Stop anytime if it drifts.
+              Each pass rewrites the prompt, renders an image, reviews the result, and adjusts for
+              the next pass. Stop anytime if it drifts.
             </p>
           </div>
         </UForm>

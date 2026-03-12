@@ -249,18 +249,23 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     return nextModel
   }
 
+  async function ensureVisionChatModel(): Promise<string | null> {
+    if (!chatModels.value.length) {
+      await refreshModels()
+    }
+
+    let visionModel = preferredVisionModel.value
+    if (!visionModel) {
+      await refreshModels()
+      visionModel = preferredVisionModel.value
+    }
+
+    return visionModel
+  }
+
   async function resolveRequestModel(messages: ApiChatMessage[]): Promise<string> {
     if (payloadNeedsVision(messages)) {
-      if (!chatModels.value.length) {
-        await refreshModels()
-      }
-
-      let visionModel = preferredVisionModel.value
-      if (!visionModel) {
-        await refreshModels()
-        visionModel = preferredVisionModel.value
-      }
-
+      const visionModel = await ensureVisionChatModel()
       if (!visionModel) {
         throw new Error('No vision-capable xAI chat model is available for this API key.')
       }
@@ -282,6 +287,21 @@ export function useChatForm(options: UseChatFormOptions = {}) {
 
     const sessionModel = await ensureSelectedChatModel()
     return await sessions.createSession(chatMode.value, sessionModel || '')
+  }
+
+  async function requestImageGeneration(prompt: string, signal?: AbortSignal) {
+    return await $fetch<{ mediaUrl: string; id: string }>('/api/generate/image', {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: { prompt },
+      signal,
+    })
+  }
+
+  async function resolveIterationReviewImageUrl(imageUrl: string) {
+    if (!import.meta.client) return imageUrl
+
+    return await resolveVisionImageUrl(imageUrl, window.location.origin)
   }
 
   async function persistTurn(
@@ -521,6 +541,10 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       if (!requestModel) {
         throw new Error('No xAI chat model is available for this API key.')
       }
+      const visionModel = await ensureVisionChatModel()
+      if (!visionModel) {
+        throw new Error('No vision-capable xAI chat model is available for this API key.')
+      }
 
       const run = await runIterationLoop({
         initialPrompt: startingPrompt,
@@ -528,8 +552,12 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         round,
         signal: iterationAbortController.signal,
         onUpdate: updateIterationAssistant,
-        runStep: async ({ prompt, goal, iteration, totalIterations, priorSteps, signal }) =>
-          await $fetch('/api/chat/iterate-step', {
+        runStep: async ({ prompt, goal, iteration, totalIterations, priorSteps, signal }) => {
+          const stepResult = await $fetch<{
+            revisedPrompt: string
+            changeSummary: string
+            message?: string | null
+          }>('/api/chat/iterate-step', {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: {
@@ -541,7 +569,40 @@ export function useChatForm(options: UseChatFormOptions = {}) {
               model: requestModel,
             },
             signal,
-          }),
+          })
+
+          const generated = await requestImageGeneration(stepResult.revisedPrompt, signal)
+          const imageUrl = await resolveIterationReviewImageUrl(generated.mediaUrl)
+
+          const reviewResult = await $fetch<{
+            revisedPrompt: string
+            changeSummary: string
+            message?: string | null
+            imageAnalysis: string
+          }>('/api/chat/iterate-review', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: {
+              renderedPrompt: stepResult.revisedPrompt,
+              goal,
+              imageUrl,
+              iteration,
+              totalIterations,
+              priorSteps,
+              model: visionModel,
+            },
+            signal,
+          })
+
+          return {
+            revisedPrompt: reviewResult.revisedPrompt,
+            changeSummary: reviewResult.changeSummary,
+            message: reviewResult.message || stepResult.message || null,
+            renderedPrompt: stepResult.revisedPrompt,
+            imageUrl: generated.mediaUrl,
+            imageAnalysis: reviewResult.imageAnalysis,
+          }
+        },
       })
 
       iterationPrompt.value = run.currentPrompt
@@ -615,14 +676,10 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     const placeholderIndex = chatMessages.value.length - 1
 
     try {
-      const result = await $fetch<{ mediaUrl: string; id: string }>('/api/generate/image', {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body: { prompt },
-      })
+      const result = await requestImageGeneration(prompt)
 
       const successMessage =
-        "Here's your generated image. Share it with the agent if you want feedback or a prompt revision."
+        "Here's your generated image. Share it in chat if you want feedback or a prompt revision."
       const assistantMessage = chatMessages.value[placeholderIndex]
       if (assistantMessage) {
         assistantMessage.content = formatAssistantContent(successMessage)
