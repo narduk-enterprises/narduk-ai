@@ -40,7 +40,9 @@ const cardDescription = computed(() => {
     try {
       const attrs = JSON.parse(props.preset.attributes) as Record<string, string>
       if (attrs.description) return attrs.description
-    } catch {}
+    } catch {
+      /* invalid JSON — fall through */
+    }
   }
   // plain content fallback (safety net for legacy data)
   const line = props.preset.content
