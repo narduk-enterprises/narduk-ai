@@ -49,8 +49,15 @@ useWebPageSchema({
 })
 
 // ── Scoped Chat ──────────────────────────────────────────
-const { chatMode, chatMessages, chatInput, isChatting, initializeChat, sendChatMessage } =
-  useChatForm()
+const {
+  chatMode,
+  chatMessages,
+  chatInput,
+  isChatting,
+  error: chatError,
+  initializeChat,
+  sendChatMessage,
+} = useChatForm()
 
 const chatScrollContainer = ref<HTMLElement | null>(null)
 
@@ -467,11 +474,19 @@ function presetThumb(metadata: string | null | undefined) {
 
       <!-- Chat Messages -->
       <div ref="chatScrollContainer" class="flex-1 overflow-y-auto p-4 space-y-4">
+        <UAlert
+          v-if="chatError"
+          color="error"
+          icon="i-lucide-alert-triangle"
+          :title="chatError"
+          class="mb-3"
+        />
         <ChatMessages
           :messages="chatMessages"
           :is-chatting="isChatting"
           :generating-preview="generatingPreview"
           :headshot-url="headshotUrl"
+          show-builder-state
           @use-prompt="handleUsePrompt"
           @save-prompt="handleSavePrompt"
         />

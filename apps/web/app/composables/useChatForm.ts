@@ -75,6 +75,8 @@ export function useChatForm() {
     chatMessages.value.push({ role: 'user', content: finalUserText })
     isChatting.value = true
 
+    let assistantIndex = -1
+
     try {
       // Ensure tags are loaded for context
       await ensureTagsLoaded()
@@ -102,11 +104,32 @@ export function useChatForm() {
       // Pipeline algorithm context — lets the agent understand and debug compilation
       const pipelineContext = `\n\n${compilationPipelineDescription()}`
 
+      // Assemble base system prompt defensively in case it wasn't loaded at init time
+      let baseSystemPrompt = prompts.value[`chat_${chatMode.value}`]
+      if (!baseSystemPrompt) {
+        try {
+          const fresh = await $fetch<Record<string, string>>('/api/system-prompts')
+          baseSystemPrompt = fresh[`chat_${chatMode.value}`] || ''
+        } catch {
+          baseSystemPrompt = ''
+        }
+      }
+
+      const mediaContext =
+        chatMode.value === 'general' && mediaType.value === 'video'
+          ? '\\n\\nIMPORTANT: The user is currently creating a VIDEO prompt for Grok Imagine. Optimize all prompts for video generation — emphasize motion, temporal progression, camera movement, pacing, and cinematic dynamics rather than static composition.'
+          : ''
+
       // Replace the default system message with our enhanced one
       const payloadMessages = [...chatMessages.value]
       payloadMessages[0] = {
         role: 'system',
-        content: `${payloadMessages[0]?.content || ''}\n\n${elementsContext}${modifiersContext}${schemaContext}${pipelineContext}`,
+        content: `${baseSystemPrompt}${mediaContext}\\n\\n${elementsContext}${modifiersContext}${schemaContext}${pipelineContext}`,
+      }
+
+      // Also backfill the client-side system message so it saves correctly
+      if (chatMessages.value.length > 0 && chatMessages.value[0]?.role === 'system') {
+        chatMessages.value[0].content = `${baseSystemPrompt}${mediaContext}`
       }
 
       chatMessages.value.push({
@@ -119,7 +142,7 @@ export function useChatForm() {
           builder_state: null,
         },
       })
-      const assistantIndex = chatMessages.value.length - 1
+      assistantIndex = chatMessages.value.length - 1
 
       const res = await fetch('/api/generate/chat', {
         method: 'POST',
@@ -176,7 +199,22 @@ export function useChatForm() {
       }
     } catch (e) {
       const err = e as { data?: { message?: string }; message?: string }
-      error.value = err.data?.message || err.message || 'Failed to get chat response'
+      const errorMsg = err.data?.message || err.message || 'Failed to get chat response'
+      error.value = errorMsg
+
+      // Update the empty assistant message with a visible error so the user sees feedback
+      if (assistantIndex >= 0) {
+        const msg = chatMessages.value[assistantIndex]
+        if (msg) {
+          msg.content = `<message>${errorMsg}</message>`
+          msg.parsedResponse = {
+            message: `⚠️ ${errorMsg}`,
+            prompt: null,
+            suggested_name: null,
+            builder_state: null,
+          }
+        }
+      }
     } finally {
       isChatting.value = false
     }
