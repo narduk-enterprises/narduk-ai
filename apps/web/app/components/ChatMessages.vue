@@ -163,8 +163,14 @@ function openInlineViewer(msg: ChatMessage) {
             >
               Share with Agent
             </UButton>
-            <UButton color="neutral" variant="ghost" icon="i-lucide-images" size="xs" to="/gallery">
-              View in Gallery
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-images"
+              size="xs"
+              @click="openInlineViewer(msg)"
+            >
+              Open Viewer
             </UButton>
           </div>
         </div>

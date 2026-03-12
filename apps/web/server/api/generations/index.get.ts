@@ -102,6 +102,7 @@ export default defineEventHandler(async (event) => {
                 status: 'done',
                 r2Key,
                 mediaUrl: `/api/media/${r2Key}`,
+                thumbnailUrl: result.video.coverImg ?? null,
                 duration: result.video.duration,
                 generationTimeMs,
                 metadata: JSON.stringify(result),
@@ -111,6 +112,7 @@ export default defineEventHandler(async (event) => {
             gen.status = 'done'
             gen.r2Key = r2Key
             gen.mediaUrl = `/api/media/${r2Key}`
+            gen.thumbnailUrl = result.video.coverImg ?? null
             gen.duration = result.video.duration
             gen.generationTimeMs = generationTimeMs
             gen.metadata = JSON.stringify(result)
