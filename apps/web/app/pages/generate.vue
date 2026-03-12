@@ -274,6 +274,7 @@ const imageCounts = [1, 2, 3, 4]
 const generateButtonLabel = computed(() => {
   if (hasCharacterBatchImport.value) {
     if (!isCharacterBatchReady.value) return 'Switch To Text To Image'
+    if (isGenerating.value) return 'Generating Imported Images...'
     return `Generate ${characterBatchRequestCount.value} Imported Image${characterBatchRequestCount.value === 1 ? '' : 's'}`
   }
 

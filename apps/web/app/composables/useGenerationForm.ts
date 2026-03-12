@@ -181,6 +181,7 @@ export function useGenerationForm() {
   const characterJsonInput = ref('')
   const characterJsonError = ref<string | null>(null)
   const parsingCharacterJson = ref(false)
+  const batchGenerating = ref(false)
   const importedCharacterBatch = ref<CharacterBatchImportInput | null>(null)
   const importedCharacterBatchPreview = ref('')
 
@@ -245,6 +246,8 @@ export function useGenerationForm() {
   }
 
   async function handleGenerate() {
+    if (isGenerating.value) return
+
     if (hasCharacterBatchImport.value) {
       if (!isCharacterBatchReady.value || !importedCharacterBatch.value) return
 
@@ -257,27 +260,34 @@ export function useGenerationForm() {
         model: request.requestedModel || selectedImageModel.value,
       }))
 
-      const { successes, failures } = await generateImageBatch(requests, {
-        aspectRatio: aspectRatio.value,
-      })
-
-      if (successes.length > 0) {
-        latestResult.value = successes[0]!
-        latestResults.value = successes
-        for (const success of successes) {
-          generationStore.upsert(success)
-        }
-
-        toast.add({
-          title:
-            failures > 0 ? 'Imported Images Generated With Failures' : 'Imported Images Generated',
-          description:
-            failures > 0
-              ? `${successes.length} image${successes.length === 1 ? '' : 's'} succeeded and ${failures} failed.`
-              : `${successes.length} imported image${successes.length === 1 ? '' : 's'} generated with xAI.`,
-          color: failures > 0 ? 'warning' : 'success',
-          icon: failures > 0 ? 'i-lucide-alert-triangle' : 'i-lucide-images',
+      batchGenerating.value = true
+      try {
+        const { successes, failures } = await generateImageBatch(requests, {
+          aspectRatio: aspectRatio.value,
         })
+
+        if (successes.length > 0) {
+          latestResult.value = successes[0]!
+          latestResults.value = successes
+          for (const success of successes) {
+            generationStore.upsert(success)
+          }
+
+          toast.add({
+            title:
+              failures > 0
+                ? 'Imported Images Generated With Failures'
+                : 'Imported Images Generated',
+            description:
+              failures > 0
+                ? `${successes.length} image${successes.length === 1 ? '' : 's'} succeeded and ${failures} failed.`
+                : `${successes.length} imported image${successes.length === 1 ? '' : 's'} generated with xAI.`,
+            color: failures > 0 ? 'warning' : 'success',
+            icon: failures > 0 ? 'i-lucide-alert-triangle' : 'i-lucide-images',
+          })
+        }
+      } finally {
+        batchGenerating.value = false
       }
 
       return
@@ -515,7 +525,7 @@ export function useGenerationForm() {
   // ─── Computed ───────────────────────────────────────────────
 
   const charCount = computed(() => compiledPrompt.value.length)
-  const isGenerating = computed(() => generating.value)
+  const isGenerating = computed(() => generating.value || batchGenerating.value)
   const isGenerateDisabled = computed(() => {
     if (hasCharacterBatchImport.value && !isCharacterBatchReady.value) {
       return true
@@ -605,6 +615,7 @@ export function useGenerationForm() {
     characterJsonInput,
     characterJsonError,
     parsingCharacterJson,
+    batchGenerating,
     hasCharacterBatchImport,
     isCharacterBatchReady,
     characterBatchRequestCount,

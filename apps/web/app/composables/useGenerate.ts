@@ -15,6 +15,19 @@ export function useGenerate() {
   const error = ref<string | null>(null)
   const pollingIntervals = ref<Map<string, ReturnType<typeof setInterval>>>(new Map())
 
+  async function sleep(ms: number) {
+    await new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  function getErrorMessage(err: unknown, fallback: string): string {
+    return err instanceof Error ? err.message : fallback
+  }
+
+  function isConcurrentLimitError(err: unknown): boolean {
+    const message = getErrorMessage(err, '').toLowerCase()
+    return message.includes('too many concurrent requests')
+  }
+
   /**
    * Generate an image from text (T2I).
    */
@@ -65,25 +78,41 @@ export function useGenerate() {
     generating.value = true
     error.value = null
     try {
-      const settled = await Promise.allSettled(
-        requests.map((request) =>
-          $fetch<Generation>('/api/generate/image', {
+      const successes: Generation[] = []
+      let failures = 0
+
+      for (const [index, request] of requests.entries()) {
+        const attemptGeneration = async () =>
+          await $fetch<Generation>('/api/generate/image', {
             method: 'POST',
             body: {
               prompt: request.prompt,
               aspectRatio: options?.aspectRatio,
               model: request.model || undefined,
             },
-          }),
-        ),
-      )
+          })
 
-      const successes = settled
-        .filter(
-          (result): result is PromiseFulfilledResult<Generation> => result.status === 'fulfilled',
-        )
-        .map((result) => result.value)
-      const failures = settled.length - successes.length
+        try {
+          const result = await attemptGeneration()
+          successes.push(result)
+        } catch (err) {
+          if (isConcurrentLimitError(err)) {
+            await sleep(1500)
+            try {
+              const retryResult = await attemptGeneration()
+              successes.push(retryResult)
+            } catch {
+              failures++
+            }
+          } else {
+            failures++
+          }
+        }
+
+        if (index < requests.length - 1) {
+          await sleep(350)
+        }
+      }
 
       if (successes.length === 0) {
         error.value = 'All imported image generations failed. Please try again.'
@@ -93,7 +122,7 @@ export function useGenerate() {
 
       return { successes, failures }
     } catch (err: unknown) {
-      error.value = err instanceof Error ? err.message : 'Failed to generate imported images'
+      error.value = getErrorMessage(err, 'Failed to generate imported images')
       return { successes: [], failures: requests.length }
     } finally {
       generating.value = false
