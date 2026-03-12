@@ -71,7 +71,6 @@ export function useGenerationForm() {
     generating,
     error,
     uploadingSource,
-    loadUserImages,
     handleGenerate,
     handleSourceImageUpload,
   } = useGenerationDispatch({
@@ -98,7 +97,7 @@ export function useGenerationForm() {
 
   const sourceGeneration = computed(() => {
     if (!sourceGenerationId.value) return null
-    return userImages.value.find((g) => g.id === sourceGenerationId.value) || null
+    return userImages.value.find((g: Generation) => g.id === sourceGenerationId.value) || null
   })
 
   const {
@@ -322,7 +321,6 @@ export function useGenerationForm() {
     latestResultError,
 
     // Actions
-    loadUserImages,
     handleGenerate,
     handleFeelingLucky,
     openEnhanceModal,

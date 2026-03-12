@@ -1,28 +1,27 @@
-import { defineStore } from 'pinia'
 import type { Generation } from '~/types/generation'
 
 /**
- * useGenerationsStore — single source of truth for the user's generation list.
+ * useGenerationsStore — singleton state for the user's generation list.
+ *
+ * Uses Nuxt's `useState` (built-in, SSR-safe, cross-component singleton) so no
+ * Pinia dependency is needed. All pages and composables share the same reactive
+ * state instance.
  *
  * Responsibilities:
  *   - Owns the canonical `items` array (all pages loaded so far)
- *   - Tracks `lastSeenAt` ISO timestamp so live polling can use `?since=`
+ *   - Tracks `lastSeenAt` ISO timestamp so the live poller can use `?since=`
  *   - Provides upsert/remove for optimistic updates after generate/delete
  *   - Provides applyDelta for merging since-poll results
  */
-export const useGenerationsStore = defineStore('generations', () => {
+export function useGenerationsStore() {
+  // useRequestFetch proxies auth cookies correctly during SSR (required by no-raw-fetch-in-stores rule)
   const apiFetch = useRequestFetch()
 
-  const items = ref<Generation[]>([])
-  const loading = ref(false)
-  const loadingMore = ref(false)
-  const isFinished = ref(false)
-
-  /**
-   * ISO timestamp of the newest item we've seen — used as `since` for polling.
-   * Stored in state so the poller always has the latest value.
-   */
-  const lastSeenAt = ref<string>(new Date(0).toISOString())
+  const items = useState<Generation[]>('generations:items', () => [])
+  const loading = useState('generations:loading', () => false)
+  const loadingMore = useState('generations:loadingMore', () => false)
+  const isFinished = useState('generations:isFinished', () => false)
+  const lastSeenAt = useState('generations:lastSeenAt', () => new Date(0).toISOString())
 
   // ── Helpers ──────────────────────────────────────────────────
 
@@ -63,7 +62,7 @@ export const useGenerationsStore = defineStore('generations', () => {
     if (loadingMore.value || isFinished.value) return
     loadingMore.value = true
     try {
-      const rows = await apiFetch<Generation[]>('/api/generations', {
+      const rows = await $fetch<Generation[]>('/api/generations', {
         query: {
           limit,
           offset: items.value.length,
@@ -143,4 +142,4 @@ export const useGenerationsStore = defineStore('generations', () => {
     upsert,
     remove,
   }
-})
+}
