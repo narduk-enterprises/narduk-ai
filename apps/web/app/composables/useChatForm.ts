@@ -108,9 +108,14 @@ export function useChatForm() {
       let baseSystemPrompt = prompts.value[`chat_${chatMode.value}`]
       if (!baseSystemPrompt) {
         try {
-          const fresh = await $fetch<Record<string, string>>('/api/system-prompts')
+          // Pass cookies from the current request to ensure auth works
+          const headers = useRequestHeaders(['cookie']) as Record<string, string>
+          const fresh = await $fetch<Record<string, string>>('/api/system-prompts', {
+            headers,
+          })
           baseSystemPrompt = fresh[`chat_${chatMode.value}`] || ''
-        } catch {
+        } catch (e) {
+          console.error('Failed to load system prompts:', e)
           baseSystemPrompt = ''
         }
       }
