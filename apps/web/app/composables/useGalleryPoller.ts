@@ -19,7 +19,6 @@ export function useGalleryPoller(intervalMs = 15_000) {
     if (running) return
     running = true
     try {
-      // eslint-disable-next-line nuxt-guardrails/no-raw-fetch -- polling utility outside component setup; useAppFetch requires SSR context
       const rows = await $fetch<Generation[]>('/api/generations', {
         query: { since: store.lastSeenAt },
         headers: { 'X-Requested-With': 'XMLHttpRequest' },

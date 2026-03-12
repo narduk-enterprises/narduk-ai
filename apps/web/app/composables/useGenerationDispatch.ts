@@ -47,7 +47,6 @@ export function useGenerationDispatch(deps: {
     generateVideoFromImage,
     editImage,
     pollGeneration,
-    fetchGenerations,
     uploadImage,
   } = useGenerate()
 
