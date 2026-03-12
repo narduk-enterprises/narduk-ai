@@ -3,9 +3,14 @@ import { eq } from 'drizzle-orm'
 import { appSettings } from '#server/database/schema'
 import { grokChat } from '#server/utils/grok'
 import { getSystemPrompt } from '#server/utils/systemPrompts'
+import {
+  MAX_ITERATION_CONTEXT_STEPS,
+  MAX_ITERATION_PASS_COUNT,
+  trimIterationContextSteps,
+} from '~/utils/iterationConfig'
 
 const priorStepSchema = z.object({
-  iteration: z.number().int().min(1).max(50),
+  iteration: z.number().int().min(1).max(MAX_ITERATION_PASS_COUNT),
   prompt: z.string().min(1).max(20_000),
   changeSummary: z.string().min(1).max(2_000),
   message: z.string().max(2_000).nullish(),
@@ -16,8 +21,8 @@ const priorStepSchema = z.object({
 const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
   goal: z.string().min(1).max(4_000),
-  iteration: z.number().int().min(1).max(50),
-  totalIterations: z.number().int().min(1).max(50),
+  iteration: z.number().int().min(1).max(MAX_ITERATION_PASS_COUNT),
+  totalIterations: z.number().int().min(1).max(MAX_ITERATION_PASS_COUNT),
   priorSteps: z.array(priorStepSchema).max(50).default([]),
   model: z.string().optional(),
 })
@@ -37,10 +42,16 @@ const grokResponseSchema = z
   }))
 
 function buildIterationUserContent(body: z.infer<typeof bodySchema>): string {
+  const recentPriorSteps = trimIterationContextSteps(body.priorSteps)
   const priorSteps =
-    body.priorSteps.length > 0
-      ? body.priorSteps
-          .map((step) =>
+    recentPriorSteps.length > 0
+      ? [
+          ...(recentPriorSteps[0]!.iteration > 1
+            ? [
+                `Recent prior passes only. Earlier passes were omitted to keep the loop focused on the last ${Math.min(MAX_ITERATION_CONTEXT_STEPS, recentPriorSteps.length)} results.`,
+              ]
+            : []),
+          ...recentPriorSteps.map((step) =>
             [
               `Pass ${step.iteration}`,
               `Summary: ${step.changeSummary}`,
@@ -50,8 +61,8 @@ function buildIterationUserContent(body: z.infer<typeof bodySchema>): string {
             ]
               .filter(Boolean)
               .join('\n'),
-          )
-          .join('\n\n')
+          ),
+        ].join('\n\n')
       : 'None.'
 
   return [

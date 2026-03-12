@@ -83,11 +83,11 @@ describe('POST /api/chat/iterate-review', () => {
       renderedPrompt: 'A cinematic portrait in soft window light',
       goal: 'Match the preset person more accurately',
       imageUrl: 'data:image/png;base64,abc123',
-      iteration: 2,
-      totalIterations: 5,
+      iteration: 61,
+      totalIterations: 120,
       priorSteps: [
         {
-          iteration: 1,
+          iteration: 60,
           prompt: 'A cinematic portrait with softer lighting',
           renderedPrompt: 'A cinematic portrait in flat studio light',
           changeSummary: 'Moved the lighting toward a softer window-lit look.',
@@ -125,7 +125,7 @@ describe('POST /api/chat/iterate-review', () => {
           content: expect.arrayContaining([
             expect.objectContaining({
               type: 'text',
-              text: expect.stringContaining('Goal:\nMatch the preset person more accurately'),
+              text: expect.stringContaining('Current pass: 61 of 120'),
             }),
             expect.objectContaining({
               type: 'image_url',

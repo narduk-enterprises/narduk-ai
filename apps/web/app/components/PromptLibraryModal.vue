@@ -148,10 +148,13 @@ async function handleDelete(id: string) {
                 </div>
               </div>
 
-              <div
-                class="flex-1 bg-default/50 rounded-lg p-3 text-muted line-clamp-4 relative mb-4 font-mono text-xs"
-              >
-                {{ p.prompt }}
+              <div class="flex-1 rounded-lg bg-default/50 p-3 text-muted relative mb-4">
+                <ExpandableText
+                  :text="p.prompt"
+                  :collapsed-lines="4"
+                  text-class="font-mono text-xs"
+                  button-class="text-xs"
+                />
               </div>
 
               <div

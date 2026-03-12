@@ -11,6 +11,7 @@ export interface IterationStep {
   message?: string | null
   contextSnapshot?: string | null
   renderedPrompt?: string | null
+  generationId?: string | null
   imageUrl?: string | null
   imageAnalysis?: string | null
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IterationRun } from '~/types/chat'
+import { MAX_ITERATION_PASS_COUNT } from '~/utils/iterationConfig'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -19,6 +20,7 @@ const {
   iterationPrompt,
   iterationGoal,
   iterationContext,
+  iterationPassCount,
   activeIterationRun,
   isChatting,
   isIterating,
@@ -30,6 +32,7 @@ const {
   startIterationRun,
   stopIterationRun,
   continueIterationRun,
+  setIterationPassCount,
   generateInline,
   shareImageWithAgent,
   startNewChat,
@@ -111,6 +114,9 @@ async function handleContinueIteration(run: IterationRun) {
 }
 
 const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels()
+const iterationSubmitLabel = computed(() =>
+  iterationPassCount.value === 1 ? 'Run 1 Pass' : `Run ${iterationPassCount.value} Passes`,
+)
 </script>
 
 <template>
@@ -185,6 +191,7 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
         :messages="chatMessages"
         :is-chatting="isChatting"
         :generating-inline="generatingInline"
+        :iteration-pass-count="iterationPassCount"
         @use-prompt="useGeneratedPrompt"
         @save-prompt="savePromptToLibrary"
         @generate-inline="handleGenerateInline"
@@ -265,7 +272,7 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
 
         <UForm
           v-else
-          :state="{ prompt: iterationPrompt, goal: iterationGoal }"
+          :state="{ prompt: iterationPrompt, goal: iterationGoal, passCount: iterationPassCount }"
           class="w-full space-y-3"
           @submit.prevent="() => startIterationRun()"
         >
@@ -281,18 +288,38 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
               :ui="{ base: 'rounded-2xl shadow-card' }"
             />
           </UFormField>
-          <UFormField label="Goal" class="w-full">
-            <UTextarea
-              v-model="iterationGoal"
-              placeholder="What should the prompt get better at?"
-              autoresize
-              :rows="2"
-              :maxrows="5"
-              :disabled="isIterating || isChatting || generatingInline"
+          <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_14rem] md:items-start">
+            <UFormField label="Goal" class="w-full">
+              <UTextarea
+                v-model="iterationGoal"
+                placeholder="What should the prompt get better at?"
+                autoresize
+                :rows="2"
+                :maxrows="5"
+                :disabled="isIterating || isChatting || generatingInline"
+                class="w-full"
+                :ui="{ base: 'rounded-2xl shadow-card' }"
+              />
+            </UFormField>
+
+            <UFormField
+              label="Pass Count"
+              :description="`Run between 1 and ${MAX_ITERATION_PASS_COUNT} passes in this round.`"
               class="w-full"
-              :ui="{ base: 'rounded-2xl shadow-card' }"
-            />
-          </UFormField>
+            >
+              <UInput
+                :model-value="String(iterationPassCount)"
+                type="number"
+                min="1"
+                :max="String(MAX_ITERATION_PASS_COUNT)"
+                step="1"
+                :disabled="isIterating || isChatting || generatingInline"
+                class="w-full"
+                :ui="{ base: 'rounded-2xl shadow-card' }"
+                @update:model-value="setIterationPassCount"
+              />
+            </UFormField>
+          </div>
           <UFormField
             label="Context & Feedback"
             description="Optional. Add constraints, reference details, or notes after reviewing each pass."
@@ -329,7 +356,7 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
               class="rounded-xl"
               size="lg"
             >
-              Run 5 Iterations
+              {{ iterationSubmitLabel }}
             </UButton>
             <UButton
               v-if="isIterating"
@@ -344,7 +371,8 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
             </UButton>
             <p class="text-xs text-dimmed">
               Each pass rewrites the prompt, renders an image, reviews the result, and adjusts for
-              the next pass. Stop anytime if it drifts.
+              the next pass. This round is set to {{ iterationPassCount }}
+              {{ iterationPassCount === 1 ? 'pass' : 'passes' }} unless you stop it.
             </p>
           </div>
         </UForm>

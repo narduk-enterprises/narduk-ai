@@ -8,6 +8,11 @@ import type {
 } from '~/types/chat'
 import { normalizeChatRequestMessages } from '~/utils/chatHistory'
 import {
+  DEFAULT_ITERATION_PASS_COUNT,
+  parseIterationPassCount,
+  trimIterationContextSteps,
+} from '~/utils/iterationConfig'
+import {
   buildIterationUserMessage,
   createIterationRun,
   deriveIterationSessionTitle,
@@ -27,6 +32,7 @@ interface StartIterationRunOptions {
   goal?: string
   context?: string
   round?: number
+  totalIterations?: number
 }
 
 interface ApiChatMessage {
@@ -108,6 +114,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
   const iterationPrompt = ref('')
   const iterationGoal = ref('')
   const iterationContext = ref('')
+  const iterationPassCount = ref(DEFAULT_ITERATION_PASS_COUNT)
   const activeIterationRun = ref<IterationRun | null>(null)
   const isChatting = ref(false)
   const isIterating = ref(false)
@@ -116,6 +123,10 @@ export function useChatForm(options: UseChatFormOptions = {}) {
   const selectedModel = ref<string>('')
   let iterationAbortController: AbortController | null = null
   let activeIterationAssistantIndex: number | null = null
+
+  function setIterationPassCount(value: string | number | null | undefined) {
+    iterationPassCount.value = parseIterationPassCount(value)
+  }
 
   watchEffect(() => {
     if (!chatModels.value.length) return
@@ -517,6 +528,9 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     const goal = (optionsOverride.goal ?? iterationGoal.value).trim()
     const context = (optionsOverride.context ?? iterationContext.value).trim()
     const round = optionsOverride.round ?? 1
+    const totalIterations = parseIterationPassCount(
+      optionsOverride.totalIterations ?? iterationPassCount.value,
+    )
 
     if (!startingPrompt || !goal) return
 
@@ -524,18 +538,20 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     iterationPrompt.value = startingPrompt
     iterationGoal.value = goal
     iterationContext.value = context
+    iterationPassCount.value = totalIterations
     error.value = null
     isIterating.value = true
 
     const userMessage: ChatMessage = {
       role: 'user',
-      content: buildIterationUserMessage(startingPrompt, goal, round, context),
+      content: buildIterationUserMessage(startingPrompt, goal, round, context, totalIterations),
     }
     const initialRun = createIterationRun({
       initialPrompt: startingPrompt,
       goal,
       context,
       round,
+      totalIterations,
     })
 
     chatMessages.value.push(userMessage)
@@ -563,6 +579,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         goal,
         round,
         context,
+        totalIterations,
         signal: iterationAbortController.signal,
         getContext: () => iterationContext.value,
         onUpdate: updateIterationAssistant,
@@ -581,6 +598,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
             message?: string | null
             contextSnapshot?: string | null
             renderedPrompt?: string | null
+            generationId?: string | null
             imageUrl?: string | null
             imageAnalysis?: string | null
           }>('/api/chat/iterate-pass', {
@@ -592,7 +610,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
               context,
               iteration,
               totalIterations,
-              priorSteps,
+              priorSteps: trimIterationContextSteps(priorSteps),
               model: requestModel,
               visionModel: preferredVisionModel.value || undefined,
               imageModel: preferredImageModel.value || undefined,
@@ -617,7 +635,13 @@ export function useChatForm(options: UseChatFormOptions = {}) {
 
       const failedRun = activeIterationRun.value
         ? { ...activeIterationRun.value, status: 'failed' as const }
-        : createIterationRun({ initialPrompt: startingPrompt, goal, context, round })
+        : createIterationRun({
+            initialPrompt: startingPrompt,
+            goal,
+            context,
+            round,
+            totalIterations,
+          })
       updateIterationAssistant(failedRun)
 
       const assistantMessage = chatMessages.value[assistantIndex]
@@ -656,6 +680,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       goal: sourceRun.goal,
       context: nextContext,
       round: sourceRun.round + 1,
+      totalIterations: iterationPassCount.value,
     })
   }
 
@@ -869,6 +894,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     iterationPrompt,
     iterationGoal,
     iterationContext,
+    iterationPassCount,
     activeIterationRun,
     isChatting,
     isIterating,
@@ -881,6 +907,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     startIterationRun,
     stopIterationRun,
     continueIterationRun,
+    setIterationPassCount,
     generateInline,
     shareImageWithAgent,
     startNewChat,

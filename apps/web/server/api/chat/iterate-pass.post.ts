@@ -3,11 +3,17 @@ import { z } from 'zod'
 import { appSettings } from '#server/database/schema'
 import { useAppDatabase } from '#server/utils/database'
 import { grokChat, grokGenerateImage, grokListModels } from '#server/utils/grok'
+import { persistGeneratedImage } from '#server/utils/persistGeneratedImage'
 import { getSystemPrompt } from '#server/utils/systemPrompts'
+import {
+  MAX_ITERATION_CONTEXT_STEPS,
+  MAX_ITERATION_PASS_COUNT,
+  trimIterationContextSteps,
+} from '~/utils/iterationConfig'
 import { buildXaiModelCatalog, isVisionCapableChatModel } from '~/utils/xaiModels'
 
 const priorStepSchema = z.object({
-  iteration: z.number().int().min(1).max(50),
+  iteration: z.number().int().min(1).max(MAX_ITERATION_PASS_COUNT),
   prompt: z.string().min(1).max(20_000),
   changeSummary: z.string().min(1).max(2_000),
   message: z.string().max(2_000).nullish(),
@@ -20,8 +26,8 @@ const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
   goal: z.string().min(1).max(4_000),
   context: z.string().max(8_000).optional().default(''),
-  iteration: z.number().int().min(1).max(50),
-  totalIterations: z.number().int().min(1).max(50),
+  iteration: z.number().int().min(1).max(MAX_ITERATION_PASS_COUNT),
+  totalIterations: z.number().int().min(1).max(MAX_ITERATION_PASS_COUNT),
   priorSteps: z.array(priorStepSchema).max(50).default([]),
   model: z.string().optional(),
   visionModel: z.string().optional(),
@@ -60,24 +66,33 @@ const iterationReviewResponseSchema = z
   }))
 
 function buildPriorStepsSummary(body: z.infer<typeof bodySchema>): string {
-  if (body.priorSteps.length === 0) {
+  const recentPriorSteps = trimIterationContextSteps(body.priorSteps)
+
+  if (recentPriorSteps.length === 0) {
     return 'None.'
   }
 
-  return body.priorSteps
-    .map((step) =>
-      [
-        `Pass ${step.iteration}`,
-        `Summary: ${step.changeSummary}`,
-        step.contextSnapshot ? `User context:\n${step.contextSnapshot}` : null,
-        step.imageAnalysis ? `Image review: ${step.imageAnalysis}` : null,
-        step.renderedPrompt ? `Rendered prompt:\n${step.renderedPrompt}` : null,
-        `Next prompt:\n${step.prompt}`,
-      ]
-        .filter(Boolean)
-        .join('\n'),
-    )
-    .join('\n\n')
+  const summarySections = recentPriorSteps.map((step) =>
+    [
+      `Pass ${step.iteration}`,
+      `Summary: ${step.changeSummary}`,
+      step.contextSnapshot ? `User context:\n${step.contextSnapshot}` : null,
+      step.imageAnalysis ? `Image review: ${step.imageAnalysis}` : null,
+      step.renderedPrompt ? `Rendered prompt:\n${step.renderedPrompt}` : null,
+      `Next prompt:\n${step.prompt}`,
+    ]
+      .filter(Boolean)
+      .join('\n'),
+  )
+
+  if (recentPriorSteps[0]!.iteration === 1) {
+    return summarySections.join('\n\n')
+  }
+
+  return [
+    `Recent prior passes only. Earlier passes were omitted to keep the loop focused on the last ${Math.min(MAX_ITERATION_CONTEXT_STEPS, recentPriorSteps.length)} results.`,
+    ...summarySections,
+  ].join('\n\n')
 }
 
 function buildIterationStepUserContent(body: z.infer<typeof bodySchema>): string {
@@ -229,6 +244,27 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    const savedGeneration = await persistGeneratedImage(event, {
+      userId: user.id,
+      prompt: step.revisedPrompt,
+      mode: 't2i',
+      remoteImageUrl: draftImageUrl,
+      generationTimeMs,
+      metadata: {
+        revised_prompt: generatedImage.data?.[0]?.revised_prompt ?? null,
+        iteration: {
+          pass: body.iteration,
+          totalIterations: body.totalIterations,
+          goal: body.goal,
+          context: body.context.trim() || null,
+          review: review.imageAnalysis,
+          nextPrompt: review.revisedPrompt,
+          renderedPrompt: step.revisedPrompt,
+        },
+      },
+      failureMessage: 'Failed to save iteration image',
+    })
+
     log.info('Iteration pass completed', {
       userId: user.id,
       iteration: body.iteration,
@@ -237,6 +273,7 @@ export default defineEventHandler(async (event) => {
       visionModel,
       imageModel,
       generationTimeMs,
+      generationId: savedGeneration.id,
     })
 
     return {
@@ -245,10 +282,10 @@ export default defineEventHandler(async (event) => {
       message: review.message || step.message || null,
       contextSnapshot: body.context.trim() || null,
       renderedPrompt: step.revisedPrompt,
-      imageUrl: draftImageUrl,
+      imageUrl: savedGeneration.mediaUrl,
+      generationId: savedGeneration.id,
       imageAnalysis: review.imageAnalysis,
       generationTimeMs,
-      draft: true,
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to run iteration pass'

@@ -6,6 +6,7 @@ const props = defineProps<{
   messages: ChatMessage[]
   isChatting: boolean
   generatingInline?: boolean
+  iterationPassCount?: number
   headshotUrl?: string | null
   showBuilderState?: boolean
 }>()
@@ -63,9 +64,9 @@ const visibleMessages = computed<VisibleMessage[]>(() =>
     }),
 )
 
-function openInViewer(imageUrl: string, prompt = '') {
+function openInViewer(imageUrl: string, prompt = '', generationId?: string | null) {
   const synth: Generation = {
-    id: imageUrl,
+    id: generationId || imageUrl,
     userId: '',
     type: 'image',
     mode: 't2i',
@@ -168,7 +169,7 @@ function handleInlineImageKeydown(event: KeyboardEvent, msg: ChatMessage) {
 function openIterationStepViewer(step: IterationStep) {
   if (!step.imageUrl) return
 
-  openInViewer(step.imageUrl, step.renderedPrompt || step.prompt)
+  openInViewer(step.imageUrl, step.renderedPrompt || step.prompt, step.generationId)
 }
 
 function handleIterationImageKeydown(event: KeyboardEvent, step: IterationStep) {
@@ -490,6 +491,18 @@ function getLatestIterationReview(run: IterationRun) {
                           {{ step.imageAnalysis }}
                         </p>
                       </div>
+
+                      <div v-if="step.generationId" class="pt-1">
+                        <UButton
+                          color="neutral"
+                          variant="ghost"
+                          size="xs"
+                          icon="i-lucide-images"
+                          :to="`/gallery/${step.generationId}`"
+                        >
+                          Open in Gallery
+                        </UButton>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -508,7 +521,13 @@ function getLatestIterationReview(run: IterationRun) {
               class="flex flex-wrap items-center justify-between gap-3 border-t border-primary/10 pt-3"
             >
               <p class="text-xs text-muted">
-                Continue from the latest prompt if you want another refinement round.
+                Continue from the latest prompt for another
+                {{ props.iterationPassCount ?? entry.iterationRun.totalIterations }}
+                {{
+                  (props.iterationPassCount ?? entry.iterationRun.totalIterations) === 1
+                    ? 'pass'
+                    : 'passes'
+                }}.
               </p>
               <UButton
                 color="primary"
@@ -517,7 +536,7 @@ function getLatestIterationReview(run: IterationRun) {
                 size="sm"
                 @click="handleContinueIteration(entry.iterationRun)"
               >
-                Continue x5
+                Continue x{{ props.iterationPassCount ?? entry.iterationRun.totalIterations }}
               </UButton>
             </div>
           </div>

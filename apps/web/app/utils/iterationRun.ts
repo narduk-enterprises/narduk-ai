@@ -1,4 +1,5 @@
 import type { IterationRun, IterationStep } from '~/types/chat'
+import { clampIterationPassCount, DEFAULT_ITERATION_PASS_COUNT } from '~/utils/iterationConfig'
 
 export interface IterationStepResult {
   revisedPrompt: string
@@ -6,6 +7,7 @@ export interface IterationStepResult {
   message?: string | null
   contextSnapshot?: string | null
   renderedPrompt?: string | null
+  generationId?: string | null
   imageUrl?: string | null
   imageAnalysis?: string | null
 }
@@ -45,7 +47,7 @@ export function createIterationRun(input: {
     currentPrompt: input.initialPrompt.trim(),
     status: 'running',
     completedIterations: 0,
-    totalIterations: input.totalIterations ?? 5,
+    totalIterations: clampIterationPassCount(input.totalIterations ?? DEFAULT_ITERATION_PASS_COUNT),
     round: input.round ?? 1,
     steps: [],
   }
@@ -56,6 +58,7 @@ export function buildIterationUserMessage(
   goal: string,
   round = 1,
   context = '',
+  totalIterations = DEFAULT_ITERATION_PASS_COUNT,
 ): string {
   const heading = round > 1 ? `Continue Iteration Round ${round}` : 'Iteration Request'
 
@@ -64,6 +67,7 @@ export function buildIterationUserMessage(
   return [
     `${heading}`,
     `Goal: ${goal.trim()}`,
+    `Requested passes: ${clampIterationPassCount(totalIterations)}`,
     normalizedContext ? `Context:\n${normalizedContext}` : null,
     `Starting Prompt:\n${prompt.trim()}`,
   ]
@@ -130,6 +134,7 @@ export async function runIterationLoop(options: RunIterationLoopOptions): Promis
         message: result.message?.trim() || null,
         contextSnapshot: result.contextSnapshot?.trim() || null,
         renderedPrompt: result.renderedPrompt?.trim() || null,
+        generationId: result.generationId?.trim() || null,
         imageUrl: result.imageUrl?.trim() || null,
         imageAnalysis: result.imageAnalysis?.trim() || null,
       }

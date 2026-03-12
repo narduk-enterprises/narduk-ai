@@ -29,6 +29,10 @@ const searchModel = computed({
 function getScoreLabel(image: Generation) {
   return String(formatComparisonScore(image.comparisonScore))
 }
+
+function handleSelect(image: Generation) {
+  emit('select', image)
+}
 </script>
 
 <template>
@@ -82,14 +86,16 @@ function getScoreLabel(image: Generation) {
           v-else
           class="grid flex-1 auto-rows-max grid-cols-2 gap-3 overflow-y-auto p-1 md:grid-cols-4"
         >
-          <UButton
+          <div
             v-for="image in images"
             :key="image.id"
-            variant="ghost"
-            :padded="false"
             :data-testid="`compare-candidate-${image.id}`"
-            class="group flex flex-col overflow-hidden rounded-2xl border border-default bg-elevated/40 text-left transition hover:-translate-y-0.5 hover:border-primary/40"
-            @click="emit('select', image)"
+            role="button"
+            tabindex="0"
+            class="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-default bg-elevated/40 text-left transition hover:-translate-y-0.5 hover:border-primary/40 focus:outline-none focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/20"
+            @click="handleSelect(image)"
+            @keydown.enter.prevent="handleSelect(image)"
+            @keydown.space.prevent="handleSelect(image)"
           >
             <div class="aspect-square w-full overflow-hidden bg-elevated/60">
               <MediaImg
@@ -99,7 +105,12 @@ function getScoreLabel(image: Generation) {
               />
             </div>
             <div class="flex flex-col gap-2 p-3">
-              <p class="line-clamp-2 text-xs leading-relaxed text-default">{{ image.prompt }}</p>
+              <ExpandableText
+                :text="image.prompt"
+                :collapsed-lines="2"
+                text-class="text-xs leading-relaxed text-default"
+                button-class="text-xs"
+              />
               <div class="flex items-center justify-between gap-2">
                 <UBadge
                   color="primary"
@@ -113,7 +124,7 @@ function getScoreLabel(image: Generation) {
                 </span>
               </div>
             </div>
-          </UButton>
+          </div>
         </div>
       </div>
     </template>

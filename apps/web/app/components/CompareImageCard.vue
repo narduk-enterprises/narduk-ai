@@ -69,9 +69,12 @@ const stateConfig = computed(() => {
       </div>
 
       <div class="space-y-3">
-        <p class="text-sm leading-relaxed text-default line-clamp-3">
-          {{ generation.prompt }}
-        </p>
+        <ExpandableText
+          :text="generation.prompt"
+          :collapsed-lines="3"
+          text-class="text-sm leading-relaxed text-default"
+          button-class="text-xs"
+        />
 
         <div class="flex flex-wrap gap-2">
           <UBadge

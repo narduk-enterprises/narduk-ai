@@ -15,6 +15,7 @@ const mockGrokChat = vi.fn()
 const mockGrokGenerateImage = vi.fn()
 const mockGrokListModels = vi.fn()
 const mockGetSystemPrompt = vi.fn()
+const mockPersistGeneratedImage = vi.fn()
 
 vi.mock('drizzle-orm', () => ({
   eq: vi.fn((...args) => ({ type: 'eq', args })),
@@ -51,6 +52,10 @@ vi.mock('#server/utils/grok', () => ({
 
 vi.mock('#server/utils/systemPrompts', () => ({
   getSystemPrompt: mockGetSystemPrompt,
+}))
+
+vi.mock('#server/utils/persistGeneratedImage', () => ({
+  persistGeneratedImage: mockPersistGeneratedImage,
 }))
 
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
@@ -100,6 +105,11 @@ describe('POST /api/chat/iterate-pass', () => {
       data: [{ url: 'https://images.example/draft.png' }],
     })
     mockGrokListModels.mockResolvedValue([{ id: 'grok-4' }, { id: 'grok-3-mini' }])
+    mockPersistGeneratedImage.mockReset()
+    mockPersistGeneratedImage.mockResolvedValue({
+      id: 'generation-123',
+      mediaUrl: '/api/media/generations/user-1/generation-123.png',
+    })
   })
 
   it('validates the request body', async () => {
@@ -117,24 +127,22 @@ describe('POST /api/chat/iterate-pass', () => {
     })
   })
 
-  it('returns a full pass result without extra catalog lookup when a vision model is provided', async () => {
+  it('returns a full pass result for long runs while trimming prior-step context', async () => {
     currentBody = {
       prompt: 'A soft portrait at sunset',
       goal: 'Make it more cinematic and specific',
       context: 'Keep the face shape matched to the preset and preserve the white background.',
-      iteration: 2,
-      totalIterations: 5,
-      priorSteps: [
-        {
-          iteration: 1,
-          prompt: 'A soft portrait at golden hour',
-          changeSummary: 'Added warm golden-hour lighting.',
-          contextSnapshot:
-            'Keep the face shape matched to the preset and preserve the white background.',
-          renderedPrompt: 'A soft portrait in warm golden-hour light',
-          imageAnalysis: 'The mood improved, but the framing still feels generic.',
-        },
-      ],
+      iteration: 16,
+      totalIterations: 120,
+      priorSteps: Array.from({ length: 15 }, (_, index) => ({
+        iteration: index + 1,
+        prompt: `Prompt ${index + 1}`,
+        changeSummary: `Summary ${index + 1}`,
+        contextSnapshot:
+          'Keep the face shape matched to the preset and preserve the white background.',
+        renderedPrompt: `Rendered prompt ${index + 1}`,
+        imageAnalysis: `Image analysis ${index + 1}`,
+      })),
       visionModel: 'grok-4',
     }
     mockGrokChat
@@ -164,16 +172,25 @@ describe('POST /api/chat/iterate-pass', () => {
       contextSnapshot:
         'Keep the face shape matched to the preset and preserve the white background.',
       renderedPrompt: 'A cinematic soft portrait at sunset with low-angle rim light.',
-      imageUrl: 'https://images.example/draft.png',
+      generationId: 'generation-123',
+      imageUrl: '/api/media/generations/user-1/generation-123.png',
       imageAnalysis: 'The lighting is strong, but the facial likeness still needs refinement.',
       generationTimeMs: expect.any(Number),
-      draft: true,
     })
     expect(mockGrokListModels).not.toHaveBeenCalled()
     expect(mockGrokGenerateImage).toHaveBeenCalledWith('test-key', {
       prompt: 'A cinematic soft portrait at sunset with low-angle rim light.',
       model: 'db-image-model',
     })
+    expect(mockPersistGeneratedImage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: 'user-1',
+        prompt: 'A cinematic soft portrait at sunset with low-angle rim light.',
+        remoteImageUrl: 'https://images.example/draft.png',
+        failureMessage: 'Failed to save iteration image',
+      }),
+    )
     expect(mockGrokChat).toHaveBeenNthCalledWith(
       1,
       'test-key',
@@ -181,9 +198,7 @@ describe('POST /api/chat/iterate-pass', () => {
         { role: 'system', content: 'step-system-prompt' },
         expect.objectContaining({
           role: 'user',
-          content: expect.stringContaining(
-            'User context:\nKeep the face shape matched to the preset and preserve the white background.',
-          ),
+          content: expect.any(String),
         }),
       ],
       'db-chat-model',
@@ -213,6 +228,16 @@ describe('POST /api/chat/iterate-pass', () => {
       'grok-4',
       { type: 'json_object' },
     )
+
+    const stepContent = mockGrokChat.mock.calls[0]?.[1]?.[1]?.content
+    expect(typeof stepContent).toBe('string')
+    expect(stepContent).toContain('Current pass: 16 of 120')
+    expect(stepContent).toContain(
+      'User context:\nKeep the face shape matched to the preset and preserve the white background.',
+    )
+    expect(stepContent).toContain('Recent prior passes only.')
+    expect(stepContent).toContain('Pass 4')
+    expect(stepContent).not.toContain('Pass 3')
   })
 
   it('rejects malformed review output', async () => {

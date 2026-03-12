@@ -201,9 +201,12 @@ function handleCompare() {
       </div>
 
       <div class="relative group/prompt">
-        <p class="line-clamp-2 text-sm text-muted leading-relaxed pr-8">
-          {{ generationPromptText }}
-        </p>
+        <ExpandableText
+          :text="generationPromptText"
+          :collapsed-lines="2"
+          text-class="pr-8 text-sm leading-relaxed text-muted"
+          button-class="text-xs"
+        />
         <CopyButton
           :text="generationPromptText"
           class="absolute right-0 top-0 opacity-100 md:opacity-0 group-hover/prompt:opacity-100 transition-opacity"

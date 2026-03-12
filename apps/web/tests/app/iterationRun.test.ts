@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest'
 
 import { deserializePersistedChatMessage } from '../../app/utils/chatPersistence'
+import {
+  clampIterationPassCount,
+  DEFAULT_ITERATION_PASS_COUNT,
+  MAX_ITERATION_CONTEXT_STEPS,
+  MAX_ITERATION_PASS_COUNT,
+  trimIterationContextSteps,
+} from '../../app/utils/iterationConfig'
 import { runIterationLoop } from '../../app/utils/iterationRun'
 
 describe('iteration run helpers', () => {
-  it('completes five passes and accumulates the latest prompt', async () => {
+  it('completes a custom number of passes and accumulates the latest prompt', async () => {
     const run = await runIterationLoop({
       initialPrompt: 'portrait prompt',
       goal: 'Make it more cinematic',
       context: 'Keep the same face shape and plain white background.',
+      totalIterations: 12,
       async runStep({ prompt, iteration }) {
         return {
           revisedPrompt: `${prompt} :: step-${iteration}`,
@@ -16,6 +24,7 @@ describe('iteration run helpers', () => {
           message: `Pass ${iteration} done.`,
           contextSnapshot: 'Keep the same face shape and plain white background.',
           renderedPrompt: `rendered-${iteration}`,
+          generationId: `generation-${iteration}`,
           imageUrl: `/api/media/iteration-${iteration}.png`,
           imageAnalysis: `Review for pass ${iteration}.`,
         }
@@ -23,12 +32,13 @@ describe('iteration run helpers', () => {
     })
 
     expect(run.status).toBe('completed')
-    expect(run.completedIterations).toBe(5)
-    expect(run.steps).toHaveLength(5)
-    expect(run.currentPrompt).toContain('step-5')
+    expect(run.completedIterations).toBe(12)
+    expect(run.steps).toHaveLength(12)
+    expect(run.currentPrompt).toContain('step-12')
     expect(run.steps[0]).toMatchObject({
       contextSnapshot: 'Keep the same face shape and plain white background.',
       renderedPrompt: 'rendered-1',
+      generationId: 'generation-1',
       imageUrl: '/api/media/iteration-1.png',
       imageAnalysis: 'Review for pass 1.',
     })
@@ -95,6 +105,23 @@ describe('iteration run helpers', () => {
     expect(secondRun.currentPrompt).toContain('round-2-step-5')
   })
 
+  it('clamps pass counts and trims prior-step context for long runs', () => {
+    expect(clampIterationPassCount(Number.NaN)).toBe(DEFAULT_ITERATION_PASS_COUNT)
+    expect(clampIterationPassCount(MAX_ITERATION_PASS_COUNT + 50)).toBe(MAX_ITERATION_PASS_COUNT)
+
+    const recentSteps = trimIterationContextSteps(
+      Array.from({ length: MAX_ITERATION_CONTEXT_STEPS + 4 }, (_, index) => ({
+        iteration: index + 1,
+        prompt: `prompt-${index + 1}`,
+        changeSummary: `summary-${index + 1}`,
+      })),
+    )
+
+    expect(recentSteps).toHaveLength(MAX_ITERATION_CONTEXT_STEPS)
+    expect(recentSteps[0]?.iteration).toBe(5)
+    expect(recentSteps.at(-1)?.iteration).toBe(MAX_ITERATION_CONTEXT_STEPS + 4)
+  })
+
   it('rehydrates iteration runs from persisted chat messages', () => {
     const message = deserializePersistedChatMessage({
       role: 'assistant',
@@ -118,6 +145,7 @@ describe('iteration run helpers', () => {
               changeSummary: 'Added dramatic lighting.',
               contextSnapshot: 'Keep the white background and focus on likeness.',
               renderedPrompt: 'portrait prompt :: render-1',
+              generationId: 'generation-1',
               imageUrl: '/api/media/render-1.png',
               imageAnalysis: 'The pose is close, but the anatomy still needs refinement.',
             },
@@ -133,6 +161,7 @@ describe('iteration run helpers', () => {
     expect(message.parsedResponse?.iterationRun?.steps[0]?.changeSummary).toBe(
       'Added dramatic lighting.',
     )
+    expect(message.parsedResponse?.iterationRun?.steps[0]?.generationId).toBe('generation-1')
     expect(message.parsedResponse?.iterationRun?.steps[0]?.imageUrl).toBe('/api/media/render-1.png')
   })
 })

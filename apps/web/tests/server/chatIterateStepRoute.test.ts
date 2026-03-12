@@ -105,11 +105,11 @@ describe('POST /api/chat/iterate-step', () => {
     currentBody = {
       prompt: 'A soft portrait at sunset',
       goal: 'Make it more cinematic and specific',
-      iteration: 2,
-      totalIterations: 5,
+      iteration: 52,
+      totalIterations: 120,
       priorSteps: [
         {
-          iteration: 1,
+          iteration: 51,
           prompt: 'A soft portrait at golden hour',
           changeSummary: 'Added warm golden-hour lighting.',
         },
@@ -138,7 +138,7 @@ describe('POST /api/chat/iterate-step', () => {
         { role: 'system', content: 'system-prompt' },
         expect.objectContaining({
           role: 'user',
-          content: expect.stringContaining('Goal:\nMake it more cinematic and specific'),
+          content: expect.stringContaining('Current pass: 52 of 120'),
         }),
       ],
       'db-chat-model',
