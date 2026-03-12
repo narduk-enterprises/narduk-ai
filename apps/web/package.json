@@ -17,7 +17,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
-    "deploy": "nuxt build && wrangler deploy",
+    "deploy": "wrangler deploy",
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
     "lint": "eslint . --max-warnings 0",
     "test:e2e": "playwright test --project=web --config=../../playwright.config.ts",
