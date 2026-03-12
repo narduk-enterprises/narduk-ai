@@ -125,13 +125,7 @@ function getDisplayContent(msg: ChatMessage): string {
             >
               Share with Agent
             </UButton>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-images"
-              size="xs"
-              to="/gallery"
-            >
+            <UButton color="neutral" variant="ghost" icon="i-lucide-images" size="xs" to="/gallery">
               View in Gallery
             </UButton>
           </div>
