@@ -99,7 +99,14 @@ const otherPresetTypes = computed(() => {
 
 // ── Preset select items (USelectMenu format) ─────────────────────
 const personSelectItems = computed(() =>
-  personElements.value.map((p) => ({ label: p.name, value: p.id })),
+  personElements.value.map((p) => {
+    const src = getPersonPreviewUrl(p)
+    return {
+      label: p.name,
+      value: p.id,
+      ...(src ? { avatar: { src, size: 'xs' as const } } : {}),
+    }
+  }),
 )
 
 function getTypeSelectItems(type: string) {
@@ -311,6 +318,7 @@ function editResult(gen: Generation) {
                 searchable
                 :search-attributes="['label']"
                 placeholder="Search person..."
+                :ui="{ content: 'min-w-72' }"
                 @update:model-value="handlePersonSelect"
               >
                 <UButton
@@ -351,6 +359,7 @@ function editResult(gen: Generation) {
                 searchable
                 :search-attributes="['label']"
                 :placeholder="`Search ${pt.label.toLowerCase()}...`"
+                :ui="{ content: 'min-w-72' }"
                 @update:model-value="(item) => handlePresetSelect(pt.type, item)"
               >
                 <UButton
