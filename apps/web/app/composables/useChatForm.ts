@@ -160,7 +160,11 @@ export function useChatForm() {
         },
         body: JSON.stringify({
           chatMode: chatMode.value,
-          messages: payloadMessages.map((m) => ({ role: m.role, content: m.content })),
+          // Filter out any messages with empty content to avoid Zod min(1) failures
+          // (can happen if initializeChat ran before prompts loaded, or stream was interrupted)
+          messages: payloadMessages
+            .map((m) => ({ role: m.role, content: m.content }))
+            .filter((m) => m.content.trim().length > 0),
           stream: true,
         }),
       })
