@@ -278,7 +278,7 @@ function editResult(gen: Generation) {
     <!-- Desktop: 2-col split. Mobile: single col -->
     <div class="lg:grid lg:grid-cols-[1fr_400px] lg:gap-6 lg:items-start space-y-6 lg:space-y-0">
       <!-- ── LEFT COLUMN: Form ─────────────────────────────────────── -->
-      <div class="space-y-4">
+      <div class="space-y-4 min-w-0">
         <!-- Mode Selector -->
         <div class="space-y-1.5">
           <div class="flex flex-wrap gap-2">
@@ -681,7 +681,7 @@ function editResult(gen: Generation) {
       </div>
 
       <!-- ── RIGHT COLUMN: Result (sticky on desktop) ──────────────── -->
-      <div class="lg:sticky lg:top-4">
+      <div class="lg:sticky lg:top-4 min-w-0">
         <GenerationResult
           v-if="latestResult"
           :latest-result="latestResult"

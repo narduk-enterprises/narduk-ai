@@ -1,15 +1,6 @@
 import type { Generation } from '~/types/generation'
 import type { PromptElement } from './usePromptElements'
 
-// ─── Image / Video model catalogs ───────────────────────────────────────────
-export const IMAGE_MODELS: { value: string; label: string }[] = [
-  { value: 'grok-imagine-image', label: 'Grok Imagine' },
-]
-
-export const VIDEO_MODELS: { value: string; label: string }[] = [
-  { value: 'grok-imagine-video', label: 'Grok Imagine Video' },
-]
-
 /**
  * useGenerationForm — orchestrator composable for the generation page.
  * Delegates to focused sub-composables and re-exports a flat API
@@ -32,8 +23,8 @@ export function useGenerationForm() {
   const sourceGenerationId = ref((route.query.source as string) || '')
 
   // ─── Model Selection ────────────────────────────────────────
-  const selectedImageModel = ref<string>(IMAGE_MODELS[0]!.value)
-  const selectedVideoModel = ref<string>(VIDEO_MODELS[0]!.value)
+  const selectedImageModel = ref<string>('grok-imagine-image')
+  const selectedVideoModel = ref<string>('grok-imagine-video')
 
   const selectedModel = computed(() => {
     return activeTab.value === 't2v' || activeTab.value === 'i2v'

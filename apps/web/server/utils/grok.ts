@@ -454,6 +454,35 @@ export async function grokPollVideo(
   return data as unknown as GrokVideoPollResponse
 }
 
+// ─── Model Discovery ─────────────────────────────────────────
+
+export interface XaiModel {
+  id: string
+  object: string
+  created?: number
+  owned_by?: string
+}
+
+/**
+ * List all models available to this API key.
+ * Uses the standard OpenAI-compatible GET /v1/models endpoint.
+ */
+export async function grokListModels(apiKey: string): Promise<XaiModel[]> {
+  const res = await fetch('https://api.x.ai/v1/models', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${apiKey}` },
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    console.error(`[grokListModels] API error (${res.status}):`, text)
+    throw createError({ statusCode: res.status, message: 'Failed to list xAI models.' })
+  }
+
+  const data = (await res.json()) as { data?: XaiModel[] }
+  return data.data ?? []
+}
+
 /**
  * Download media from a temporary URL and return as ArrayBuffer.
  */

@@ -27,7 +27,14 @@ const schema = z.object({
 
 // State
 const toast = useToast()
-const { currentSettings, status, refresh, updateSettings } = useAdminSettings()
+const { currentSettings, status, refresh: refreshSettings, updateSettings } = useAdminSettings()
+const {
+  imageModels,
+  videoModels,
+  chatModels,
+  pending: modelsPending,
+  refresh: refreshModels,
+} = useXaiModels()
 
 const state = reactive<SettingsFields>({
   videoModel: currentSettings.value?.videoModel || 'grok-imagine-video',
@@ -45,27 +52,13 @@ watch(currentSettings, (settings) => {
 
 const isSaving = ref(false)
 
-// Select Options
-const videoOptions = [{ label: 'Grok Imagine Video', value: 'grok-imagine-video' }]
-
-const imageOptions = [
-  { label: 'Grok Imagine Image Pro', value: 'grok-imagine-image-pro' },
-  { label: 'Grok Imagine Image', value: 'grok-imagine-image' },
-]
-
-const enhanceOptions = [
-  { label: 'Grok 4.1 Fast Reasoning', value: 'grok-4-1-fast-reasoning' },
-  { label: 'Grok 4.1 Fast Non-Reasoning', value: 'grok-4-1-fast-non-reasoning' },
-  { label: 'Grok Code Fast 1', value: 'grok-code-fast-1' },
-]
-
 // Handlers
 async function onSubmit(event: FormSubmitEvent<SettingsFields>) {
   isSaving.value = true
 
   try {
     await updateSettings(event.data)
-    await refresh()
+    await refreshSettings()
 
     toast.add({
       title: 'Success',
@@ -89,11 +82,22 @@ async function onSubmit(event: FormSubmitEvent<SettingsFields>) {
 
 <template>
   <div class="space-y-6">
-    <div>
-      <h1 class="font-display text-2xl font-bold tracking-tight text-default">App Settings</h1>
-      <p class="text-sm text-muted mt-1">
-        Configure global ML model selections used for generations.
-      </p>
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h1 class="font-display text-2xl font-bold tracking-tight text-default">App Settings</h1>
+        <p class="text-sm text-muted mt-1">
+          Configure global ML model selections used for generations.
+        </p>
+      </div>
+      <UButton
+        icon="i-lucide-refresh-cw"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        :loading="modelsPending"
+        title="Refresh model list from xAI"
+        @click="() => refreshModels()"
+      />
     </div>
 
     <!-- Loading State -->
@@ -119,8 +123,8 @@ async function onSubmit(event: FormSubmitEvent<SettingsFields>) {
         >
           <USelectMenu
             v-model="state.videoModel"
-            :items="videoOptions"
-            value-key="value"
+            :items="videoModels.length ? videoModels : ['grok-imagine-video']"
+            :loading="modelsPending"
             style="width: 100%"
           />
         </UFormField>
@@ -133,8 +137,8 @@ async function onSubmit(event: FormSubmitEvent<SettingsFields>) {
         >
           <USelectMenu
             v-model="state.imageModel"
-            :items="imageOptions"
-            value-key="value"
+            :items="imageModels.length ? imageModels : ['grok-imagine-image']"
+            :loading="modelsPending"
             style="width: 100%"
           />
         </UFormField>
@@ -147,8 +151,8 @@ async function onSubmit(event: FormSubmitEvent<SettingsFields>) {
         >
           <USelectMenu
             v-model="state.promptEnhanceModel"
-            :items="enhanceOptions"
-            value-key="value"
+            :items="chatModels.length ? chatModels : ['grok-3-mini']"
+            :loading="modelsPending"
             style="width: 100%"
           />
         </UFormField>
