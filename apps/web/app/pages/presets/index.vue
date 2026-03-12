@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { PRESET_ATTRIBUTES } from '~/utils/presetSchemas'
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({
@@ -93,7 +94,18 @@ async function handleCreate(type: string) {
   submitting.value = true
   try {
     const label = type.charAt(0).toUpperCase() + type.slice(1)
-    const created = await createElement(type, `New ${label}`, ' ')
+    const name = `New ${label}`
+
+    // Seed schema-keyed attributes so new presets are never attributes-null
+    const schema = PRESET_ATTRIBUTES[type] ?? []
+    const initialAttrs: Record<string, string | null> = { name }
+    for (const key of schema) {
+      if (key !== 'name') initialAttrs[key] = null
+    }
+    const attributesJson = JSON.stringify(initialAttrs)
+    const content = `Name: ${name}`
+
+    const created = await createElement(type, name, content, null, attributesJson)
     if (created?.id) {
       navigateTo(`/presets/${created.id}`)
     }
