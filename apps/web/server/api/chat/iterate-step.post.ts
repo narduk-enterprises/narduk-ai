@@ -1,0 +1,137 @@
+import { z } from 'zod'
+import { eq } from 'drizzle-orm'
+import { appSettings } from '#server/database/schema'
+import { grokChat } from '#server/utils/grok'
+import { getSystemPrompt } from '#server/utils/systemPrompts'
+
+const priorStepSchema = z.object({
+  iteration: z.number().int().min(1).max(50),
+  prompt: z.string().min(1).max(20_000),
+  changeSummary: z.string().min(1).max(2_000),
+  message: z.string().max(2_000).nullish(),
+})
+
+const bodySchema = z.object({
+  prompt: z.string().min(1).max(20_000),
+  goal: z.string().min(1).max(4_000),
+  iteration: z.number().int().min(1).max(50),
+  totalIterations: z.number().int().min(1).max(50),
+  priorSteps: z.array(priorStepSchema).max(50).default([]),
+  model: z.string().optional(),
+})
+
+const grokResponseSchema = z
+  .object({
+    revisedPrompt: z.string().min(1).optional(),
+    prompt: z.string().min(1).optional(),
+    changeSummary: z.string().min(1).optional(),
+    summary: z.string().min(1).optional(),
+    message: z.string().min(1).optional(),
+  })
+  .transform((value) => ({
+    revisedPrompt: value.revisedPrompt || value.prompt || '',
+    changeSummary: value.changeSummary || value.summary || value.message || '',
+    message: value.message || null,
+  }))
+
+function buildIterationUserContent(body: z.infer<typeof bodySchema>): string {
+  const priorSteps =
+    body.priorSteps.length > 0
+      ? body.priorSteps
+          .map(
+            (step) =>
+              `Pass ${step.iteration}\nSummary: ${step.changeSummary}\nPrompt:\n${step.prompt}`,
+          )
+          .join('\n\n')
+      : 'None.'
+
+  return [
+    `Goal:\n${body.goal}`,
+    `Current pass: ${body.iteration} of ${body.totalIterations}`,
+    `Current prompt:\n${body.prompt}`,
+    `Prior completed passes:\n${priorSteps}`,
+    'Improve the prompt by one pass and return JSON only.',
+  ].join('\n\n')
+}
+
+/**
+ * POST /api/chat/iterate-step — Runs one isolated prompt-improvement pass.
+ */
+export default defineEventHandler(async (event) => {
+  const log = useLogger(event).child('ChatIterateStep')
+  const user = await requireAuth(event)
+  await enforceRateLimit(event, 'chat-iterate-step', 60, 60_000)
+  const body = await readValidatedBody(event, bodySchema.parse)
+  const config = useRuntimeConfig(event)
+
+  if (!config.xaiApiKey) {
+    throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
+  }
+
+  const db = useDatabase(event)
+  let chatModel = body.model || 'grok-3-mini'
+  if (!body.model) {
+    try {
+      const settings = await db
+        .select({ promptEnhanceModel: appSettings.promptEnhanceModel })
+        .from(appSettings)
+        .where(eq(appSettings.id, 1))
+        .get()
+      if (settings?.promptEnhanceModel) {
+        chatModel = settings.promptEnhanceModel
+      }
+    } catch (error) {
+      log.warn('Could not fetch appSettings for iterate-step model', { error })
+    }
+  }
+
+  try {
+    const systemPrompt = await getSystemPrompt(event, 'chat_iteration_step')
+    const content = await grokChat(
+      config.xaiApiKey,
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: buildIterationUserContent(body) },
+      ],
+      chatModel,
+      { type: 'json_object' },
+    )
+
+    const parsedJson = JSON.parse(content)
+    const parsed = grokResponseSchema.parse(parsedJson)
+
+    if (!parsed.revisedPrompt || !parsed.changeSummary) {
+      throw createError({
+        statusCode: 500,
+        message: 'Iteration step returned an incomplete response.',
+      })
+    }
+
+    log.info('Iteration step completed', {
+      userId: user.id,
+      iteration: body.iteration,
+      totalIterations: body.totalIterations,
+      model: chatModel,
+    })
+
+    return parsed
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to run prompt iteration step'
+    const statusCode =
+      error && typeof error === 'object' && 'statusCode' in error
+        ? Number((error as { statusCode?: number }).statusCode) || 500
+        : 500
+
+    log.error('Iteration step failed', {
+      userId: user.id,
+      iteration: body.iteration,
+      error: errorMessage,
+    })
+
+    throw createError({
+      statusCode,
+      message: errorMessage || 'Failed to run prompt iteration step',
+    })
+  }
+})

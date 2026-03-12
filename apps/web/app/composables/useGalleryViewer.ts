@@ -74,7 +74,24 @@ export function useGalleryViewer() {
 
   /** Update the items list (e.g. after parent loads more data) */
   function updateItems(newItems: Generation[]) {
+    const activeItemId = currentItem.value?.id ?? null
     items.value = [...newItems]
+
+    if (!newItems.length) {
+      currentIndex.value = 0
+      close()
+      return
+    }
+
+    if (activeItemId) {
+      const nextIndex = newItems.findIndex((item) => item.id === activeItemId)
+      if (nextIndex !== -1) {
+        currentIndex.value = nextIndex
+        return
+      }
+    }
+
+    currentIndex.value = Math.max(0, Math.min(currentIndex.value, newItems.length - 1))
   }
 
   /** Prefetch more items when near the end of the list */

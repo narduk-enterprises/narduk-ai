@@ -1,33 +1,88 @@
+import type {
+  ChatMessage,
+  ChatMode,
+  ChatParsedResponse,
+  ChatPersistenceMode,
+  ContentPart,
+  IterationRun,
+} from '~/types/chat'
+import { normalizeChatRequestMessages } from '~/utils/chatHistory'
+import {
+  buildIterationUserMessage,
+  createIterationRun,
+  deriveIterationSessionTitle,
+  runIterationLoop,
+} from '~/utils/iterationRun'
 import { payloadNeedsVision, resolveVisionImageUrl } from '~/utils/visionImage'
 
-export type ChatMode = 'general' | 'person' | 'scene' | 'framing' | 'action' | 'style'
-
-export type ContentPart =
-  | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } }
-
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string | ContentPart[]
-  parsedResponse?: {
-    message: string
-    prompt: string | null
-    suggested_name?: string | null
-    builder_state?: Record<string, string | null> | null
-    imageUrl?: string | null
-    isInlineGeneration?: boolean
-  }
-}
-
-export type ChatPersistenceMode = 'memory' | 'session'
+type ChatInputMode = 'chat' | 'iterate'
 
 interface UseChatFormOptions {
   persistence?: ChatPersistenceMode
   resumeMode?: ChatMode
 }
 
-const INLINE_IMAGE_ACKNOWLEDGEMENT_PROMPT =
-  'I am sharing the image you just generated. Acknowledge receipt in one very short sentence by briefly describing what you received, then wait for my next instruction. Do not suggest edits, ideas, or next steps yet.'
+interface StartIterationRunOptions {
+  prompt?: string
+  goal?: string
+  round?: number
+}
+
+interface ApiChatMessage {
+  role: ChatMessage['role']
+  content: ChatMessage['content']
+}
+
+function createParsedResponse(overrides: Partial<ChatParsedResponse> = {}): ChatParsedResponse {
+  return {
+    message: '',
+    prompt: null,
+    suggested_name: null,
+    continuation_summary: null,
+    builder_state: null,
+    imageUrl: null,
+    isInlineGeneration: false,
+    iterationRun: null,
+    ...overrides,
+  }
+}
+
+function formatAssistantContent(message: string): string {
+  return message ? `<message>${message}</message>` : ''
+}
+
+function getIterationStatusMessage(run: IterationRun): string {
+  if (run.status === 'completed') {
+    return `Iteration round ${run.round} completed. Refined the prompt across ${run.completedIterations} passes.`
+  }
+
+  if (run.status === 'stopped') {
+    return `Iteration round ${run.round} stopped after ${run.completedIterations} of ${run.totalIterations} passes.`
+  }
+
+  if (run.status === 'failed') {
+    return `Iteration round ${run.round} failed after ${run.completedIterations} completed passes.`
+  }
+
+  if (run.steps.length === 0) {
+    return `Starting iteration round ${run.round}.`
+  }
+
+  const latestStep = run.steps.at(-1)
+  if (!latestStep) {
+    return `Starting iteration round ${run.round}.`
+  }
+
+  return `Completed pass ${latestStep.iteration} of ${run.totalIterations}. ${latestStep.changeSummary}`
+}
+
+function createIterationParsedResponse(run: IterationRun): ChatParsedResponse {
+  return createParsedResponse({
+    message: getIterationStatusMessage(run),
+    prompt: run.currentPrompt || run.initialPrompt,
+    iterationRun: run,
+  })
+}
 
 export function useChatForm(options: UseChatFormOptions = {}) {
   const { elements, fetchElements } = usePromptElements()
@@ -47,10 +102,16 @@ export function useChatForm(options: UseChatFormOptions = {}) {
   const mediaType = ref<'image' | 'video'>('image')
   const chatMessages = ref<ChatMessage[]>([])
   const chatInput = ref('')
+  const inputMode = ref<ChatInputMode>('chat')
+  const iterationPrompt = ref('')
+  const iterationGoal = ref('')
+  const activeIterationRun = ref<IterationRun | null>(null)
   const isChatting = ref(false)
+  const isIterating = ref(false)
   const generatingInline = ref(false)
   const error = ref<string | null>(null)
   const selectedModel = ref<string>('')
+  let iterationAbortController: AbortController | null = null
 
   watchEffect(() => {
     if (!chatModels.value.length) return
@@ -61,13 +122,14 @@ export function useChatForm(options: UseChatFormOptions = {}) {
   })
 
   watch(chatMode, () => {
+    if (isIterating.value) return
+
     chatMessages.value = []
-    initializeChat()
+    void initializeChat()
   })
 
   async function initializeChat() {
     if (usesSessionPersistence) {
-      // Only the standalone brainstorm chat should restore D1-backed sessions.
       await sessions.fetchSessions()
 
       const latestSession = options.resumeMode
@@ -75,23 +137,20 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         : sessions.sessions.value[0]
 
       if (latestSession) {
-        // Resume existing session
         chatMode.value = (latestSession.mode as ChatMode) || 'general'
         selectedModel.value = latestSession.model || ''
         const persisted = await sessions.loadSession(latestSession.id)
         if (persisted.length > 0) {
-          // Re-inject the system message slot (rebuilt at send-time, blank for display purposes)
           chatMessages.value = [{ role: 'system', content: '' }, ...persisted]
           return
         }
       }
     }
 
-    // No sessions or empty session: fresh start
-    await _startFreshChat()
+    await startFreshChat()
   }
 
-  async function _startFreshChat() {
+  async function startFreshChat() {
     const mode = chatMode.value
     const initialMessage =
       mode === 'general'
@@ -112,12 +171,10 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       },
       {
         role: 'assistant',
-        content: `<message>${initialMessage}</message>`,
-        parsedResponse: {
+        content: formatAssistantContent(initialMessage),
+        parsedResponse: createParsedResponse({
           message: initialMessage,
-          prompt: null,
-          builder_state: null,
-        },
+        }),
       },
     ]
 
@@ -125,21 +182,17 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       const sessionModel = await ensureSelectedChatModel()
       const newSessionId = await sessions.createSession(mode, sessionModel || '')
       if (newSessionId) {
-        // Persist the initial assistant greeting
-        const greetingMsg = chatMessages.value[1]
-        if (greetingMsg) {
-          await sessions.appendMessage(newSessionId, greetingMsg)
+        const greetingMessage = chatMessages.value[1]
+        if (greetingMessage) {
+          await sessions.appendMessage(newSessionId, greetingMessage)
         }
       }
     }
   }
 
-  /**
-   * Helper to get a string version of a message's content for filtering/logging.
-   */
   function contentAsString(content: string | ContentPart[]): string {
     if (typeof content === 'string') return content
-    return content.map((p) => (p.type === 'text' ? p.text : '[image]')).join(' ')
+    return content.map((part) => (part.type === 'text' ? part.text : '[image]')).join(' ')
   }
 
   async function buildApiContent(content: string | ContentPart[]): Promise<string | ContentPart[]> {
@@ -163,7 +216,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     )
   }
 
-  async function buildApiMessages(messages: ChatMessage[]) {
+  async function buildApiMessages(messages: ChatMessage[]): Promise<ApiChatMessage[]> {
     const serialized = await Promise.all(
       messages.map(async (message) => ({
         role: message.role,
@@ -171,7 +224,9 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       })),
     )
 
-    return serialized.filter((message) => contentAsString(message.content).trim().length > 0)
+    return normalizeChatRequestMessages(
+      serialized.filter((message) => contentAsString(message.content).trim().length > 0),
+    )
   }
 
   async function ensureSelectedChatModel(): Promise<string | null> {
@@ -194,7 +249,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     return nextModel
   }
 
-  async function resolveRequestModel(messages: ChatMessage[]): Promise<string> {
+  async function resolveRequestModel(messages: ApiChatMessage[]): Promise<string> {
     if (payloadNeedsVision(messages)) {
       if (!chatModels.value.length) {
         await refreshModels()
@@ -221,8 +276,32 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     return chatModel
   }
 
+  async function ensureActiveSessionId(): Promise<string | null> {
+    if (!usesSessionPersistence) return null
+    if (sessions.activeSessionId.value) return sessions.activeSessionId.value
+
+    const sessionModel = await ensureSelectedChatModel()
+    return await sessions.createSession(chatMode.value, sessionModel || '')
+  }
+
+  async function persistTurn(
+    userMessage: ChatMessage,
+    assistantMessage: ChatMessage | undefined,
+    sessionTitle?: string | null,
+  ) {
+    if (!usesSessionPersistence) return
+
+    const sessionId = await ensureActiveSessionId()
+    if (!sessionId) return
+
+    await sessions.appendMessage(sessionId, userMessage)
+    if (assistantMessage) {
+      await sessions.appendMessage(sessionId, assistantMessage, sessionTitle || undefined)
+    }
+  }
+
   async function sendChatMessage(contextString?: string) {
-    if (!chatInput.value.trim() || isChatting.value) return
+    if (!chatInput.value.trim() || isChatting.value || isIterating.value) return
 
     const userText = chatInput.value
     chatInput.value = ''
@@ -243,7 +322,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
 
       const elementsContext = elements.value.length
         ? `The user has the following saved Prompt Elements in their library:\n${elements.value
-            .map((e) => `- [${e.type}] "${e.name}": ${e.content}`)
+            .map((element) => `- [${element.type}] "${element.name}": ${element.content}`)
             .join(
               '\n',
             )}\n\nMake sure to deeply reference or combine these if the user asks for them.`
@@ -263,8 +342,8 @@ export function useChatForm(options: UseChatFormOptions = {}) {
             ...(headers && { headers }),
           })
           baseSystemPrompt = fresh[`chat_${chatMode.value}`] || ''
-        } catch (e) {
-          console.error('Failed to load system prompts:', e)
+        } catch (fetchError) {
+          console.error('Failed to load system prompts:', fetchError)
           baseSystemPrompt = ''
         }
       }
@@ -291,12 +370,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       chatMessages.value.push({
         role: 'assistant',
         content: '',
-        parsedResponse: {
-          message: '',
-          prompt: null,
-          suggested_name: null,
-          builder_state: null,
-        },
+        parsedResponse: createParsedResponse(),
       })
       assistantIndex = chatMessages.value.length - 1
 
@@ -320,18 +394,11 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       if (!res.ok) throw new Error(`API Error (${res.status})`)
 
       if (!res.body) {
-        console.warn('[useChatForm] res.body is null on a 200 OK — skipping stream read')
-        if (assistantIndex >= 0) {
-          const msg = chatMessages.value[assistantIndex]
-          if (msg) {
-            msg.content = '<message>Sorry, the response was empty. Please try again.</message>'
-            msg.parsedResponse = {
-              message: 'Sorry, the response was empty. Please try again.',
-              prompt: null,
-              suggested_name: null,
-              builder_state: null,
-            }
-          }
+        const message = 'Sorry, the response was empty. Please try again.'
+        const assistantMessage = chatMessages.value[assistantIndex]
+        if (assistantMessage) {
+          assistantMessage.content = formatAssistantContent(message)
+          assistantMessage.parsedResponse = createParsedResponse({ message })
         }
         return
       }
@@ -339,75 +406,63 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let fullContent = ''
-      const parsed: Required<NonNullable<ChatMessage['parsedResponse']>> = {
-        message: '',
-        prompt: null,
-        suggested_name: null,
-        builder_state: null,
-        imageUrl: null,
-        isInlineGeneration: false,
-      }
+      const parsed = createParsedResponse()
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
         fullContent += decoder.decode(value, { stream: true })
 
-        const msgMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
+        const messageMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
         const promptMatch = fullContent.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
         const titleMatch = fullContent.match(
           /<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i,
         )
+        const summaryMatch = fullContent.match(
+          /<continuation_summary>([\s\S]*?)(?:<\/continuation_summary>|$)/i,
+        )
         const stateMatch = fullContent.match(/<builder_state>([\s\S]*?)(?:<\/builder_state>|$)/i)
 
-        if (msgMatch?.[1]) parsed.message = msgMatch[1].trim()
+        if (messageMatch?.[1]) parsed.message = messageMatch[1].trim()
         if (promptMatch?.[1]) parsed.prompt = promptMatch[1].trim()
         if (titleMatch?.[1]) parsed.suggested_name = titleMatch[1].trim()
+        if (summaryMatch?.[1]) parsed.continuation_summary = summaryMatch[1].trim()
         if (stateMatch?.[1]) {
           try {
             parsed.builder_state = JSON.parse(stateMatch[1].trim())
           } catch {
-            // Wait for complete JSON
+            // Wait until the stream includes the full JSON object.
           }
         }
 
-        const msg = chatMessages.value[assistantIndex]!
-        msg.content = fullContent
-        msg.parsedResponse = { ...parsed }
-      }
-
-      if (usesSessionPersistence) {
-        const sessionId = sessions.activeSessionId.value
-        if (sessionId) {
-          const assistantMsg = chatMessages.value[assistantIndex]
-          // Extract session title from agent's suggested_name (first time only)
-          const existingSession = sessions.sessions.value.find((s) => s.id === sessionId)
-          const shouldSetTitle = !existingSession?.title && parsed.suggested_name
-          await sessions.appendMessage(sessionId, userMessage)
-          if (assistantMsg) {
-            await sessions.appendMessage(
-              sessionId,
-              assistantMsg,
-              shouldSetTitle ? parsed.suggested_name : undefined,
-            )
-          }
+        const assistantMessage = chatMessages.value[assistantIndex]
+        if (assistantMessage) {
+          assistantMessage.content = fullContent
+          assistantMessage.parsedResponse = { ...parsed }
         }
       }
-    } catch (e) {
-      const err = e as { data?: { message?: string }; message?: string }
-      const errorMsg = err.data?.message || err.message || 'Failed to get chat response'
-      error.value = errorMsg
+
+      const assistantMessage = chatMessages.value[assistantIndex]
+      const sessionId = sessions.activeSessionId.value
+      const existingSession = sessionId
+        ? sessions.sessions.value.find((session) => session.id === sessionId)
+        : null
+      const sessionTitle =
+        !existingSession?.title && parsed.suggested_name ? parsed.suggested_name : undefined
+
+      await persistTurn(userMessage, assistantMessage, sessionTitle)
+    } catch (requestError) {
+      const err = requestError as { data?: { message?: string }; message?: string }
+      const errorMessage = err.data?.message || err.message || 'Failed to get chat response'
+      error.value = errorMessage
 
       if (assistantIndex >= 0) {
-        const msg = chatMessages.value[assistantIndex]
-        if (msg) {
-          msg.content = `<message>${errorMsg}</message>`
-          msg.parsedResponse = {
-            message: `⚠️ ${errorMsg}`,
-            prompt: null,
-            suggested_name: null,
-            builder_state: null,
-          }
+        const assistantMessage = chatMessages.value[assistantIndex]
+        if (assistantMessage) {
+          assistantMessage.content = formatAssistantContent(errorMessage)
+          assistantMessage.parsedResponse = createParsedResponse({
+            message: `⚠️ ${errorMessage}`,
+          })
         }
       }
     } finally {
@@ -415,27 +470,148 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     }
   }
 
-  /**
-   * Generate an image inline in the chat thread without navigating away.
-   */
+  async function startIterationRun(optionsOverride: StartIterationRunOptions = {}) {
+    if (isIterating.value || isChatting.value || generatingInline.value) return
+
+    const startingPrompt = (optionsOverride.prompt ?? iterationPrompt.value).trim()
+    const goal = (optionsOverride.goal ?? iterationGoal.value).trim()
+    const round = optionsOverride.round ?? 1
+
+    if (!startingPrompt || !goal) return
+
+    inputMode.value = 'iterate'
+    iterationPrompt.value = startingPrompt
+    iterationGoal.value = goal
+    error.value = null
+    isIterating.value = true
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: buildIterationUserMessage(startingPrompt, goal, round),
+    }
+    const initialRun = createIterationRun({
+      initialPrompt: startingPrompt,
+      goal,
+      round,
+    })
+
+    chatMessages.value.push(userMessage)
+    chatMessages.value.push({
+      role: 'assistant',
+      content: formatAssistantContent(getIterationStatusMessage(initialRun)),
+      parsedResponse: createIterationParsedResponse(initialRun),
+    })
+
+    const assistantIndex = chatMessages.value.length - 1
+    activeIterationRun.value = initialRun
+    iterationAbortController = new AbortController()
+
+    const updateIterationAssistant = (run: IterationRun) => {
+      activeIterationRun.value = run
+
+      const assistantMessage = chatMessages.value[assistantIndex]
+      if (!assistantMessage) return
+
+      assistantMessage.content = formatAssistantContent(getIterationStatusMessage(run))
+      assistantMessage.parsedResponse = createIterationParsedResponse(run)
+    }
+
+    try {
+      const requestModel = await ensureSelectedChatModel()
+      if (!requestModel) {
+        throw new Error('No xAI chat model is available for this API key.')
+      }
+
+      const run = await runIterationLoop({
+        initialPrompt: startingPrompt,
+        goal,
+        round,
+        signal: iterationAbortController.signal,
+        onUpdate: updateIterationAssistant,
+        runStep: async ({ prompt, goal, iteration, totalIterations, priorSteps, signal }) =>
+          await $fetch('/api/chat/iterate-step', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: {
+              prompt,
+              goal,
+              iteration,
+              totalIterations,
+              priorSteps,
+              model: requestModel,
+            },
+            signal,
+          }),
+      })
+
+      iterationPrompt.value = run.currentPrompt
+
+      const sessionId = sessions.activeSessionId.value
+      const existingSession = sessionId
+        ? sessions.sessions.value.find((session) => session.id === sessionId)
+        : null
+      const sessionTitle = !existingSession?.title ? deriveIterationSessionTitle(goal) : undefined
+
+      await persistTurn(userMessage, chatMessages.value[assistantIndex], sessionTitle)
+    } catch (requestError) {
+      const err = requestError as { data?: { message?: string }; message?: string }
+      const errorMessage = err.data?.message || err.message || 'Failed to run iterations'
+      error.value = errorMessage
+
+      const failedRun = activeIterationRun.value
+        ? { ...activeIterationRun.value, status: 'failed' as const }
+        : createIterationRun({ initialPrompt: startingPrompt, goal, round })
+      updateIterationAssistant(failedRun)
+
+      const assistantMessage = chatMessages.value[assistantIndex]
+      if (assistantMessage?.parsedResponse) {
+        assistantMessage.parsedResponse.message = `⚠️ ${errorMessage}`
+        assistantMessage.content = formatAssistantContent(`⚠️ ${errorMessage}`)
+      }
+
+      await persistTurn(userMessage, assistantMessage)
+    } finally {
+      isIterating.value = false
+      iterationAbortController = null
+    }
+  }
+
+  function stopIterationRun() {
+    if (!isIterating.value || !iterationAbortController) return
+
+    iterationAbortController.abort()
+  }
+
+  async function continueIterationRun(run?: IterationRun) {
+    const sourceRun = run ?? activeIterationRun.value
+    if (!sourceRun || sourceRun.status === 'running') return
+
+    iterationPrompt.value = sourceRun.currentPrompt
+    iterationGoal.value = sourceRun.goal
+    inputMode.value = 'iterate'
+
+    await startIterationRun({
+      prompt: sourceRun.currentPrompt,
+      goal: sourceRun.goal,
+      round: sourceRun.round + 1,
+    })
+  }
+
   async function generateInline(prompt: string) {
-    if (generatingInline.value) return
+    if (generatingInline.value || isIterating.value) return
     generatingInline.value = true
     error.value = null
 
-    const placeholderMsg: ChatMessage = {
+    const placeholderMessage: ChatMessage = {
       role: 'assistant',
-      content: '<message>Generating image…</message>',
-      parsedResponse: {
+      content: formatAssistantContent('Generating image…'),
+      parsedResponse: createParsedResponse({
         message: 'Generating image…',
         prompt,
-        suggested_name: null,
-        builder_state: null,
-        imageUrl: null,
         isInlineGeneration: true,
-      },
+      }),
     }
-    chatMessages.value.push(placeholderMsg)
+    chatMessages.value.push(placeholderMessage)
     const placeholderIndex = chatMessages.value.length - 1
 
     try {
@@ -445,60 +621,48 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         body: { prompt },
       })
 
-      const successMsg =
-        "Here's your generated image. I've shared it back into the chat so I can confirm what I received."
-      const msg = chatMessages.value[placeholderIndex]
-      if (msg) {
-        msg.content = `<message>${successMsg}</message>`
-        msg.parsedResponse = {
-          message: successMsg,
+      const successMessage =
+        "Here's your generated image. Share it with the agent if you want feedback or a prompt revision."
+      const assistantMessage = chatMessages.value[placeholderIndex]
+      if (assistantMessage) {
+        assistantMessage.content = formatAssistantContent(successMessage)
+        assistantMessage.parsedResponse = createParsedResponse({
+          message: successMessage,
           prompt,
-          suggested_name: null,
-          builder_state: null,
           imageUrl: result.mediaUrl,
           isInlineGeneration: true,
-        }
+        })
       }
 
+      const finalMessage = chatMessages.value[placeholderIndex]
       if (usesSessionPersistence) {
         const sessionId = sessions.activeSessionId.value
-        const finalMsg = chatMessages.value[placeholderIndex]
-        if (sessionId && finalMsg) {
-          await sessions.appendMessage(sessionId, finalMsg)
+        if (sessionId && finalMessage) {
+          await sessions.appendMessage(sessionId, finalMessage)
         }
       }
-
-      generatingInline.value = false
-      await shareImageWithAgent(result.mediaUrl, INLINE_IMAGE_ACKNOWLEDGEMENT_PROMPT)
       return
-    } catch (e) {
-      const err = e as { data?: { message?: string }; message?: string }
-      const errorMsg = err.data?.message || err.message || 'Image generation failed'
-      error.value = errorMsg
+    } catch (requestError) {
+      const err = requestError as { data?: { message?: string }; message?: string }
+      const errorMessage = err.data?.message || err.message || 'Image generation failed'
+      error.value = errorMessage
 
-      const msg = chatMessages.value[placeholderIndex]
-      if (msg) {
-        msg.content = `<message>⚠️ ${errorMsg}</message>`
-        msg.parsedResponse = {
-          message: `⚠️ ${errorMsg}`,
+      const assistantMessage = chatMessages.value[placeholderIndex]
+      if (assistantMessage) {
+        assistantMessage.content = formatAssistantContent(`⚠️ ${errorMessage}`)
+        assistantMessage.parsedResponse = createParsedResponse({
+          message: `⚠️ ${errorMessage}`,
           prompt,
-          suggested_name: null,
-          builder_state: null,
-          imageUrl: null,
           isInlineGeneration: true,
-        }
+        })
       }
     } finally {
       generatingInline.value = false
     }
   }
 
-  /**
-   * Send a generated image back to the chat agent as a vision message.
-   * Local/private media is inlined so the model can actually read it.
-   */
   async function shareImageWithAgent(imageUrl: string, userComment?: string) {
-    if (isChatting.value) return
+    if (isChatting.value || isIterating.value) return
     error.value = null
 
     const text =
@@ -521,7 +685,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       const baseSystemPrompt = prompts.value[`chat_${chatMode.value}`] || ''
       const elementsContext = elements.value.length
         ? `The user has the following saved Prompt Elements in their library:\n${elements.value
-            .map((e) => `- [${e.type}] "${e.name}": ${e.content}`)
+            .map((element) => `- [${element.type}] "${element.name}": ${element.content}`)
             .join('\n')}`
         : 'The user has no saved Prompt Elements yet.'
 
@@ -531,17 +695,11 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         content: `${baseSystemPrompt}\n\n${elementsContext}`,
       }
 
-      const assistantPlaceholder: ChatMessage = {
+      chatMessages.value.push({
         role: 'assistant',
         content: '',
-        parsedResponse: {
-          message: '',
-          prompt: null,
-          suggested_name: null,
-          builder_state: null,
-        },
-      }
-      chatMessages.value.push(assistantPlaceholder)
+        parsedResponse: createParsedResponse(),
+      })
       assistantIndex = chatMessages.value.length - 1
 
       const apiMessages = await buildApiMessages(payloadMessages)
@@ -570,67 +728,54 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let fullContent = ''
-      const parsed: Required<NonNullable<ChatMessage['parsedResponse']>> = {
-        message: '',
-        prompt: null,
-        suggested_name: null,
-        builder_state: null,
-        imageUrl: null,
-        isInlineGeneration: false,
-      }
+      const parsed = createParsedResponse()
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
         fullContent += decoder.decode(value, { stream: true })
 
-        const msgMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
+        const messageMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
         const promptMatch = fullContent.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
         const titleMatch = fullContent.match(
           /<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i,
         )
+        const summaryMatch = fullContent.match(
+          /<continuation_summary>([\s\S]*?)(?:<\/continuation_summary>|$)/i,
+        )
         const stateMatch = fullContent.match(/<builder_state>([\s\S]*?)(?:<\/builder_state>|$)/i)
 
-        if (msgMatch?.[1]) parsed.message = msgMatch[1].trim()
+        if (messageMatch?.[1]) parsed.message = messageMatch[1].trim()
         if (promptMatch?.[1]) parsed.prompt = promptMatch[1].trim()
         if (titleMatch?.[1]) parsed.suggested_name = titleMatch[1].trim()
+        if (summaryMatch?.[1]) parsed.continuation_summary = summaryMatch[1].trim()
         if (stateMatch?.[1]) {
           try {
             parsed.builder_state = JSON.parse(stateMatch[1].trim())
           } catch {
-            /* wait */
+            // Wait until the stream includes the full JSON object.
           }
         }
 
-        const msg = chatMessages.value[assistantIndex]!
-        msg.content = fullContent
-        msg.parsedResponse = { ...parsed }
-      }
-
-      if (usesSessionPersistence) {
-        const sessionId = sessions.activeSessionId.value
-        if (sessionId) {
-          const assistantMsg = chatMessages.value[assistantIndex]
-          await sessions.appendMessage(sessionId, userMessage)
-          if (assistantMsg) {
-            await sessions.appendMessage(sessionId, assistantMsg)
-          }
+        const assistantMessage = chatMessages.value[assistantIndex]
+        if (assistantMessage) {
+          assistantMessage.content = fullContent
+          assistantMessage.parsedResponse = { ...parsed }
         }
       }
-    } catch (e) {
-      const err = e as { data?: { message?: string }; message?: string }
-      const errorMsg = err.data?.message || err.message || 'Failed to get vision response'
-      error.value = errorMsg
+
+      await persistTurn(userMessage, chatMessages.value[assistantIndex])
+    } catch (requestError) {
+      const err = requestError as { data?: { message?: string }; message?: string }
+      const errorMessage = err.data?.message || err.message || 'Failed to get vision response'
+      error.value = errorMessage
       if (assistantIndex >= 0) {
-        const msg = chatMessages.value[assistantIndex]
-        if (msg) {
-          msg.content = `<message>${errorMsg}</message>`
-          msg.parsedResponse = {
-            message: `⚠️ ${errorMsg}`,
-            prompt: null,
-            suggested_name: null,
-            builder_state: null,
-          }
+        const assistantMessage = chatMessages.value[assistantIndex]
+        if (assistantMessage) {
+          assistantMessage.content = formatAssistantContent(errorMessage)
+          assistantMessage.parsedResponse = createParsedResponse({
+            message: `⚠️ ${errorMessage}`,
+          })
         }
       }
     } finally {
@@ -638,17 +783,20 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     }
   }
 
-  /**
-   * Start a completely fresh chat session.
-   */
   async function startNewChat() {
+    if (isIterating.value) return
+
     chatMessages.value = []
     chatInput.value = ''
+    inputMode.value = 'chat'
+    iterationPrompt.value = ''
+    iterationGoal.value = ''
+    activeIterationRun.value = null
     error.value = null
     if (usesSessionPersistence) {
       sessions.activeSessionId.value = null
     }
-    await _startFreshChat()
+    await startFreshChat()
   }
 
   return {
@@ -658,13 +806,21 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     mediaType,
     chatMessages,
     chatInput,
+    inputMode,
+    iterationPrompt,
+    iterationGoal,
+    activeIterationRun,
     isChatting,
+    isIterating,
     generatingInline,
     error,
     selectedModel,
     sessions,
     initializeChat,
     sendChatMessage,
+    startIterationRun,
+    stopIterationRun,
+    continueIterationRun,
     generateInline,
     shareImageWithAgent,
     startNewChat,

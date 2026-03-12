@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { IterationRun } from '~/types/chat'
+
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({
@@ -13,12 +15,20 @@ useWebPageSchema({
 const {
   chatMessages,
   chatInput,
+  inputMode,
+  iterationPrompt,
+  iterationGoal,
+  activeIterationRun,
   isChatting,
+  isIterating,
   generatingInline,
   error,
   selectedModel,
   initializeChat,
   sendChatMessage,
+  startIterationRun,
+  stopIterationRun,
+  continueIterationRun,
   generateInline,
   shareImageWithAgent,
   startNewChat,
@@ -46,7 +56,9 @@ onMounted(() => {
 
 watch(() => chatMessages.value.length, scrollToBottom)
 watch(isChatting, scrollToBottom)
+watch(isIterating, scrollToBottom)
 watch(generatingInline, scrollToBottom)
+watch(() => activeIterationRun.value?.completedIterations ?? 0, scrollToBottom)
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
@@ -91,6 +103,10 @@ async function handleGenerateInline(prompt: string) {
 
 async function handleShareImage(imageUrl: string) {
   await shareImageWithAgent(imageUrl)
+}
+
+async function handleContinueIteration(run: IterationRun) {
+  await continueIterationRun(run)
 }
 
 const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels()
@@ -142,7 +158,7 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
           color="neutral"
           icon="i-lucide-plus"
           size="sm"
-          :disabled="chatMessages.filter((m) => m.role !== 'system').length === 0"
+          :disabled="isIterating || chatMessages.filter((m) => m.role !== 'system').length === 0"
           @click="startNewChat"
         >
           <span class="hidden sm:inline">New Chat</span>
@@ -172,6 +188,7 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
         @save-prompt="savePromptToLibrary"
         @generate-inline="handleGenerateInline"
         @share-image="handleShareImage"
+        @continue-iteration="handleContinueIteration"
       />
     </div>
 
@@ -179,37 +196,128 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
     <div
       class="px-3 pt-3 md:px-6 md:pt-4 md:pb-8 bg-default border-t border-default/50 shrink-0 pb-safe"
     >
-      <UForm
-        :state="{ input: chatInput }"
-        class="max-w-4xl mx-auto flex items-end gap-2"
-        @submit.prevent="() => sendChatMessage()"
-      >
-        <UTextarea
-          v-model="chatInput"
-          placeholder="Describe what you want to create or ask for ideas..."
-          class="flex-1"
-          size="lg"
-          autoresize
-          :rows="1"
-          :maxrows="4"
-          :disabled="isChatting || generatingInline"
-          :ui="{ base: 'rounded-2xl shadow-card' }"
-          @keydown="handleKeydown"
-        />
-        <UButton
-          type="submit"
-          color="primary"
-          variant="solid"
-          icon="i-lucide-send"
-          :loading="isChatting"
-          :disabled="!chatInput.trim() || isChatting || generatingInline"
-          class="rounded-xl touch-target shrink-0 mb-0.5"
-          size="lg"
-        />
-      </UForm>
-      <p class="text-center text-[11px] text-dimmed mt-2 hidden md:block">
-        Press Enter to send · Shift+Enter for new line
-      </p>
+      <div class="max-w-4xl mx-auto space-y-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <UButton
+            color="neutral"
+            size="sm"
+            :variant="inputMode === 'chat' ? 'solid' : 'outline'"
+            icon="i-lucide-message-square"
+            class="rounded-full"
+            :disabled="isIterating"
+            @click="inputMode = 'chat'"
+          >
+            Chat
+          </UButton>
+          <UButton
+            color="neutral"
+            size="sm"
+            :variant="inputMode === 'iterate' ? 'solid' : 'outline'"
+            icon="i-lucide-repeat"
+            class="rounded-full"
+            :disabled="isChatting || generatingInline"
+            @click="inputMode = 'iterate'"
+          >
+            Iterate
+          </UButton>
+        </div>
+
+        <UForm
+          v-if="inputMode === 'chat'"
+          :state="{ input: chatInput }"
+          class="flex items-end gap-2"
+          @submit.prevent="() => sendChatMessage()"
+        >
+          <UTextarea
+            v-model="chatInput"
+            placeholder="Describe what you want to create or ask for ideas..."
+            class="flex-1"
+            size="lg"
+            autoresize
+            :rows="1"
+            :maxrows="4"
+            :disabled="isChatting || generatingInline || isIterating"
+            :ui="{ base: 'rounded-2xl shadow-card' }"
+            @keydown="handleKeydown"
+          />
+          <UButton
+            type="submit"
+            color="primary"
+            variant="solid"
+            icon="i-lucide-send"
+            :loading="isChatting"
+            :disabled="!chatInput.trim() || isChatting || generatingInline || isIterating"
+            class="rounded-xl touch-target shrink-0 mb-0.5"
+            size="lg"
+          />
+        </UForm>
+
+        <UForm
+          v-else
+          :state="{ prompt: iterationPrompt, goal: iterationGoal }"
+          class="space-y-3"
+          @submit.prevent="() => startIterationRun()"
+        >
+          <UFormField label="Starting Prompt">
+            <UTextarea
+              v-model="iterationPrompt"
+              placeholder="Paste the prompt you want to improve..."
+              autoresize
+              :rows="3"
+              :maxrows="7"
+              :disabled="isIterating || isChatting || generatingInline"
+              :ui="{ base: 'rounded-2xl shadow-card' }"
+            />
+          </UFormField>
+          <UFormField label="Goal">
+            <UInput
+              v-model="iterationGoal"
+              placeholder="What should the prompt get better at?"
+              :disabled="isIterating || isChatting || generatingInline"
+              size="lg"
+              :ui="{ base: 'rounded-2xl shadow-card' }"
+            />
+          </UFormField>
+          <div class="flex flex-wrap items-center gap-2">
+            <UButton
+              type="submit"
+              color="primary"
+              variant="solid"
+              icon="i-lucide-wand-sparkles"
+              :loading="isIterating"
+              :disabled="
+                !iterationPrompt.trim() ||
+                !iterationGoal.trim() ||
+                isIterating ||
+                isChatting ||
+                generatingInline
+              "
+              class="rounded-xl"
+              size="lg"
+            >
+              Run 5 Iterations
+            </UButton>
+            <UButton
+              v-if="isIterating"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-octagon-x"
+              class="rounded-xl"
+              size="lg"
+              @click="stopIterationRun"
+            >
+              Stop
+            </UButton>
+            <p class="text-xs text-dimmed">
+              The loop stays focused on the prompt and goal only. Stop anytime if it drifts.
+            </p>
+          </div>
+        </UForm>
+
+        <p v-if="inputMode === 'chat'" class="text-center text-[11px] text-dimmed hidden md:block">
+          Press Enter to send · Shift+Enter for new line
+        </p>
+      </div>
     </div>
 
     <GalleryViewer />

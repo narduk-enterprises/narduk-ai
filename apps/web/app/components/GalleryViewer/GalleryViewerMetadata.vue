@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
 import { GENERATION_MODE_LABELS } from '~/utils/generationModes'
+import { getGenerationSharePrompt } from '~/utils/generationPrompt'
 
 const props = defineProps<{
   item: Generation
@@ -30,6 +31,8 @@ const parsedPresets = computed(() => {
     return null
   }
 })
+
+const displayPrompt = computed(() => getGenerationSharePrompt(props.item))
 </script>
 
 <template>
@@ -39,9 +42,11 @@ const parsedPresets = computed(() => {
     <div class="max-w-3xl mx-auto space-y-2">
       <!-- Prompt -->
       <div class="flex items-start gap-3 group">
-        <p class="text-white/90 text-sm leading-relaxed line-clamp-2 flex-1">"{{ item.prompt }}"</p>
+        <p class="text-white/90 text-sm leading-relaxed line-clamp-2 flex-1">
+          "{{ displayPrompt }}"
+        </p>
         <CopyButton
-          :text="item.prompt"
+          :text="displayPrompt"
           class="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-white"
         />
       </div>

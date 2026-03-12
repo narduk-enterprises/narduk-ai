@@ -1,7 +1,9 @@
+import { sendStream } from 'h3'
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { appSettings } from '../../database/schema'
-import { grokChatStream, type GrokChatMessage } from '../../utils/grok'
+import { grokChat, grokChatStream, type GrokChatMessage } from '../../utils/grok'
+import { normalizeServerChatMessages } from '#server/utils/chatHistory'
 
 const contentPartSchema = z.object({
   type: z.enum(['text', 'image_url']),
@@ -19,7 +21,7 @@ const bodySchema = z.object({
     .enum(['general', 'person', 'scene', 'framing', 'action', 'style'])
     .optional()
     .default('general'),
-  messages: z.array(messageSchema).max(50), // Max 50 messages in history
+  messages: z.array(messageSchema).max(500),
   stream: z.boolean().optional().default(false),
   model: z.string().optional(),
 })
@@ -66,13 +68,14 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    const normalizedMessages = normalizeServerChatMessages(body.messages as GrokChatMessage[])
+
     if (body.stream) {
-      const stream = await grokChatStream(
-        config.xaiApiKey,
-        body.messages as GrokChatMessage[],
-        chatModel,
-      )
-      log.info('Chat completion streaming started', { userId: user.id })
+      const stream = await grokChatStream(config.xaiApiKey, normalizedMessages, chatModel)
+      log.info('Chat completion streaming started', {
+        userId: user.id,
+        outboundMessageCount: normalizedMessages.length,
+      })
 
       // Cloudflare edge nodes buffer plain text streams by default.
       // We must explicitly disable caching and transformations.
@@ -82,13 +85,13 @@ export default defineEventHandler(async (event) => {
 
       return sendStream(event, stream)
     } else {
-      const responseContent = await grokChat(
-        config.xaiApiKey,
-        body.messages as GrokChatMessage[],
-        chatModel,
-        { type: 'json_object' },
-      )
-      log.info('Chat completion successful', { userId: user.id })
+      const responseContent = await grokChat(config.xaiApiKey, normalizedMessages, chatModel, {
+        type: 'json_object',
+      })
+      log.info('Chat completion successful', {
+        userId: user.id,
+        outboundMessageCount: normalizedMessages.length,
+      })
       return { content: responseContent }
     }
   } catch (err: unknown) {

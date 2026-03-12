@@ -1,4 +1,4 @@
-import type { ChatMessage } from './useChatForm'
+import type { ChatMessage } from '~/types/chat'
 import type { PromptElement, PresetMetadata } from './usePromptElements'
 import { PRESET_ATTRIBUTES, attributesToContent } from '~/utils/presetSchemas'
 

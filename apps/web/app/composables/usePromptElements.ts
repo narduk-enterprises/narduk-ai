@@ -1,3 +1,5 @@
+import { normalizeChatRequestMessages } from '~/utils/chatHistory'
+
 export interface PromptElement {
   id: string
   userId: string
@@ -141,7 +143,7 @@ export function usePromptElements() {
       method: 'POST',
       body: {
         chatMode: 'general',
-        messages: [
+        messages: normalizeChatRequestMessages([
           {
             role: 'system',
             content: systemContent,
@@ -150,7 +152,7 @@ export function usePromptElements() {
             role: 'user',
             content: `Compose these components into a generation prompt:\n\n${parts.join('\n')}`,
           },
-        ],
+        ]),
       },
     })
     const parsed = JSON.parse(res.content)
@@ -302,7 +304,7 @@ export function usePromptElements() {
       method: 'POST',
       body: {
         chatMode: 'general',
-        messages: [
+        messages: normalizeChatRequestMessages([
           {
             role: 'system',
             content: systemContent,
@@ -311,7 +313,7 @@ export function usePromptElements() {
             role: 'user',
             content: `Remix this prompt:\n\n${currentPrompt}`,
           },
-        ],
+        ]),
       },
     })
     const parsed = JSON.parse(res.content)

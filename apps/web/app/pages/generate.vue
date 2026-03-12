@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
 import { GENERATION_MODES } from '~/utils/generationModes'
+import { getGenerationSharePrompt } from '~/utils/generationPrompt'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -176,7 +177,10 @@ function handleUseBuilderPrompt(newPrompt: string) {
 function handleUseGenerationPrompt(gen: Generation) {
   navigateTo({
     path: '/generate',
-    query: { prompt: gen.prompt, mode: gen.type === 'video' ? 't2v' : 't2i' },
+    query: {
+      prompt: getGenerationSharePrompt(gen),
+      mode: gen.type === 'video' ? 't2v' : 't2i',
+    },
   })
 }
 

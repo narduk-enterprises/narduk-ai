@@ -1,5 +1,6 @@
 import type { Generation } from '~/types/generation'
 import type { CompareSourceContext } from '~/types/imageComparison'
+import { getGenerationSharePrompt } from '~/utils/generationPrompt'
 
 /**
  * useGalleryActions — centralized UI actions for generation items (delete, upscale, remix, navigate).
@@ -45,7 +46,10 @@ export function useGalleryActions(options?: {
     galleryViewer.close()
     navigateTo({
       path: '/generate',
-      query: { prompt: gen.prompt, mode: gen.type === 'video' ? 't2v' : 't2i' },
+      query: {
+        prompt: getGenerationSharePrompt(gen),
+        mode: gen.type === 'video' ? 't2v' : 't2i',
+      },
     })
   }
 

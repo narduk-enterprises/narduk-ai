@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
 import { GENERATION_MODE_LABELS } from '~/utils/generationModes'
+import { getGenerationSharePrompt } from '~/utils/generationPrompt'
 
 const props = defineProps<{
   generation: Generation
@@ -60,6 +61,8 @@ const parsedPresets = computed(() => {
   }
 })
 
+const generationPromptText = computed(() => getGenerationSharePrompt(props.generation))
+
 function handleUseAsSource() {
   emit('use-as-source', props.generation)
 }
@@ -101,7 +104,7 @@ function handleCompare() {
         <MediaImg
           v-if="generation.type === 'image'"
           :src="generation.mediaUrl"
-          :alt="generation.prompt"
+          :alt="generationPromptText"
           class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
         />
@@ -199,10 +202,10 @@ function handleCompare() {
 
       <div class="relative group/prompt">
         <p class="line-clamp-2 text-sm text-muted leading-relaxed pr-8">
-          {{ generation.prompt }}
+          {{ generationPromptText }}
         </p>
         <CopyButton
-          :text="generation.prompt"
+          :text="generationPromptText"
           class="absolute right-0 top-0 opacity-100 md:opacity-0 group-hover/prompt:opacity-100 transition-opacity"
         />
       </div>

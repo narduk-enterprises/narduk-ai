@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
 import { GENERATION_MODE_LABELS } from '~/utils/generationModes'
+import { getGenerationSharePrompt } from '~/utils/generationPrompt'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -124,6 +125,11 @@ const mediaType = computed(() => {
   return (generation.value?.type ?? 'image') as 'image' | 'video'
 })
 
+const displayPrompt = computed(() => {
+  if (!generation.value) return ''
+  return getGenerationSharePrompt(generation.value)
+})
+
 const metadataItems = computed(() => {
   if (!generation.value) return []
   const items = [
@@ -228,7 +234,7 @@ const parsedPresets = computed(() => {
                 <NuxtImg
                   v-if="mediaType === 'image'"
                   :src="generation.mediaUrl"
-                  :alt="generation.prompt"
+                  :alt="displayPrompt"
                   class="max-h-[60vh] w-full object-contain transition-transform duration-300 hover:scale-[1.02]"
                   placeholder
                   loading="lazy"
@@ -271,10 +277,10 @@ const parsedPresets = computed(() => {
 
           <div class="px-2 flex items-start gap-3 group">
             <p class="text-lg leading-relaxed text-default font-medium flex-1">
-              "{{ generation.prompt }}"
+              "{{ displayPrompt }}"
             </p>
             <CopyButton
-              :text="generation.prompt"
+              :text="displayPrompt"
               class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity mt-1"
             />
           </div>
@@ -312,7 +318,7 @@ const parsedPresets = computed(() => {
                   :to="{
                     path: '/generate',
                     query: {
-                      prompt: generation.prompt,
+                      prompt: displayPrompt,
                       mode: generation.type === 'video' ? 't2v' : 't2i',
                     },
                   }"

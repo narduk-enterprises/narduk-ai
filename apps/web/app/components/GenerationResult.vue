@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
+import { getGenerationSharePrompt } from '~/utils/generationPrompt'
 
 const props = defineProps<{
   latestResult: Generation
@@ -32,6 +33,12 @@ const resultBadgeColor = computed(() => {
 const isBatchDone = computed(
   () => props.latestResults.length > 1 && props.latestResults.every((r) => r.status === 'done'),
 )
+
+const latestResultPrompt = computed(() => getGenerationSharePrompt(props.latestResult))
+
+function getPromptText(generation: Generation) {
+  return getGenerationSharePrompt(generation)
+}
 </script>
 
 <template>
@@ -75,7 +82,7 @@ const isBatchDone = computed(
           <NuxtImg
             v-if="gen.mediaUrl"
             :src="gen.mediaUrl"
-            :alt="gen.prompt"
+            :alt="getPromptText(gen)"
             class="w-full aspect-square object-cover transition-transform duration-300 hover:scale-[1.03]"
             placeholder
             loading="lazy"
@@ -121,10 +128,10 @@ const isBatchDone = computed(
         </div>
       </div>
       <div class="flex items-start gap-3 group w-full">
-        <p class="text-sm text-muted flex-1">{{ latestResult?.prompt }}</p>
+        <p class="text-sm text-muted flex-1">{{ latestResultPrompt }}</p>
         <CopyButton
           v-if="latestResult"
-          :text="latestResult.prompt"
+          :text="latestResultPrompt"
           class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
         />
       </div>
@@ -163,7 +170,7 @@ const isBatchDone = computed(
         <MediaImg
           v-if="latestMediaType === 'image'"
           :src="latestResult.mediaUrl!"
-          :alt="latestResult.prompt"
+          :alt="latestResultPrompt"
           class="max-h-[60vh] w-full object-contain transition-transform duration-300 hover:scale-[1.02]"
           loading="lazy"
         />
@@ -179,9 +186,9 @@ const isBatchDone = computed(
         </video>
       </div>
       <div class="flex items-start gap-3 group w-full">
-        <p class="text-sm text-muted flex-1">{{ latestResult.prompt }}</p>
+        <p class="text-sm text-muted flex-1">{{ latestResultPrompt }}</p>
         <CopyButton
-          :text="latestResult.prompt"
+          :text="latestResultPrompt"
           class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
         />
       </div>

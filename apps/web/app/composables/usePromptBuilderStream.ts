@@ -1,3 +1,5 @@
+import { normalizeChatRequestMessages } from '~/utils/chatHistory'
+
 /**
  * Shared streaming helper for PromptBuilder chat interactions.
  * Exported as a named function (not a composable) — prefixed with `use` to
@@ -7,12 +9,17 @@ export interface PromptBuilderStreamCallbacks {
   onMessage: (text: string) => void
   onPrompt: (prompt: string) => void
   onTitle: (title: string) => void
+  onSummary?: (summary: string) => void
 }
 
 export async function usePromptBuilderStream(
   messages: { role: string; content: string }[],
   callbacks: PromptBuilderStreamCallbacks,
 ): Promise<void> {
+  const normalizedMessages = normalizeChatRequestMessages(
+    messages.filter((message) => message.content.trim().length > 0),
+  )
+
   const res = await fetch('/api/generate/chat', {
     method: 'POST',
     headers: {
@@ -21,7 +28,7 @@ export async function usePromptBuilderStream(
     },
     body: JSON.stringify({
       chatMode: 'general',
-      messages: messages.filter((m) => m.content.trim().length > 0),
+      messages: normalizedMessages,
       stream: true,
     }),
   })
@@ -41,9 +48,13 @@ export async function usePromptBuilderStream(
     const msgMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
     const promptMatch = fullContent.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
     const titleMatch = fullContent.match(/<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i)
+    const summaryMatch = fullContent.match(
+      /<continuation_summary>([\s\S]*?)(?:<\/continuation_summary>|$)/i,
+    )
 
     if (msgMatch?.[1]) callbacks.onMessage(msgMatch[1].trim())
     if (promptMatch?.[1]) callbacks.onPrompt(promptMatch[1].trim())
     if (titleMatch?.[1]) callbacks.onTitle(titleMatch[1].trim())
+    if (summaryMatch?.[1]) callbacks.onSummary?.(summaryMatch[1].trim())
   }
 }

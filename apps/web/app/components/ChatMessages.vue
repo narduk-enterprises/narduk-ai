@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatMessage } from '~/composables/useChatForm'
+import type { ChatMessage, IterationRun } from '~/types/chat'
 import type { Generation } from '~/types/generation'
 
 const props = defineProps<{
@@ -15,6 +15,7 @@ const emit = defineEmits<{
   'save-prompt': [text: string]
   'generate-inline': [prompt: string]
   'share-image': [imageUrl: string]
+  'continue-iteration': [run: IterationRun]
 }>()
 
 const galleryViewer = useGalleryViewer()
@@ -26,6 +27,9 @@ interface VisibleMessage {
   inlineImagePrompt: string | null
   inlineImageUrl: string | null
   promptText: string | null
+  continuationSummary: string | null
+  iterationRun: IterationRun | null
+  canContinueIteration: boolean
   builderState: BuilderState | null
   hasAssistantBubbleContent: boolean
   hasUserTextContent: boolean
@@ -47,6 +51,11 @@ const visibleMessages = computed<VisibleMessage[]>(() =>
         inlineImagePrompt: message.parsedResponse?.prompt ?? null,
         inlineImageUrl,
         promptText,
+        continuationSummary: message.parsedResponse?.continuation_summary ?? null,
+        iterationRun: message.parsedResponse?.iterationRun ?? null,
+        canContinueIteration: ['completed', 'stopped'].includes(
+          message.parsedResponse?.iterationRun?.status ?? '',
+        ),
         builderState: resolveBuilderState(message, promptText),
         hasAssistantBubbleContent: hasAssistantBubbleContent(message),
         hasUserTextContent: hasUserTextContent(message),
@@ -97,6 +106,10 @@ function handleGenerateInline(prompt: string) {
 
 function handleShareImage(imageUrl: string) {
   emit('share-image', imageUrl)
+}
+
+function handleContinueIteration(run: IterationRun) {
+  emit('continue-iteration', run)
 }
 
 function formatKey(key: string | number) {
@@ -150,6 +163,20 @@ function handleSharedImageKeydown(event: KeyboardEvent, imageUrl: string) {
 
 function handleInlineImageKeydown(event: KeyboardEvent, msg: ChatMessage) {
   handleViewerKeydown(event, () => openInlineViewer(msg))
+}
+
+function getIterationStatusTone(status: IterationRun['status']) {
+  if (status === 'completed') return 'success'
+  if (status === 'stopped') return 'warning'
+  if (status === 'failed') return 'error'
+  return 'primary'
+}
+
+function getIterationStatusLabel(run: IterationRun) {
+  if (run.status === 'completed') return 'Completed'
+  if (run.status === 'stopped') return 'Stopped'
+  if (run.status === 'failed') return 'Failed'
+  return `Running ${run.completedIterations}/${run.totalIterations}`
 }
 </script>
 
@@ -287,6 +314,106 @@ function handleInlineImageKeydown(event: KeyboardEvent, msg: ChatMessage) {
                 </UButton>
                 <CopyButton :text="entry.promptText" />
               </div>
+            </div>
+          </div>
+        </UCard>
+      </div>
+
+      <div v-if="entry.continuationSummary" class="mt-3 w-full animate-fade-in-up">
+        <UCard class="ring-1 ring-info/20 bg-info/5">
+          <div class="p-4 sm:p-5 flex items-start gap-3">
+            <UIcon name="i-lucide-scroll-text" class="size-5 text-info shrink-0 mt-0.5" />
+            <div class="flex-1 space-y-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-info">
+                  Continuation Summary
+                </p>
+                <p class="mt-2 text-sm text-default leading-relaxed whitespace-pre-wrap">
+                  {{ entry.continuationSummary }}
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-info/10">
+                <CopyButton :text="entry.continuationSummary" />
+              </div>
+            </div>
+          </div>
+        </UCard>
+      </div>
+
+      <div v-if="entry.iterationRun" class="mt-3 w-full animate-fade-in-up">
+        <UCard class="ring-1 ring-primary/20 bg-primary/5">
+          <div class="p-4 sm:p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="space-y-1">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                  Iteration Trace
+                </p>
+                <p class="text-sm text-muted">
+                  Round {{ entry.iterationRun.round }} ·
+                  {{ getIterationStatusLabel(entry.iterationRun) }}
+                </p>
+              </div>
+              <UBadge
+                :color="getIterationStatusTone(entry.iterationRun.status)"
+                variant="subtle"
+                size="sm"
+              >
+                {{ entry.iterationRun.completedIterations }}/{{
+                  entry.iterationRun.totalIterations
+                }}
+              </UBadge>
+            </div>
+
+            <div class="rounded-xl border border-default/50 bg-default/60 px-3 py-2">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed">Goal</p>
+              <p class="mt-1 text-sm text-default whitespace-pre-wrap">
+                {{ entry.iterationRun.goal }}
+              </p>
+            </div>
+
+            <div class="space-y-2">
+              <div
+                v-for="step in entry.iterationRun.steps"
+                :key="`${entry.iterationRun.round}-${step.iteration}`"
+                class="rounded-xl border border-default/50 bg-default/60 px-3 py-3"
+              >
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                    Pass {{ step.iteration }}
+                  </p>
+                  <span class="text-[11px] text-dimmed">
+                    Prompt {{ step.prompt.length }} chars
+                  </span>
+                </div>
+                <p class="mt-1 text-sm text-default whitespace-pre-wrap">
+                  {{ step.changeSummary }}
+                </p>
+              </div>
+
+              <div
+                v-if="entry.iterationRun.status === 'running'"
+                class="rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-sm text-muted"
+              >
+                Working on the next pass...
+              </div>
+            </div>
+
+            <div
+              v-if="entry.canContinueIteration"
+              class="flex flex-wrap items-center justify-between gap-3 border-t border-primary/10 pt-3"
+            >
+              <p class="text-xs text-muted">
+                Continue from the latest prompt if you want another refinement round.
+              </p>
+              <UButton
+                color="primary"
+                variant="soft"
+                icon="i-lucide-rotate-cw"
+                size="sm"
+                @click="handleContinueIteration(entry.iterationRun)"
+              >
+                Continue x5
+              </UButton>
             </div>
           </div>
         </UCard>

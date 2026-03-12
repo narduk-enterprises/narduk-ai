@@ -17,6 +17,7 @@ export interface Generation {
   type: 'image' | 'video'
   mode: 't2i' | 't2v' | 'i2v' | 'i2i'
   prompt: string
+  lineage?: string | null
   sourceGenerationId: string | null
   status: 'pending' | 'done' | 'failed' | 'expired'
   xaiRequestId: string | null
