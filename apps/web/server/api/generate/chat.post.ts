@@ -3,20 +3,35 @@ import { eq } from 'drizzle-orm'
 import { appSettings } from '../../database/schema'
 import { grokChatStream, type GrokChatMessage } from '../../utils/grok'
 
+const ALLOWED_CHAT_MODELS = [
+  'grok-3-mini',
+  'grok-3',
+  'grok-2-1212',
+  'grok-2-vision-1212',
+] as const
+
+const contentPartSchema = z.object({
+  type: z.enum(['text', 'image_url']),
+  text: z.string().optional(),
+  image_url: z.object({ url: z.string().url() }).optional(),
+})
+
+const messageSchema = z.object({
+  role: z.enum(['system', 'user', 'assistant']),
+  content: z.union([
+    z.string().min(1).max(1_000_000),
+    z.array(contentPartSchema).min(1).max(10),
+  ]),
+})
+
 const bodySchema = z.object({
   chatMode: z
     .enum(['general', 'person', 'scene', 'framing', 'action', 'style'])
     .optional()
     .default('general'),
-  messages: z
-    .array(
-      z.object({
-        role: z.enum(['system', 'user', 'assistant']),
-        content: z.string().min(1).max(1_000_000),
-      }),
-    )
-    .max(50), // Max 50 messages in history
+  messages: z.array(messageSchema).max(50), // Max 50 messages in history
   stream: z.boolean().optional().default(false),
+  model: z.enum(ALLOWED_CHAT_MODELS).optional(),
 })
 
 /**

@@ -200,7 +200,7 @@ export function usePromptElements() {
     }
 
     // Replace matching `Key: Value` lines in the compiled prompt
-    return compiledPrompt.replace(/^([A-Za-z_][A-Za-z0-9_ ]*?):\s*(.+)$/gm, (match, key) => {
+    return compiledPrompt.replaceAll(/^(\w[\w ]*): (\S.*)$/gm, (match, key) => {
       const attrKey = key.trim().toLowerCase().replaceAll(' ', '_')
       const options = snippetMap[attrKey]
       if (!options?.length) return match
