@@ -14,7 +14,7 @@ export interface ChatMessage {
 export function useChatForm() {
   const { elements, fetchElements } = usePromptElements()
   const { prompts } = useSystemPrompts()
-  const { allTagsList: allModifiersList, ensureLoaded: ensureTagsLoaded } = usePromptTags()
+  const { ensureLoaded: ensureTagsLoaded } = usePromptTags()
 
   const chatMode = ref<ChatMode>('general')
   const mediaType = ref<'image' | 'video'>('image')
@@ -90,13 +90,8 @@ export function useChatForm() {
             )}\n\nMake sure to deeply reference or combine these if the user asks for them.`
         : 'The user has no saved Prompt Elements yet.'
 
-      // Build Quick Modifiers Context — use attribute_key: value format, not raw IDs
-      const modifiersContext = allModifiersList.value.length
-        ? `\n\nThe user's app supports "Quick Modifiers" organized by attribute key. When suggesting modifications, emit attribute-value pairs in your <builder_state> JSON response using attribute keys (e.g. {"hair_color": "blonde", "lighting": "golden hour"}). Available modifiers:\n` +
-          allModifiersList.value
-            .map((m) => `- ${m.attributeKey}: "${m.label}" → "${m.snippet}"`)
-            .join('\n')
-        : ''
+      // Describe to the model that it should suggest attribute modifiers within the bounds of the schema
+      const modifiersContext = `\n\nThe app supports "Quick Modifiers" organized by attribute key. When suggesting modifications, emit attribute-value pairs in your <builder_state> JSON response using the attribute keys defined in the schema (e.g. {"hair_color": "blonde", "lighting": "golden hour"}).`
 
       // Schema registry context — gives the agent full attribute schema awareness
       const schemaContext = `\n\n${schemaToPromptContext()}`
