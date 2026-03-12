@@ -1,4 +1,4 @@
-import { VISION_MODEL, payloadNeedsVision, resolveVisionImageUrl } from '~/utils/visionImage'
+import { payloadNeedsVision, resolveVisionImageUrl } from '~/utils/visionImage'
 
 export type ChatMode = 'general' | 'person' | 'scene' | 'framing' | 'action' | 'style'
 
@@ -30,6 +30,12 @@ export function useChatForm(options: UseChatFormOptions = {}) {
   const { elements, fetchElements } = usePromptElements()
   const { prompts } = useSystemPrompts()
   const { ensureLoaded: ensureTagsLoaded } = usePromptTags()
+  const {
+    chatModels,
+    preferredChatModel,
+    preferredVisionModel,
+    refresh: refreshModels,
+  } = useXaiModels()
   const sessions = useChatSessions()
   const persistence = options.persistence ?? 'memory'
   const usesSessionPersistence = persistence === 'session'
@@ -41,7 +47,15 @@ export function useChatForm(options: UseChatFormOptions = {}) {
   const isChatting = ref(false)
   const generatingInline = ref(false)
   const error = ref<string | null>(null)
-  const selectedModel = ref<string>('grok-3-mini')
+  const selectedModel = ref<string>('')
+
+  watchEffect(() => {
+    if (!chatModels.value.length) return
+
+    if (!selectedModel.value || !chatModels.value.includes(selectedModel.value)) {
+      selectedModel.value = preferredChatModel.value || chatModels.value[0]!
+    }
+  })
 
   watch(chatMode, () => {
     chatMessages.value = []
@@ -60,7 +74,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       if (latestSession) {
         // Resume existing session
         chatMode.value = (latestSession.mode as ChatMode) || 'general'
-        selectedModel.value = latestSession.model || 'grok-3-mini'
+        selectedModel.value = latestSession.model || ''
         const persisted = await sessions.loadSession(latestSession.id)
         if (persisted.length > 0) {
           // Re-inject the system message slot (rebuilt at send-time, blank for display purposes)
@@ -105,7 +119,8 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     ]
 
     if (usesSessionPersistence) {
-      const newSessionId = await sessions.createSession(mode, selectedModel.value)
+      const sessionModel = await ensureSelectedChatModel()
+      const newSessionId = await sessions.createSession(mode, sessionModel || '')
       if (newSessionId) {
         // Persist the initial assistant greeting
         const greetingMsg = chatMessages.value[1]
@@ -154,6 +169,53 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     )
 
     return serialized.filter((message) => contentAsString(message.content).trim().length > 0)
+  }
+
+  async function ensureSelectedChatModel(): Promise<string | null> {
+    if (
+      selectedModel.value &&
+      (!chatModels.value.length || chatModels.value.includes(selectedModel.value))
+    ) {
+      return selectedModel.value
+    }
+
+    if (!chatModels.value.length) {
+      await refreshModels()
+    }
+
+    const nextModel = preferredChatModel.value || chatModels.value[0] || null
+    if (nextModel) {
+      selectedModel.value = nextModel
+    }
+
+    return nextModel
+  }
+
+  async function resolveRequestModel(messages: ChatMessage[]): Promise<string> {
+    if (payloadNeedsVision(messages)) {
+      if (!chatModels.value.length) {
+        await refreshModels()
+      }
+
+      let visionModel = preferredVisionModel.value
+      if (!visionModel) {
+        await refreshModels()
+        visionModel = preferredVisionModel.value
+      }
+
+      if (!visionModel) {
+        throw new Error('No vision-capable xAI chat model is available for this API key.')
+      }
+
+      return visionModel
+    }
+
+    const chatModel = await ensureSelectedChatModel()
+    if (!chatModel) {
+      throw new Error('No xAI chat model is available for this API key.')
+    }
+
+    return chatModel
   }
 
   async function sendChatMessage(contextString?: string) {
@@ -236,6 +298,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       assistantIndex = chatMessages.value.length - 1
 
       const apiMessages = await buildApiMessages(payloadMessages)
+      const requestModel = await resolveRequestModel(apiMessages)
 
       const res = await fetch('/api/generate/chat', {
         method: 'POST',
@@ -245,7 +308,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         },
         body: JSON.stringify({
           chatMode: chatMode.value,
-          model: payloadNeedsVision(payloadMessages) ? VISION_MODEL : selectedModel.value,
+          model: requestModel,
           messages: apiMessages,
           stream: true,
         }),
@@ -475,6 +538,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       assistantIndex = chatMessages.value.length - 1
 
       const apiMessages = await buildApiMessages(payloadMessages)
+      const requestModel = await resolveRequestModel(apiMessages)
 
       const res = await fetch('/api/generate/chat', {
         method: 'POST',
@@ -484,7 +548,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         },
         body: JSON.stringify({
           chatMode: chatMode.value,
-          model: payloadNeedsVision(payloadMessages) ? VISION_MODEL : selectedModel.value,
+          model: requestModel,
           messages: apiMessages,
           stream: true,
         }),

@@ -1,5 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { appSettings } from '../../database/schema'
+import { grokListModels } from '../../utils/grok'
+import { buildXaiModelCatalog } from '~/utils/xaiModels'
 
 /**
  * GET /api/admin/settings — Retrieves the global application settings.
@@ -7,6 +9,7 @@ import { appSettings } from '../../database/schema'
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('AdminSettings')
   const user = await requireAdmin(event)
+  const config = useRuntimeConfig(event)
 
   const db = useDatabase(event)
 
@@ -22,6 +25,20 @@ export default defineEventHandler(async (event) => {
       imageModel: 'grok-imagine-image',
       promptEnhanceModel: 'grok-3-mini',
       updatedAt: now,
+    }
+
+    if (config.xaiApiKey) {
+      try {
+        const catalog = buildXaiModelCatalog(
+          (await grokListModels(config.xaiApiKey)).map((m) => m.id),
+        )
+        defaultSettings.videoModel = catalog.preferredVideoModel || defaultSettings.videoModel
+        defaultSettings.imageModel = catalog.preferredImageModel || defaultSettings.imageModel
+        defaultSettings.promptEnhanceModel =
+          catalog.preferredChatModel || defaultSettings.promptEnhanceModel
+      } catch (err) {
+        log.warn('Could not resolve live xAI defaults for admin settings', { err })
+      }
     }
 
     await db.insert(appSettings).values(defaultSettings).onConflictDoNothing()

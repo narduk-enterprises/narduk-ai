@@ -66,8 +66,25 @@ export function useGenerationForm() {
   )
 
   // ─── Model Selection ────────────────────────────────────────
-  const selectedImageModel = ref<string>('grok-imagine-image')
-  const selectedVideoModel = ref<string>('grok-imagine-video')
+  const { imageModels, videoModels, preferredImageModel, preferredVideoModel } = useXaiModels()
+  const selectedImageModel = ref<string>('')
+  const selectedVideoModel = ref<string>('')
+
+  watchEffect(() => {
+    if (
+      imageModels.value.length &&
+      (!selectedImageModel.value || !imageModels.value.includes(selectedImageModel.value))
+    ) {
+      selectedImageModel.value = preferredImageModel.value || imageModels.value[0]!
+    }
+
+    if (
+      videoModels.value.length &&
+      (!selectedVideoModel.value || !videoModels.value.includes(selectedVideoModel.value))
+    ) {
+      selectedVideoModel.value = preferredVideoModel.value || videoModels.value[0]!
+    }
+  })
 
   const selectedModel = computed(() => {
     return activeTab.value === 't2v' || activeTab.value === 'i2v'

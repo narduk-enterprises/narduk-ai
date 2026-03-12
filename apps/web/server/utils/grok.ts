@@ -162,7 +162,7 @@ export async function grokEnhancePrompt(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: imageBase64 ? 'grok-2-vision-1212' : model || 'grok-3-mini',
+      model: model || 'grok-3-mini',
       messages: [
         {
           role: 'system',
@@ -211,7 +211,7 @@ export async function grokEnhancePromptStream(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: imageBase64 ? 'grok-2-vision-1212' : model || 'grok-3-mini',
+      model: model || 'grok-3-mini',
       messages: [
         {
           role: 'system',

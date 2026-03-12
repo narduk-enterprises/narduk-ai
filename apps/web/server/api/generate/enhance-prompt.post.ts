@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { appSettings } from '../../database/schema'
-import { grokEnhancePrompt, grokEnhancePromptStream } from '../../utils/grok'
+import { grokEnhancePrompt, grokEnhancePromptStream, grokListModels } from '../../utils/grok'
 import { getSystemPrompt } from '../../utils/systemPrompts'
 import { sendStream } from 'h3'
+import { buildXaiModelCatalog } from '~/utils/xaiModels'
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
@@ -77,12 +78,29 @@ export default defineEventHandler(async (event) => {
         .replaceAll('{{videoGuidance2}}', videoGuidance2)
     }
 
+    let effectiveModel = promptEnhanceModel
+    if (body.imageBase64) {
+      const catalog = buildXaiModelCatalog(
+        (await grokListModels(config.xaiApiKey)).map((m) => m.id),
+      )
+      const visionModel = catalog.preferredVisionModel
+
+      if (!visionModel) {
+        throw createError({
+          statusCode: 500,
+          message: 'No vision-capable xAI model is available for prompt enhancement.',
+        })
+      }
+
+      effectiveModel = visionModel
+    }
+
     if (body.stream) {
       const stream = await grokEnhancePromptStream(
         config.xaiApiKey,
         body.prompt,
         systemContent,
-        promptEnhanceModel,
+        effectiveModel,
         body.imageBase64,
       )
       log.info('Prompt enhancement streaming started', { userId: user.id })
@@ -99,7 +117,7 @@ export default defineEventHandler(async (event) => {
         config.xaiApiKey,
         body.prompt,
         systemContent,
-        promptEnhanceModel,
+        effectiveModel,
         body.imageBase64,
       )
       log.info('Prompt enhanced successfully', { userId: user.id })

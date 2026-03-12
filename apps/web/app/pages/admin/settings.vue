@@ -32,23 +32,41 @@ const {
   imageModels,
   videoModels,
   chatModels,
+  preferredImageModel,
+  preferredVideoModel,
+  preferredChatModel,
   pending: modelsPending,
   error: modelsError,
   refresh: refreshModels,
 } = useXaiModels()
 
 const state = reactive<SettingsFields>({
-  videoModel: currentSettings.value?.videoModel || 'grok-imagine-video',
-  imageModel: currentSettings.value?.imageModel || 'grok-imagine-image',
-  promptEnhanceModel: currentSettings.value?.promptEnhanceModel || 'grok-3-mini',
+  videoModel: currentSettings.value?.videoModel || preferredVideoModel.value || '',
+  imageModel: currentSettings.value?.imageModel || preferredImageModel.value || '',
+  promptEnhanceModel: currentSettings.value?.promptEnhanceModel || preferredChatModel.value || '',
 })
 
-// Sync form state once the async data resolves (currentSettings is null during SSR/pending)
-watch(currentSettings, (settings) => {
-  if (!settings) return
-  state.videoModel = settings.videoModel
-  state.imageModel = settings.imageModel
-  state.promptEnhanceModel = settings.promptEnhanceModel
+watchEffect(() => {
+  const settings = currentSettings.value
+
+  if (settings) {
+    state.videoModel = settings.videoModel
+    state.imageModel = settings.imageModel
+    state.promptEnhanceModel = settings.promptEnhanceModel
+    return
+  }
+
+  if (!state.videoModel && preferredVideoModel.value) {
+    state.videoModel = preferredVideoModel.value
+  }
+
+  if (!state.imageModel && preferredImageModel.value) {
+    state.imageModel = preferredImageModel.value
+  }
+
+  if (!state.promptEnhanceModel && preferredChatModel.value) {
+    state.promptEnhanceModel = preferredChatModel.value
+  }
 })
 
 const isSaving = ref(false)

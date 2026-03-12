@@ -20,6 +20,8 @@ const {
   duration,
   resolution,
   sourceGenerationId,
+  selectedImageModel,
+  selectedVideoModel,
   activePresets,
   activePresetIds,
   compiledPrompt,
@@ -83,24 +85,6 @@ const isModifierSlideoverOpen = ref(false)
 const isLibraryModalOpen = ref(false)
 
 const { imageModels, videoModels, pending: modelsPending, error: modelsError } = useXaiModels()
-
-const selectedImageModel = ref(imageModels.value?.[0] || '')
-const selectedVideoModel = ref(videoModels.value?.[0] || '')
-
-watchEffect(() => {
-  if (
-    imageModels.value?.length &&
-    (!selectedImageModel.value || !imageModels.value.includes(selectedImageModel.value))
-  ) {
-    selectedImageModel.value = imageModels.value[0]!
-  }
-  if (
-    videoModels.value?.length &&
-    (!selectedVideoModel.value || !videoModels.value.includes(selectedVideoModel.value))
-  ) {
-    selectedVideoModel.value = videoModels.value[0]!
-  }
-})
 
 // Preset type configuration for UI rendering
 const PRESET_TYPE_CONFIG: Record<string, { label: string; icon: string; order: number }> = {

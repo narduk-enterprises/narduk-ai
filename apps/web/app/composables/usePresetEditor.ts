@@ -10,6 +10,8 @@ export function usePresetEditor() {
   const { updateElement, fetchElements, createElement } = usePromptElements()
   const { generateImage, generating: generatingPreview } = useGenerate()
   const toast = useToast()
+  type ParsedResponse = NonNullable<ChatMessage['parsedResponse']>
+  type BuilderState = ParsedResponse['builder_state']
 
   // ── Reactive State ──────────────────────────────────────
   const editableOverrides = reactive<Record<string, string | null>>({})
@@ -22,6 +24,78 @@ export function usePresetEditor() {
   // ── Helpers ─────────────────────────────────────────────
   function formatKey(key: string | number): string {
     return String(key).replaceAll('_', ' ')
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+  }
+
+  function normalizeBuilderState(value: unknown): BuilderState {
+    if (!isRecord(value)) return null
+
+    const normalized: Record<string, string | null> = {}
+
+    for (const [key, entry] of Object.entries(value)) {
+      if (entry == null) {
+        normalized[key] = null
+        continue
+      }
+
+      if (typeof entry === 'string') {
+        normalized[key] = entry
+        continue
+      }
+
+      normalized[key] = String(entry)
+    }
+
+    return Object.keys(normalized).length > 0 ? normalized : null
+  }
+
+  function parseAssistantResponse(content: ChatMessage['content']): ParsedResponse {
+    if (typeof content !== 'string') {
+      return {
+        message: '',
+        prompt: null,
+        suggested_name: null,
+        builder_state: null,
+      }
+    }
+
+    try {
+      const parsed = JSON.parse(content) as unknown
+      if (isRecord(parsed)) {
+        return {
+          message: typeof parsed.message === 'string' ? parsed.message : content,
+          prompt: typeof parsed.prompt === 'string' ? parsed.prompt : null,
+          suggested_name: typeof parsed.suggested_name === 'string' ? parsed.suggested_name : null,
+          builder_state: normalizeBuilderState(parsed.builder_state),
+        }
+      }
+    } catch {
+      /* fall back to XML-like parsing below */
+    }
+
+    const messageMatch = content.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
+    const promptMatch = content.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
+    const titleMatch = content.match(/<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i)
+    const stateMatch = content.match(/<builder_state>([\s\S]*?)(?:<\/builder_state>|$)/i)
+
+    let builderState: BuilderState = null
+    if (stateMatch?.[1]) {
+      try {
+        builderState = normalizeBuilderState(JSON.parse(stateMatch[1].trim()))
+      } catch {
+        builderState = null
+      }
+    }
+
+    return {
+      message: messageMatch?.[1]?.trim() || content.replaceAll(/<[^>]+>/g, '').trim(),
+      prompt: promptMatch?.[1]?.trim() || null,
+      suggested_name: titleMatch?.[1]?.trim() || null,
+      builder_state: builderState,
+    }
   }
 
   function clearOverrides() {
@@ -304,19 +378,17 @@ export function usePresetEditor() {
   function loadChatHistory(element: PromptElement): ChatMessage[] | null {
     if (!element.chatHistory) return null
     try {
-      const raw = JSON.parse(element.chatHistory) as Array<{ role: string; content: string }>
+      const raw = JSON.parse(element.chatHistory) as Array<{
+        role: string
+        content: ChatMessage['content']
+      }>
       return raw.map((m) => {
         const msg: ChatMessage = {
           role: m.role as ChatMessage['role'],
           content: m.content,
         }
-        // Re-parse assistant JSON responses
         if (m.role === 'assistant') {
-          try {
-            msg.parsedResponse = JSON.parse(m.content)
-          } catch {
-            msg.parsedResponse = { message: m.content, prompt: null }
-          }
+          msg.parsedResponse = parseAssistantResponse(m.content)
         }
         return msg
       })

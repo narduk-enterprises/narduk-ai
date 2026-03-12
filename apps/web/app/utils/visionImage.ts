@@ -27,8 +27,6 @@ type VisionFetch = (
 
 type VisionFileReaderFactory = () => VisionFileReader
 
-export const VISION_MODEL = 'grok-2-vision-1212'
-
 export function messageContainsImage(message: VisionMessageLike): boolean {
   return Array.isArray(message.content) && message.content.some((part) => part.type === 'image_url')
 }

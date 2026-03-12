@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import {
-  VISION_MODEL,
   blobToDataUrl,
   messageContainsImage,
   payloadNeedsVision,
@@ -33,8 +32,6 @@ function createMockReader(result: string | ArrayBuffer | null, error?: Error) {
 
 describe('vision image helpers', () => {
   it('detects when a payload needs the vision model', () => {
-    expect(VISION_MODEL).toBe('grok-2-vision-1212')
-
     expect(
       payloadNeedsVision([
         { content: 'plain text' },

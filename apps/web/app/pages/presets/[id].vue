@@ -86,6 +86,19 @@ function handleKeydown(e: KeyboardEvent) {
 // ── Initialize When Preset Loads ─────────────────────────
 const presetInitialized = ref(false)
 
+function buildPresetBuilderState(el: PromptElement) {
+  const parsed = parseAttributesJson(el.attributes) ?? parseContentToAttributes(el.content)
+  const schema = PRESET_ATTRIBUTES[el.type]
+  const schemaState = schema
+    ? Object.fromEntries(schema.map((a: string) => [a, parsed[a] || null]))
+    : {}
+  const extraState = Object.fromEntries(
+    Object.entries(parsed).filter(([key]) => !(schema ?? []).includes(key)),
+  )
+
+  return schema ? { ...schemaState, ...extraState } : parsed
+}
+
 async function initPreset(el: PromptElement) {
   loadPreset(el)
 
@@ -103,15 +116,7 @@ async function initPreset(el: PromptElement) {
       chatMessages.value = savedChat
     }
   } else {
-    const parsed = parseAttributesJson(el.attributes) ?? parseContentToAttributes(el.content)
-    const schema = PRESET_ATTRIBUTES[el.type]
-    const schemaState = schema
-      ? Object.fromEntries(schema.map((a: string) => [a, parsed[a] || null]))
-      : {}
-    const extraState = Object.fromEntries(
-      Object.entries(parsed).filter(([key]) => !(schema ?? []).includes(key)),
-    )
-    const builderState = schema ? { ...schemaState, ...extraState } : parsed
+    const builderState = buildPresetBuilderState(el)
 
     chatMessages.value.push({
       role: 'assistant',
@@ -132,6 +137,10 @@ async function initPreset(el: PromptElement) {
 
   scrollToBottom()
 }
+
+const presetBaseState = computed(() =>
+  preset.value ? buildPresetBuilderState(preset.value) : null,
+)
 
 watch(
   preset,
@@ -186,7 +195,7 @@ const currentBuilderState = computed(() => {
       return msg.parsedResponse.builder_state
     }
   }
-  return null
+  return presetBaseState.value
 })
 
 const mergedState = computed(() => {
