@@ -36,119 +36,43 @@ const typeConfig: Record<string, { icon: string; label: string; color: string }>
 const config = computed(() => typeConfig[props.preset.type] || typeConfig.prompt)
 
 const cardDescription = computed(() => {
-  // Try to extract description from content lines
-  const lines = props.preset.content.split('\n')
-  for (const line of lines) {
-    const lower = line.toLowerCase().trim()
-    if (lower.startsWith('description:')) {
-      return line.slice(line.indexOf(':') + 1).trim()
-    }
+  if (parsedMeta.value) {
+    // prefer attributes JSON description
   }
-  // Fallback: show first non-name line or truncated content
-  const meaningful = lines
-    .filter((l) => l.trim() && !l.toLowerCase().startsWith('name:'))
-    .slice(0, 2)
-    .map((l) => l.trim())
-    .join(' · ')
-  return meaningful || props.preset.content
+  if (props.preset.attributes) {
+    try {
+      const attrs = JSON.parse(props.preset.attributes) as Record<string, string>
+      if (attrs.description) return attrs.description
+    } catch {}
+  }
+  // plain content fallback (safety net for legacy data)
+  const line = props.preset.content
+    .split('\n')
+    .find((l) => l.toLowerCase().startsWith('description:'))
+  return line ? line.slice(line.indexOf(':') + 1).trim() : props.preset.content.slice(0, 80)
 })
 
 const isModalOpen = ref(false)
 
 /**
- * Parse characteristics from structured attributes (preferred) or content (fallback).
- * Optionally excluding name/description.
+ * Parse characteristics from structured attributes JSON.
+ * Optionally excluding specified keys.
  */
 function parseChars(excludeKeys: string[] = []) {
-  const chars: { label: string; value: string }[] = []
-
-  // Prefer structured attributes JSON if available
-  let attrs: Record<string, string> | null = null
-  if (props.preset.attributes) {
-    try {
-      attrs = JSON.parse(props.preset.attributes) as Record<string, string>
-    } catch {
-      /* ignore invalid JSON — fall through to content parse */
-    }
-  }
-
-  if (attrs) {
+  if (!props.preset.attributes) return []
+  try {
+    const attrs = JSON.parse(props.preset.attributes) as Record<string, string>
     const schema = PRESET_ATTRIBUTES[props.preset.type]
-
-    // Use schema ordering if available
-    if (schema) {
-      for (const attr of schema) {
-        if (excludeKeys.includes(attr)) continue
-        const val = attrs[attr]
-        if (val) {
-          chars.push({
-            label: attr.charAt(0).toUpperCase() + attr.slice(1).replaceAll('_', ' '),
-            value: val,
-          })
-        }
-      }
-      // Add any extra keys not in the schema
-      for (const [key, val] of Object.entries(attrs)) {
-        if (!val || excludeKeys.includes(key)) continue
-        if (schema.includes(key)) continue // already added above
-        chars.push({
-          label: key.charAt(0).toUpperCase() + key.slice(1).replaceAll('_', ' '),
-          value: val,
-        })
-      }
-    } else {
-      for (const [key, val] of Object.entries(attrs)) {
-        if (!val || excludeKeys.includes(key)) continue
-        chars.push({
-          label: key.charAt(0).toUpperCase() + key.slice(1).replaceAll('_', ' '),
-          value: val,
-        })
-      }
-    }
-    return chars
+    const keys = schema ?? Object.keys(attrs)
+    return keys
+      .filter((k) => !excludeKeys.includes(k) && attrs[k])
+      .map((k) => ({
+        label: k.charAt(0).toUpperCase() + k.slice(1).replaceAll('_', ' '),
+        value: attrs[k]!,
+      }))
+  } catch {
+    return []
   }
-
-  // Fallback: parse from content lines ("Key: value" format)
-  const lines = props.preset.content.split('\n')
-  const contentMap = new Map<string, string>()
-  for (const line of lines) {
-    const idx = line.indexOf(':')
-    if (idx > 0) {
-      const rawKey = line.slice(0, idx).trim()
-      const val = line.slice(idx + 1).trim()
-      if (val) {
-        const key = rawKey.toLowerCase().replaceAll(' ', '_')
-        contentMap.set(key, val)
-      }
-    }
-  }
-
-  // Use schema ordering if available
-  const schema = PRESET_ATTRIBUTES[props.preset.type]
-  if (schema) {
-    for (const attr of schema) {
-      if (excludeKeys.includes(attr)) continue
-      const val = contentMap.get(attr)
-      if (val) {
-        chars.push({
-          label: attr.charAt(0).toUpperCase() + attr.slice(1).replaceAll('_', ' '),
-          value: val,
-        })
-        contentMap.delete(attr)
-      }
-    }
-  }
-
-  // Add any remaining attributes not in the schema
-  for (const [key, val] of contentMap) {
-    if (excludeKeys.includes(key)) continue
-    chars.push({
-      label: key.charAt(0).toUpperCase() + key.slice(1).replaceAll('_', ' '),
-      value: val,
-    })
-  }
-
-  return chars
 }
 
 /** Card preview: excludes name & description (shown separately) */
