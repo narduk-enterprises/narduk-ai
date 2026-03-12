@@ -138,3 +138,43 @@ export const quickModifiers = sqliteTable(
     index('quick_modifiers_attr_key_idx').on(table.attributeKey),
   ],
 )
+
+// ─── Chat Session Persistence ────────────────────────────────
+
+export const chatSessions = sqliteTable(
+  'chat_sessions',
+  {
+    id: text('id').primaryKey().notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    mode: text('mode').notNull().default('general'), // ChatMode
+    model: text('model').notNull().default('grok-3-mini'), // ChatModelId at creation
+    title: text('title'), // Auto-generated from suggested_title or null
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('chat_sessions_user_id_idx').on(table.userId),
+    index('chat_sessions_updated_idx').on(table.updatedAt),
+  ],
+)
+
+export const chatMessages = sqliteTable(
+  'chat_messages',
+  {
+    id: text('id').primaryKey().notNull(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => chatSessions.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(), // 'user' | 'assistant' (system msgs rebuilt at runtime)
+    content: text('content').notNull(), // JSON: string | ContentPart[]
+    parsedResponse: text('parsed_response'), // JSON: ChatMessage['parsedResponse']
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [
+    index('chat_messages_session_id_idx').on(table.sessionId),
+    index('chat_messages_created_idx').on(table.createdAt),
+  ],
+)
+

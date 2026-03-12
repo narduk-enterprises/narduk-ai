@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { CHAT_MODELS } from '~/composables/useChatForm'
+
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({
@@ -10,8 +12,19 @@ useWebPageSchema({
   description: 'Brainstorm ideas for AI image and video generation with Grok.',
 })
 
-const { chatMessages, chatInput, isChatting, error, initializeChat, sendChatMessage } =
-  useChatForm()
+const {
+  chatMessages,
+  chatInput,
+  isChatting,
+  generatingInline,
+  error,
+  selectedModel,
+  initializeChat,
+  sendChatMessage,
+  generateInline,
+  shareImageWithAgent,
+  startNewChat,
+} = useChatForm()
 
 const { createElement, fetchElements } = usePromptElements()
 
@@ -35,6 +48,7 @@ onMounted(() => {
 
 watch(() => chatMessages.value.length, scrollToBottom)
 watch(isChatting, scrollToBottom)
+watch(generatingInline, scrollToBottom)
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
@@ -72,6 +86,16 @@ async function savePromptToLibrary(promptText: string) {
     savingPrompt.value = false
   }
 }
+
+async function handleGenerateInline(prompt: string) {
+  await generateInline(prompt)
+}
+
+async function handleShareImage(imageUrl: string) {
+  await shareImageWithAgent(imageUrl)
+}
+
+const modelOptions = CHAT_MODELS.map((m) => ({ label: m.label, value: m.id }))
 </script>
 
 <template>
@@ -84,9 +108,38 @@ async function savePromptToLibrary(promptText: string) {
         <UIcon name="i-lucide-bot" class="size-6 text-primary" />
         <h1 class="font-display font-semibold text-lg">Brainstorm</h1>
       </div>
-      <UButton to="/presets" variant="ghost" color="neutral" icon="i-lucide-bookmark" size="sm">
-        Presets
-      </UButton>
+      <div class="flex items-center gap-2">
+        <!-- Model picker -->
+        <USelectMenu
+          v-model="selectedModel"
+          :items="modelOptions"
+          value-key="value"
+          label-key="label"
+          size="sm"
+          class="w-36 hidden sm:flex"
+          :ui="{ base: 'rounded-lg' }"
+        >
+          <template #leading>
+            <UIcon name="i-lucide-cpu" class="size-3.5 text-muted" />
+          </template>
+        </USelectMenu>
+
+        <!-- New Chat -->
+        <UButton
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-plus"
+          size="sm"
+          :disabled="chatMessages.filter((m) => m.role !== 'system').length === 0"
+          @click="startNewChat"
+        >
+          <span class="hidden sm:inline">New Chat</span>
+        </UButton>
+
+        <UButton to="/presets" variant="ghost" color="neutral" icon="i-lucide-bookmark" size="sm">
+          <span class="hidden sm:inline">Presets</span>
+        </UButton>
+      </div>
     </div>
 
     <!-- Messages -->
@@ -102,8 +155,11 @@ async function savePromptToLibrary(promptText: string) {
       <ChatMessages
         :messages="chatMessages"
         :is-chatting="isChatting"
+        :generating-inline="generatingInline"
         @use-prompt="useGeneratedPrompt"
         @save-prompt="savePromptToLibrary"
+        @generate-inline="handleGenerateInline"
+        @share-image="handleShareImage"
       />
     </div>
 
@@ -124,7 +180,7 @@ async function savePromptToLibrary(promptText: string) {
           autoresize
           :rows="1"
           :maxrows="4"
-          :disabled="isChatting"
+          :disabled="isChatting || generatingInline"
           :ui="{ base: 'rounded-2xl shadow-card' }"
           @keydown="handleKeydown"
         />
@@ -134,7 +190,7 @@ async function savePromptToLibrary(promptText: string) {
           variant="solid"
           icon="i-lucide-send"
           :loading="isChatting"
-          :disabled="!chatInput.trim() || isChatting"
+          :disabled="!chatInput.trim() || isChatting || generatingInline"
           class="rounded-xl touch-target shrink-0 mb-0.5"
           size="lg"
         />

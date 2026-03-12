@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatMessage } from '~/composables/useChatForm'
 
-const props = defineProps<{
+defineProps<{
   messages: ChatMessage[]
   isChatting: boolean
   generatingInline?: boolean
@@ -40,7 +40,7 @@ function formatKey(key: string | number) {
 function getDisplayContent(msg: ChatMessage): string {
   if (msg.parsedResponse?.message) return msg.parsedResponse.message
   const raw = typeof msg.content === 'string' ? msg.content : ''
-  return raw.replace(/<[^>]+>/g, '')
+  return raw.replaceAll(/<[^>]+>/g, '')
 }
 </script>
 
