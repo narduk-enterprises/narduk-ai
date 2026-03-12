@@ -5,10 +5,10 @@ import { promptElements } from '../../database/schema'
 const bodySchema = z.object({
   type: z.enum(['person', 'scene', 'framing', 'action', 'style', 'prompt']).optional(),
   name: z.string().min(1).max(100).optional(),
-  content: z.string().min(1).max(2000).optional(),
-  attributes: z.string().max(20000).nullish(),
-  metadata: z.string().max(10000).nullish(),
-  chatHistory: z.string().max(100000).nullish(),
+  content: z.string().min(1).max(100_000).optional(),
+  attributes: z.string().max(100_000).nullish(),
+  metadata: z.string().max(100_000).nullish(),
+  chatHistory: z.string().max(500_000).nullish(),
 })
 
 /**
