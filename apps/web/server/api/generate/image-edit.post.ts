@@ -5,6 +5,7 @@ import { generations, appSettings } from '../../database/schema'
 const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
   sourceGenerationId: z.string().min(1),
+  model: z.string().optional(),
   promptElements: z.array(z.string()).optional(),
   presets: z.record(z.string(), z.string()).optional(),
   userPromptId: z.string().optional(),
@@ -71,19 +72,21 @@ export default defineEventHandler(async (event) => {
   const mimeType = r2Object.httpMetadata?.contentType || 'image/png'
   const dataUrl = `data:${mimeType};base64,${base64}`
 
-  // Fetch configured model from database
-  let imageModel = 'grok-imagine-image'
-  try {
-    const settings = await db
-      .select({ imageModel: appSettings.imageModel })
-      .from(appSettings)
-      .where(eq(appSettings.id, 1))
-      .get()
-    if (settings?.imageModel) {
-      imageModel = settings.imageModel
+  // Prefer client-supplied model; fall back to DB-configured model
+  let imageModel = body.model || 'grok-imagine-image'
+  if (!body.model) {
+    try {
+      const settings = await db
+        .select({ imageModel: appSettings.imageModel })
+        .from(appSettings)
+        .where(eq(appSettings.id, 1))
+        .get()
+      if (settings?.imageModel) {
+        imageModel = settings.imageModel
+      }
+    } catch (err) {
+      log.warn('Could not fetch appSettings for imageModel', { err })
     }
-  } catch (err) {
-    log.warn('Could not fetch appSettings for imageModel', { err })
   }
 
   log.info('I2I using model', { imageModel })

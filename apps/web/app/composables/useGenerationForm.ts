@@ -1,6 +1,16 @@
 import type { Generation } from '~/types/generation'
 import type { PromptElement } from './usePromptElements'
 
+// ─── Image / Video model catalogs ───────────────────────────────────────────
+export const IMAGE_MODELS: { value: string; label: string }[] = [
+  { value: 'grok-2-image', label: 'Grok 2 Image' },
+  { value: 'grok-imagine-image', label: 'Grok Imagine' },
+]
+
+export const VIDEO_MODELS: { value: string; label: string }[] = [
+  { value: 'grok-imagine-video', label: 'Grok Imagine Video' },
+]
+
 /**
  * useGenerationForm — orchestrator composable for the generation page.
  * Delegates to focused sub-composables and re-exports a flat API
@@ -21,6 +31,16 @@ export function useGenerationForm() {
   const duration = ref(defaultDuration.value)
   const resolution = ref(defaultResolution.value)
   const sourceGenerationId = ref((route.query.source as string) || '')
+
+  // ─── Model Selection ────────────────────────────────────────
+  const selectedImageModel = ref<string>(IMAGE_MODELS[0]!.value)
+  const selectedVideoModel = ref<string>(VIDEO_MODELS[0]!.value)
+
+  const selectedModel = computed(() => {
+    return activeTab.value === 't2v' || activeTab.value === 'i2v'
+      ? selectedVideoModel.value
+      : selectedImageModel.value
+  })
 
   // ─── Preset State (ID-based) ────────────────────────────────
 
@@ -67,12 +87,16 @@ export function useGenerationForm() {
     latestResult,
     latestResults,
     recentGenerations,
+    loadingGenerations,
+    loadingMoreGenerations,
+    isGenerationsFinished,
     userImages,
     generating,
     error,
     uploadingSource,
     handleGenerate,
     handleSourceImageUpload,
+    loadMoreGenerations,
   } = useGenerationDispatch({
     activeTab,
     prompt,
@@ -85,6 +109,7 @@ export function useGenerationForm() {
     activePresets,
     activeUserPromptId,
     selectedTags: tags.selectedTagsList,
+    selectedModel,
     compilePrompt,
     recordUsage: tags.recordUsage,
   })
@@ -271,6 +296,10 @@ export function useGenerationForm() {
     handleBuilderResult,
     imageCount,
 
+    // Model selection
+    selectedImageModel,
+    selectedVideoModel,
+
     // Attached presets
     attachedPerson,
     attachedPresets,
@@ -303,6 +332,10 @@ export function useGenerationForm() {
     latestResult,
     latestResults,
     recentGenerations,
+    loadingGenerations,
+    loadingMoreGenerations,
+    isGenerationsFinished,
+    loadMoreGenerations,
     userImages,
 
     // Status

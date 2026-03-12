@@ -66,6 +66,10 @@ const {
   tagSearchQuery,
   filteredTags,
   tagSnippets,
+  loadingGenerations,
+  loadingMoreGenerations,
+  isGenerationsFinished,
+  loadMoreGenerations,
 } = useGenerationForm()
 
 const { deleteGeneration } = useGenerate()
@@ -73,6 +77,15 @@ const { elements, fetchElements, remixPrompt } = usePromptElements()
 
 const isModifierSlideoverOpen = ref(false)
 const isLibraryModalOpen = ref(false)
+
+// Model selection stubs (full wiring to dispatch is a follow-up task)
+const IMAGE_MODELS = [
+  { label: 'Aurora', value: 'aurora' },
+  { label: 'Grok Imagine', value: 'grok-2-aurora' },
+]
+const VIDEO_MODELS = [{ label: 'Wan 2.2', value: 'wan-2.2' }]
+const selectedImageModel = ref('aurora')
+const selectedVideoModel = ref('wan-2.2')
 
 // Preset type configuration for UI rendering
 const PRESET_TYPE_CONFIG: Record<string, { label: string; icon: string; order: number }> = {
@@ -100,7 +113,7 @@ const otherPresetTypes = computed(() => {
 // ── Preset select items (USelectMenu format) ─────────────────────
 const personSelectItems = computed(() =>
   personElements.value.map((p) => {
-    const src = getPersonPreviewUrl(p)
+    const src = getPresetPreviewUrl(p)
     return {
       label: p.name,
       value: p.id,
@@ -112,7 +125,14 @@ const personSelectItems = computed(() =>
 function getTypeSelectItems(type: string) {
   return elements.value
     .filter((el) => el.type === type)
-    .map((el) => ({ label: el.name, value: el.id }))
+    .map((el) => {
+      const src = getPresetPreviewUrl(el)
+      return {
+        label: el.name,
+        value: el.id,
+        ...(src ? { avatar: { src, size: 'xs' as const } } : {}),
+      }
+    })
 }
 
 function handlePersonSelect(item: { label: string; value: string } | null) {
@@ -127,7 +147,7 @@ function handlePresetSelect(type: string, item: { label: string; value: string }
   if (el) attachPreset(type, el)
 }
 
-function getPersonPreviewUrl(el: { metadata?: string | null }): string | null {
+function getPresetPreviewUrl(el: { metadata?: string | null }): string | null {
   if (!el.metadata) return null
   try {
     const meta = JSON.parse(el.metadata)
@@ -171,6 +191,7 @@ async function handleRemix() {
 onMounted(() => {
   fetchElements()
   ensureTagsLoaded()
+  loadMoreGenerations(20)
   // Pre-fill prompt from query param (navigated from /compose "Use in Generate")
   const routePrompt = useRoute().query.prompt
   if (routePrompt && typeof routePrompt === 'string') {
@@ -292,8 +313,8 @@ function editResult(gen: Generation) {
                 class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary"
               >
                 <NuxtImg
-                  v-if="getPersonPreviewUrl(attachedPerson)"
-                  :src="getPersonPreviewUrl(attachedPerson)!"
+                  v-if="getPresetPreviewUrl(attachedPerson)"
+                  :src="getPresetPreviewUrl(attachedPerson)!"
                   class="size-5 rounded-full object-cover ring-1 ring-primary/30"
                   width="20"
                   height="20"
@@ -575,6 +596,22 @@ function editResult(gen: Generation) {
             >
               <USelect v-model="resolution" :items="resolutions" class="w-24" />
             </UFormField>
+            <!-- Image Model Picker (T2I / I2I) -->
+            <UFormField
+              v-if="activeTab === 't2i' || activeTab === 'i2i'"
+              label="Model"
+              class="w-auto"
+            >
+              <USelect v-model="selectedImageModel" :items="IMAGE_MODELS" class="w-44" />
+            </UFormField>
+            <!-- Video Model Picker (T2V / I2V) -->
+            <UFormField
+              v-if="activeTab === 't2v' || activeTab === 'i2v'"
+              label="Model"
+              class="w-auto"
+            >
+              <USelect v-model="selectedVideoModel" :items="VIDEO_MODELS" class="w-48" />
+            </UFormField>
           </div>
 
           <!-- Source Image -->
@@ -633,9 +670,13 @@ function editResult(gen: Generation) {
         <!-- Recent Generations carousel stays below the form -->
         <RecentImagesCarousel
           :generations="recentGenerations"
+          :loading="loadingGenerations"
+          :loading-more="loadingMoreGenerations"
+          :is-finished="isGenerationsFinished"
           @click="openRecentViewer"
           @use-as-source="useGenerationAsSource"
           @upscale="(gen) => upscaleGeneration(gen.id)"
+          @load-more="loadMoreGenerations(20)"
         />
       </div>
 

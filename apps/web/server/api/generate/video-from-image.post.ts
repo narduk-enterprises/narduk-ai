@@ -5,6 +5,7 @@ import { generations, appSettings } from '../../database/schema'
 const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
   sourceGenerationId: z.string().min(1),
+  model: z.string().optional(),
   duration: z.number().int().min(1).max(15).optional().default(6),
   resolution: z.enum(['480p', '720p']).optional().default('720p'),
   promptElements: z.array(z.string()).optional(),
@@ -75,19 +76,21 @@ export default defineEventHandler(async (event) => {
   const mimeType = r2Object.httpMetadata?.contentType || 'image/png'
   const dataUrl = `data:${mimeType};base64,${base64}`
 
-  // Fetch configured model from database
-  let videoModel = 'grok-imagine-video'
-  try {
-    const settings = await db
-      .select({ videoModel: appSettings.videoModel })
-      .from(appSettings)
-      .where(eq(appSettings.id, 1))
-      .get()
-    if (settings?.videoModel) {
-      videoModel = settings.videoModel
+  // Prefer client-supplied model; fall back to DB-configured model
+  let videoModel = body.model || 'grok-imagine-video'
+  if (!body.model) {
+    try {
+      const settings = await db
+        .select({ videoModel: appSettings.videoModel })
+        .from(appSettings)
+        .where(eq(appSettings.id, 1))
+        .get()
+      if (settings?.videoModel) {
+        videoModel = settings.videoModel
+      }
+    } catch (err) {
+      log.warn('Could not fetch appSettings for videoModel', { err })
     }
-  } catch (err) {
-    log.warn('Could not fetch appSettings for videoModel', { err })
   }
 
   // Start async video generation with source image

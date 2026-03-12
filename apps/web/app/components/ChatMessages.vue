@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ChatMessage } from '~/composables/useChatForm'
+import type { Generation } from '~/types/generation'
 
 defineProps<{
   messages: ChatMessage[]
@@ -15,6 +16,33 @@ const emit = defineEmits<{
   'generate-inline': [prompt: string]
   'share-image': [imageUrl: string]
 }>()
+
+const galleryViewer = useGalleryViewer()
+
+function openInViewer(imageUrl: string, prompt = '') {
+  const synth: Generation = {
+    id: imageUrl,
+    userId: '',
+    type: 'image',
+    mode: 't2i',
+    prompt,
+    sourceGenerationId: null,
+    status: 'done',
+    xaiRequestId: null,
+    r2Key: null,
+    mediaUrl: imageUrl,
+    thumbnailUrl: imageUrl,
+    duration: null,
+    generationTimeMs: null,
+    aspectRatio: null,
+    resolution: null,
+    metadata: null,
+    presets: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  galleryViewer.open([synth], 0)
+}
 
 function handleUsePrompt(prompt: string) {
   emit('use-prompt', prompt)
@@ -41,6 +69,12 @@ function getDisplayContent(msg: ChatMessage): string {
   if (msg.parsedResponse?.message) return msg.parsedResponse.message
   const raw = typeof msg.content === 'string' ? msg.content : ''
   return raw.replaceAll(/<[^>]+>/g, '')
+}
+
+function openInlineViewer(msg: ChatMessage) {
+  const url = msg.parsedResponse?.imageUrl
+  const prompt = msg.parsedResponse?.prompt ?? ''
+  if (url) openInViewer(url, prompt)
 }
 </script>
 
@@ -72,7 +106,8 @@ function getDisplayContent(msg: ChatMessage): string {
             </div>
             <div
               v-else-if="part.type === 'image_url'"
-              class="mt-1 rounded-xl overflow-hidden ring-2 ring-primary/30 max-w-xs"
+              class="mt-1 rounded-xl overflow-hidden ring-2 ring-primary/30 max-w-xs cursor-zoom-in"
+              @click="openInViewer(part.image_url.url)"
             >
               <img
                 :src="part.image_url.url"
@@ -102,17 +137,20 @@ function getDisplayContent(msg: ChatMessage): string {
         class="mt-3 animate-fade-in-up"
       >
         <div class="flex items-end gap-3">
-          <!-- Thumbnail — click to gallery -->
-          <NuxtLink
-            to="/gallery"
-            class="shrink-0 block rounded-xl overflow-hidden ring-1 ring-primary/20 hover:ring-primary/50 transition-all hover:scale-[1.02] shadow-card"
+          <!-- Thumbnail — click to open in gallery viewer -->
+          <!-- eslint-disable-next-line vuejs-accessibility/click-events-have-key-events vuejs-accessibility/no-static-element-interactions -- image thumbnail acting as interactive button -->
+          <div
+            class="shrink-0 rounded-xl overflow-hidden ring-1 ring-primary/20 hover:ring-primary/50 transition-all hover:scale-[1.02] shadow-card cursor-zoom-in"
+            role="button"
+            tabindex="0"
+            @click="openInlineViewer(msg)"
           >
             <img
               :src="msg.parsedResponse.imageUrl"
               :alt="msg.parsedResponse.prompt || 'Generated image'"
-              class="h-40 w-auto max-w-[180px] object-cover"
+              class="h-40 w-auto max-w-[180px] object-cover pointer-events-none"
             />
-          </NuxtLink>
+          </div>
 
           <!-- Action buttons stacked vertically beside the image -->
           <div class="flex flex-col gap-1.5">

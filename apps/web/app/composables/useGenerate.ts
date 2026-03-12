@@ -17,6 +17,7 @@ export function useGenerate() {
     prompt: string,
     options?: {
       aspectRatio?: string
+      model?: string
       promptElements?: string[]
       presets?: Record<string, string>
       userPromptId?: string
@@ -31,6 +32,7 @@ export function useGenerate() {
         body: {
           prompt,
           aspectRatio: options?.aspectRatio,
+          model: options?.model,
           promptElements: options?.promptElements,
           presets: options?.presets,
           userPromptId: options?.userPromptId,
@@ -53,6 +55,7 @@ export function useGenerate() {
     prompt: string,
     sourceGenerationId: string,
     options?: {
+      model?: string
       promptElements?: string[]
       presets?: Record<string, string>
       userPromptId?: string
@@ -67,6 +70,7 @@ export function useGenerate() {
         body: {
           prompt,
           sourceGenerationId,
+          model: options?.model,
           promptElements: options?.promptElements,
           presets: options?.presets,
           userPromptId: options?.userPromptId,
@@ -91,6 +95,7 @@ export function useGenerate() {
       duration?: number
       aspectRatio?: string
       resolution?: string
+      model?: string
       promptElements?: string[]
       presets?: Record<string, string>
       userPromptId?: string
@@ -107,6 +112,7 @@ export function useGenerate() {
           duration: options?.duration || 6,
           aspectRatio: options?.aspectRatio || '16:9',
           resolution: options?.resolution || '720p',
+          model: options?.model,
           promptElements: options?.promptElements,
           presets: options?.presets,
           userPromptId: options?.userPromptId,
@@ -131,6 +137,7 @@ export function useGenerate() {
     options?: {
       duration?: number
       resolution?: string
+      model?: string
       promptElements?: string[]
       presets?: Record<string, string>
       userPromptId?: string
@@ -147,6 +154,7 @@ export function useGenerate() {
           sourceGenerationId,
           duration: options?.duration || 6,
           resolution: options?.resolution || '720p',
+          model: options?.model,
           promptElements: options?.promptElements,
           presets: options?.presets,
           userPromptId: options?.userPromptId,

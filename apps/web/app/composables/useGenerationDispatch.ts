@@ -20,6 +20,7 @@ export function useGenerationDispatch(deps: {
   activePresets: Ref<Record<string, string>>
   activeUserPromptId: Ref<string | null>
   selectedTags: ComputedRef<PromptTag[]>
+  selectedModel: Ref<string>
   compilePrompt: () => string
   recordUsage?: (ids: string[]) => Promise<void>
 }) {
@@ -35,6 +36,7 @@ export function useGenerationDispatch(deps: {
     activePresets,
     activeUserPromptId,
     selectedTags,
+    selectedModel,
     compilePrompt,
     recordUsage,
   } = deps
@@ -93,6 +95,7 @@ export function useGenerationDispatch(deps: {
     // Build shared options (dual-write)
     const lineage = buildLineage(compiled)
     const baseOpts = {
+      model: selectedModel.value || undefined,
       promptElements: buildLegacyPromptElements(),
       presets: buildLegacyPresets(),
       userPromptId: activeUserPromptId.value || undefined,
@@ -237,7 +240,10 @@ export function useGenerationDispatch(deps: {
     imageCount,
     latestResult,
     latestResults,
-    recentGenerations: computed(() => store.items.value.slice(0, 20)),
+    recentGenerations: store.items,
+    loadingGenerations: store.loading,
+    loadingMoreGenerations: store.loadingMore,
+    isGenerationsFinished: store.isFinished,
     userImages: store.doneImages,
     generating,
     error,
@@ -247,5 +253,6 @@ export function useGenerationDispatch(deps: {
     handleGenerate,
     handleSourceImageUpload,
     uploadImage,
+    loadMoreGenerations: store.loadMore,
   }
 }
