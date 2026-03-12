@@ -3,6 +3,7 @@ import type { PresetMetadata } from '../composables/usePromptElements'
 import { usePromptElements } from '../composables/usePromptElements'
 import { usePromptLibrary } from '../composables/usePromptLibrary'
 import { useSystemPrompts } from '../composables/useSystemPrompts'
+import { streamPromptBuilderChat } from '../composables/usePromptBuilderStream'
 
 const isModalOpen = defineModel<boolean>('open', { default: false })
 
@@ -106,7 +107,6 @@ async function composeDraft() {
   chatLog.value = []
   savedPromptId.value = null
 
-  // Look up full content from elements for each selected name
   const parts = Object.entries(composeSelection)
     .filter(([_, val]) => val)
     .map(([key, name]) => {
@@ -117,7 +117,6 @@ async function composeDraft() {
 
   const isVideo = props.mediaType === 'video'
   const sysContent = isVideo ? prompts.value.compose_video : prompts.value.compose_image
-
   const modifiersContext = allModifiersList.value.length
     ? `\n\nYou can also suggest enhancements using Quick Modifiers if applicable. When suggesting modifications, emit attribute-value pairs in your <builder_state> JSON response using attribute keys (e.g. {"hair_color": "blonde", "lighting": "golden hour"}). Available modifiers:\n` +
       allModifiersList.value
@@ -125,64 +124,34 @@ async function composeDraft() {
         .join('\n')
     : ''
 
-  const systemMsg = {
-    role: 'system' as const,
-    content: (sysContent || '') + modifiersContext,
-  }
+  chatMessages.value = [
+    { role: 'system' as const, content: (sysContent || '') + modifiersContext },
+    {
+      role: 'user' as const,
+      content: `Here are my starting components:\n\n${parts}\n\nPlease generate the first draft.`,
+    },
+  ]
 
-  const userMsg = {
-    role: 'user' as const,
-    content: `Here are my starting components:\n\n${parts}\n\nPlease generate the first draft.`,
-  }
-
-  chatMessages.value = [systemMsg, userMsg]
+  chatLog.value.push({ role: 'assistant', text: '' })
+  const assistantIndex = chatLog.value.length - 1
 
   try {
-    const res = await fetch('/api/generate/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
+    await streamPromptBuilderChat(chatMessages.value, {
+      onMessage: (text) => {
+        chatLog.value[assistantIndex]!.text = text
       },
-      body: JSON.stringify({ chatMode: 'general', messages: chatMessages.value, stream: true }),
+      onPrompt: (prompt) => {
+        currentPromptDraft.value = prompt
+      },
+      onTitle: (title) => {
+        if (!saveTitle.value) saveTitle.value = title
+      },
     })
-
-    if (!res.ok || !res.body) throw new Error('API Error')
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let fullContent = ''
-
-    chatLog.value.push({ role: 'assistant', text: '' })
-    const assistantIndex = chatLog.value.length - 1
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      fullContent += decoder.decode(value, { stream: true })
-
-      const msgMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
-      const promptMatch = fullContent.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
-      const titleMatch = fullContent.match(/<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i)
-
-      const msg = chatLog.value[assistantIndex]!
-      if (msgMatch?.[1]) msg.text = msgMatch[1].trim()
-      if (promptMatch?.[1]) currentPromptDraft.value = promptMatch[1].trim()
-      if (titleMatch?.[1] && !saveTitle.value) saveTitle.value = titleMatch[1].trim()
-    }
-
-    const msg = chatLog.value[assistantIndex]!
-    if (!msg.text) {
-      msg.text = 'Draft created.'
-    }
-
-    chatMessages.value.push({ role: 'assistant', content: fullContent })
+    if (!chatLog.value[assistantIndex]!.text) chatLog.value[assistantIndex]!.text = 'Draft created.'
+    chatMessages.value.push({ role: 'assistant', content: currentPromptDraft.value })
   } catch (e) {
     console.error('Failed to generate draft', e)
-    chatLog.value.push({
-      role: 'assistant',
-      text: 'Sorry, I encountered an error generating the draft.',
-    })
+    chatLog.value[assistantIndex]!.text = 'Sorry, I encountered an error generating the draft.'
   } finally {
     chatting.value = false
   }
@@ -199,53 +168,29 @@ async function sendChatMessage() {
   const stateContext = currentPromptDraft.value
     ? `\n\nCURRENT PROMPT DRAFT:\n${currentPromptDraft.value}`
     : ''
-  const userMsg = { role: 'user' as const, content: `${text}${stateContext}` }
-  chatMessages.value.push(userMsg)
+  chatMessages.value.push({ role: 'user' as const, content: `${text}${stateContext}` })
+
+  chatLog.value.push({ role: 'assistant', text: '' })
+  const assistantIndex = chatLog.value.length - 1
 
   try {
-    const res = await fetch('/api/generate/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
+    await streamPromptBuilderChat(chatMessages.value, {
+      onMessage: (t) => {
+        chatLog.value[assistantIndex]!.text = t
       },
-      body: JSON.stringify({ chatMode: 'general', messages: chatMessages.value, stream: true }),
+      onPrompt: (prompt) => {
+        currentPromptDraft.value = prompt
+      },
+      onTitle: (title) => {
+        if (!saveTitle.value) saveTitle.value = title
+      },
     })
-
-    if (!res.ok || !res.body) throw new Error('API Error')
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let fullContent = ''
-
-    chatLog.value.push({ role: 'assistant', text: '' })
-    const assistantIndex = chatLog.value.length - 1
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      fullContent += decoder.decode(value, { stream: true })
-
-      const msgMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
-      const promptMatch = fullContent.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
-      const titleMatch = fullContent.match(/<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i)
-
-      const msg = chatLog.value[assistantIndex]!
-      if (msgMatch?.[1]) msg.text = msgMatch[1].trim()
-      if (promptMatch?.[1]) currentPromptDraft.value = promptMatch[1].trim()
-      if (titleMatch?.[1] && !saveTitle.value) saveTitle.value = titleMatch[1].trim()
-    }
-
-    const msg = chatLog.value[assistantIndex]!
-    if (!msg.text) {
-      msg.text = 'Updated the prompt.'
-    }
-
-    chatMessages.value.push({ role: 'assistant', content: fullContent })
+    if (!chatLog.value[assistantIndex]!.text)
+      chatLog.value[assistantIndex]!.text = 'Updated the prompt.'
+    chatMessages.value.push({ role: 'assistant', content: currentPromptDraft.value })
   } catch (e) {
     console.error('Chat failed', e)
-    chatLog.value.push({ role: 'assistant', text: 'Error refining prompt.' })
-    // Pop the failed user message so they can try again if they want
+    chatLog.value[assistantIndex]!.text = 'Error refining prompt.'
     chatMessages.value.pop()
   } finally {
     chatting.value = false
@@ -445,7 +390,12 @@ watch(
             v-if="currentPromptDraft"
             class="bg-default rounded-xl border border-primary/20 p-4 shadow-sm relative group mb-4"
           >
-            <p class="text-sm leading-relaxed text-default whitespace-pre-wrap">
+            <div
+              class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <CopyButton :text="currentPromptDraft" size="xs" />
+            </div>
+            <p class="text-sm leading-relaxed text-default whitespace-pre-wrap pr-6">
               {{ currentPromptDraft }}
             </p>
           </div>

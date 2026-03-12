@@ -790,9 +790,10 @@ function presetThumb(metadata: string | null | undefined) {
 
             <!-- Raw Content fallback -->
             <div v-else-if="preset?.content" class="flex-1 min-w-0">
-              <h2 class="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
-                Content
-              </h2>
+              <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xs font-semibold text-muted uppercase tracking-wider">Content</h2>
+                <CopyButton :text="preset.content" size="xs" variant="ghost" />
+              </div>
               <div
                 class="p-4 rounded-xl bg-elevated border border-default text-sm whitespace-pre-wrap"
               >
