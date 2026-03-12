@@ -20,7 +20,7 @@ export function useGalleryPoller(intervalMs = 15_000) {
     running = true
     try {
       const rows = await $fetch<Generation[]>('/api/generations', {
-        query: { since: store.lastSeenAt.value },
+        query: { since: store.lastSeenAt },
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       })
       store.applyDelta(rows)

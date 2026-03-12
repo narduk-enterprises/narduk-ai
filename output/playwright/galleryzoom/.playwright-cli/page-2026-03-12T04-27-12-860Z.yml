@@ -1,0 +1,32 @@
+- generic [active] [ref=e1]:
+    - generic [ref=e4]:
+        - paragraph [ref=e5]: "500"
+        - heading "Something went wrong" [level=1] [ref=e6]
+        - paragraph [ref=e7]: An unexpected error occurred. Please try again later.
+        - generic [ref=e8]:
+            - button "Go Home" [ref=e9]: Go Home
+            - button "Try Again" [ref=e11]: Try Again
+    - status [ref=e13]
+    - iframe [ref=e14]:
+        - generic [ref=f3e3]: This content is blocked. Contact the site owner to fix the issue.
+    - iframe [ref=e15]:
+        - generic [ref=f4e4]:
+            - paragraph [ref=f4e5]: "500"
+            - heading "Something went wrong" [level=1] [ref=f4e6]
+            - paragraph [ref=f4e7]: An unexpected error occurred. Please try again later.
+            - generic [ref=f4e8]:
+                - button "Go Home" [ref=f4e9]: Go Home
+                - button "Try Again" [ref=f4e11]: Try Again
+    - button "Toggle detailed error view Hide error page preview" [expanded] [ref=e16]:
+        - generic [ref=e17]: Toggle detailed error view
+        - button "Hide error page preview" [ref=e18] [cursor=pointer]: ×
+    - generic:
+        - img
+    - generic [ref=e19]:
+        - button "Toggle Nuxt DevTools" [ref=e20] [cursor=pointer]:
+            - img [ref=e21]
+        - generic "App load time" [ref=e24]:
+            - generic [ref=e25]: "213"
+            - generic [ref=e26]: ms
+        - button "Toggle Component Inspector" [ref=e28] [cursor=pointer]:
+            - img [ref=e29]

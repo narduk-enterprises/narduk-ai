@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { Generation } from '~/types/generation'
-
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({
@@ -13,10 +11,15 @@ useWebPageSchema({
 })
 
 const store = useGenerationsStore()
-const { deleteGeneration, upscaleGeneration, remixGeneration, error: generateError } = useGenerate()
-const remixingId = ref<string | null>(null)
-const toast = useToast()
-const galleryViewer = useGalleryViewer()
+const {
+  remixingId,
+  handleDelete,
+  handleUseAsSource,
+  handleRetry,
+  openViewer,
+  handleUpscale,
+  handleRemix,
+} = useGalleryActions()
 
 const route = useRoute()
 const activeFilter = computed(() => (route.query.filter as string) || 'all')
@@ -81,97 +84,19 @@ onUnmounted(() => {
 
 // ── Sorted view ───────────────────────────────────────────────────
 const filteredGenerations = computed(() =>
-  [...store.items.value].sort(
+  [...store.items].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   ),
 )
 
 // ── Sync viewer when list changes ─────────────────────────────────
+const galleryViewer = useGalleryViewer()
 watch(filteredGenerations, (newList) => {
   if (galleryViewer.isOpen.value) galleryViewer.updateItems(newList)
 })
 
-// ── Actions ───────────────────────────────────────────────────────
-async function handleDelete(gen: Generation) {
-  try {
-    await deleteGeneration(gen.id)
-    store.remove(gen.id)
-  } catch {
-    /* silent */
-  }
-}
-
 function setFilter(value: string) {
   navigateTo({ query: { ...route.query, filter: value === 'all' ? undefined : value } })
-}
-
-function handleUseAsSource(gen: Generation) {
-  navigateTo({ path: '/generate', query: { source: gen.id, mode: 'i2v' } })
-}
-
-function handleRetry(gen: Generation) {
-  navigateTo({ path: '/generate', query: { prompt: gen.prompt, mode: gen.mode } })
-}
-
-function openViewer(gen: Generation) {
-  const idx = filteredGenerations.value.findIndex((g) => g.id === gen.id)
-  galleryViewer.open(filteredGenerations.value, idx >= 0 ? idx : 0, loadMore)
-}
-
-async function handleUpscale(gen: Generation) {
-  const result = await upscaleGeneration(gen.id)
-  if (result) {
-    store.upsert(result)
-    toast.add({
-      title: 'Upscaling Started',
-      description:
-        'Your image is being upscaled to 2K resolution. It will appear at the top of your gallery shortly.',
-      color: 'success',
-      icon: 'i-lucide-sparkles',
-    })
-  } else if (generateError.value) {
-    toast.add({
-      title: 'Upscale Failed',
-      description: generateError.value,
-      color: 'error',
-      icon: 'i-lucide-alert-circle',
-    })
-  }
-}
-
-async function handleRemix(gen: Generation) {
-  if (remixingId.value) return
-  remixingId.value = gen.id
-  toast.add({
-    title: 'Remixing…',
-    description: 'Creating a fresh variation of your prompt.',
-    color: 'info',
-    icon: 'i-lucide-shuffle',
-  })
-  try {
-    const result = await remixGeneration(gen)
-    if (result) {
-      store.upsert(result)
-      toast.add({
-        title: 'Remix Created',
-        description:
-          result.type === 'video'
-            ? 'Your remixed video is generating!'
-            : 'A remixed image has been created!',
-        color: 'success',
-        icon: 'i-lucide-shuffle',
-      })
-    } else if (generateError.value) {
-      toast.add({
-        title: 'Remix Failed',
-        description: generateError.value,
-        color: 'error',
-        icon: 'i-lucide-alert-circle',
-      })
-    }
-  } finally {
-    remixingId.value = null
-  }
 }
 
 const filters = [
@@ -261,7 +186,7 @@ const filters = [
           :key="gen.id"
           :generation="gen"
           :remixing="remixingId === gen.id"
-          @click="openViewer(gen)"
+          @click="openViewer(gen, filteredGenerations, loadMore)"
           @use-as-source="handleUseAsSource"
           @upscale="handleUpscale"
           @delete="handleDelete"

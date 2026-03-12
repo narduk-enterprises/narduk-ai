@@ -161,7 +161,7 @@ const galleryViewer = useGalleryViewer()
 
 function openRecentViewer(gen: Generation) {
   const idx = recentGenerations.value.findIndex((g: Generation) => g.id === gen.id)
-  galleryViewer.open(recentGenerations.value, idx >= 0 ? idx : 0)
+  galleryViewer.open(recentGenerations.value as unknown as Generation[], idx >= 0 ? idx : 0)
 }
 
 function handleClearAll() {

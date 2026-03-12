@@ -147,7 +147,7 @@ export default defineEventHandler(async (event) => {
   const baseQuery = db
     .select()
     .from(generations)
-    .where(and(...filters))
+    .where(filters.length > 1 ? and(...filters) : filters[0])
 
   // When polling with `since`, skip pagination — always return newest delta
   const rows = since

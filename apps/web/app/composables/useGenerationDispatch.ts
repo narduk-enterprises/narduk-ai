@@ -53,6 +53,8 @@ export function useGenerationDispatch(deps: {
   } = useGenerate()
 
   const store = useGenerationsStore()
+  const { items, loading, loadingMore, isFinished, doneImages } = storeToRefs(store)
+  useGalleryPoller()
 
   // ─── Batch Count ────────────────────────────────────────────
   const imageCount = ref(1)
@@ -240,11 +242,11 @@ export function useGenerationDispatch(deps: {
     imageCount,
     latestResult,
     latestResults,
-    recentGenerations: store.items,
-    loadingGenerations: store.loading,
-    loadingMoreGenerations: store.loadingMore,
-    isGenerationsFinished: store.isFinished,
-    userImages: store.doneImages,
+    recentGenerations: items,
+    loadingGenerations: loading,
+    loadingMoreGenerations: loadingMore,
+    isGenerationsFinished: isFinished,
+    userImages: doneImages,
     generating,
     error,
     uploadingSource,

@@ -17,447 +17,135 @@ const {
   close,
 } = useGalleryViewer()
 
+const { deleteGeneration, remixing: remixingRef } = useGenerate()
+
 const {
-  deleteGeneration,
-  upscaleGeneration,
-  remixGeneration,
-  remixing: remixingRef,
-  error: generateError,
-} = useGenerate()
-const toast = useToast()
+  handleUseAsSource: _handleUseAsSource,
+  handleEditImage: _handleEditImage,
+  handleUpscale: _handleUpscale,
+  handleRemix: _handleRemix,
+} = useGalleryActions()
 
-// ── Video Controls State ──────────────────────────────────
-const videoRef = ref<HTMLVideoElement | null>(null)
-const isPlaying = ref(false)
-const isMuted = ref(true)
-const currentTime = ref(0)
-const videoDuration = ref(0)
-const progressPercent = computed(() =>
-  videoDuration.value > 0 ? (currentTime.value / videoDuration.value) * 100 : 0,
-)
-const showControls = ref(true)
-let controlsTimer: ReturnType<typeof setTimeout> | null = null
+// ── Subcomponent Refs ──────────────────────────────────────
+const imageViewerRef = ref<{
+  resetZoom: () => void
+  zoomIn: () => void
+  zoomOut: () => void
+  isZoomed: boolean
+  zoomLevel: number
+  MAX_ZOOM: number
+} | null>(null)
 
-// ── Zoom / Pan State ─────────────────────────────────────
-const MIN_ZOOM = 1
-const MAX_ZOOM = 8
-const DOUBLE_CLICK_ZOOM = 2.5
+const videoViewerRef = ref<{
+  playVideo: () => void
+  resetVideoState: () => void
+  $el: HTMLElement
+} | null>(null)
 
-const zoomLevel = ref(1)
-const panX = ref(0)
-const panY = ref(0)
-const isZoomed = computed(() => zoomLevel.value > 1.01)
-
-const isDragging = ref(false)
-let dragStartX = 0
-let dragStartY = 0
-let panStartX = 0
-let panStartY = 0
-
-let lastPinchDist = 0
-let lastPinchZoom = 1
-let lastTapTime = 0
-let lastTapX = 0
-let lastTapY = 0
-
-const imageContainerRef = ref<HTMLElement | null>(null)
-
-const imageTransform = computed(
-  () =>
-    `scale(${zoomLevel.value}) translate(${panX.value / zoomLevel.value}px, ${panY.value / zoomLevel.value}px)`,
-)
-
-function clampPan(x: number, y: number): { x: number; y: number } {
-  const el = imageContainerRef.value
-  if (!el) return { x, y }
-  const { width, height } = el.getBoundingClientRect()
-  const maxX = (width * (zoomLevel.value - 1)) / 2
-  const maxY = (height * (zoomLevel.value - 1)) / 2
-  return {
-    x: Math.max(-maxX, Math.min(maxX, x)),
-    y: Math.max(-maxY, Math.min(maxY, y)),
-  }
-}
-
-function resetZoom() {
-  zoomLevel.value = 1
-  panX.value = 0
-  panY.value = 0
-}
-
-function zoomIn() {
-  const next = Math.min(MAX_ZOOM, zoomLevel.value * 1.3)
-  zoomLevel.value = next
-  const clamped = clampPan(panX.value, panY.value)
-  panX.value = clamped.x
-  panY.value = clamped.y
-}
-
-function zoomOut() {
-  const next = Math.max(MIN_ZOOM, zoomLevel.value / 1.3)
-  zoomLevel.value = next
-  if (next <= 1.01) {
-    panX.value = 0
-    panY.value = 0
-  } else {
-    const clamped = clampPan(panX.value, panY.value)
-    panX.value = clamped.x
-    panY.value = clamped.y
-  }
-}
-
-function handleWheelZoom(e: WheelEvent) {
-  if (isVideo.value) return
-  e.preventDefault()
-  const factor = e.deltaY > 0 ? -0.15 : 0.15
-  const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomLevel.value * (1 + factor)))
-  zoomLevel.value = next
-  if (next <= 1.01) {
-    panX.value = 0
-    panY.value = 0
-  } else {
-    const clamped = clampPan(panX.value, panY.value)
-    panX.value = clamped.x
-    panY.value = clamped.y
-  }
-}
-
-function handleMouseDown(e: MouseEvent) {
-  if (!isZoomed.value || isVideo.value) return
-  isDragging.value = true
-  dragStartX = e.clientX
-  dragStartY = e.clientY
-  panStartX = panX.value
-  panStartY = panY.value
-  e.preventDefault()
-}
-
-function handleMouseMove(e: MouseEvent) {
-  if (!isDragging.value) return
-  const clamped = clampPan(
-    panStartX + (e.clientX - dragStartX),
-    panStartY + (e.clientY - dragStartY),
-  )
-  panX.value = clamped.x
-  panY.value = clamped.y
-}
-
-function handleMouseUp() {
-  isDragging.value = false
-}
-
-function handleDblClick(e: MouseEvent) {
-  if (isVideo.value) return
-  if (isZoomed.value) {
-    resetZoom()
-  } else {
-    const el = imageContainerRef.value
-    if (el) {
-      const rect = el.getBoundingClientRect()
-      const cx = e.clientX - rect.left - rect.width / 2
-      const cy = e.clientY - rect.top - rect.height / 2
-      zoomLevel.value = DOUBLE_CLICK_ZOOM
-      const clamped = clampPan(cx * (DOUBLE_CLICK_ZOOM - 1), cy * (DOUBLE_CLICK_ZOOM - 1))
-      panX.value = clamped.x
-      panY.value = clamped.y
-    } else {
-      zoomLevel.value = DOUBLE_CLICK_ZOOM
-    }
-  }
-}
-
-// ── Media Type ───────────────────────────────────────────
+// ── Media Type Helpers ─────────────────────────────────────
 const isVideo = computed(() => currentItem.value?.type === 'video')
 const mediaUrl = computed(() => currentItem.value?.mediaUrl ?? '')
+const isZoomed = computed(() => imageViewerRef.value?.isZoomed ?? false)
+const zoomLevel = computed(() => imageViewerRef.value?.zoomLevel ?? 1)
+const maxZoom = computed(() => imageViewerRef.value?.MAX_ZOOM ?? 8)
 
-// ── Mode Labels ──────────────────────────────────────────
-const modeLabels: Record<string, string> = {
-  t2i: 'Text → Image',
-  t2v: 'Text → Video',
-  i2v: 'Image → Video',
-  i2i: 'Image → Image',
-}
+// ── Toolbar Actions (Delegated to specific functions below) ───
 
-// ── Metadata ─────────────────────────────────────────────
-const formattedDate = computed(() => {
-  if (!currentItem.value) return ''
-  return new Date(currentItem.value.createdAt).toLocaleString()
-})
-
-const parsedPresets = computed(() => {
-  if (!currentItem.value?.presets) return null
-  try {
-    const raw = JSON.parse(currentItem.value.presets) as Record<string, string>
-    return Object.entries(raw)
-      .filter(([_, val]) => Boolean(val))
-      .map(([key, val]) => ({
-        type: key,
-        name: val,
-        label: `${key.charAt(0).toUpperCase() + key.slice(1)}: ${val}`,
-      }))
-  } catch {
-    return null
-  }
-})
-
-function handlePresetClick(presetName: string) {
-  close()
-  navigateTo({ path: '/gallery', query: { search: presetName } })
-}
-
-// ── Keyboard Navigation ──────────────────────────────────
-function handleKeydown(e: KeyboardEvent) {
-  if (!isOpen.value) return
-  if (e.key === 'Escape') {
-    e.preventDefault()
-    if (isZoomed.value) resetZoom()
-    else close()
-    return
-  }
-  if (e.key === '=' || e.key === '+') {
-    e.preventDefault()
-    zoomIn()
-    return
-  }
-  if (e.key === '-') {
-    e.preventDefault()
-    zoomOut()
-    return
-  }
-  if (e.key === '0') {
-    e.preventDefault()
-    resetZoom()
-    return
-  }
-  if (isZoomed.value) return
-  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-    e.preventDefault()
-    next()
-  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-    e.preventDefault()
-    prev()
-  } else if (e.key === ' ' && isVideo.value) {
-    e.preventDefault()
-    togglePlay()
-  }
-}
-
-onMounted(() => {
-  if (import.meta.client) {
-    window.addEventListener('keydown', handleKeydown)
-    window.addEventListener('mouseup', handleMouseUp)
-    window.addEventListener('mousemove', handleMouseMove)
-  }
-})
-
-onUnmounted(() => {
-  if (import.meta.client) {
-    window.removeEventListener('keydown', handleKeydown)
-    window.removeEventListener('mouseup', handleMouseUp)
-    window.removeEventListener('mousemove', handleMouseMove)
-  }
-})
-
-// ── Touch / Swipe + Pinch Navigation ────────────────────
-const touchStartX = ref(0)
-const touchStartY = ref(0)
-let touchMoved = false
-
-function handleTouchStart(e: TouchEvent) {
-  touchMoved = false
-  if (e.touches.length === 2) {
-    const dx = e.touches[0]!.clientX - e.touches[1]!.clientX
-    const dy = e.touches[0]!.clientY - e.touches[1]!.clientY
-    lastPinchDist = Math.hypot(dx, dy)
-    lastPinchZoom = zoomLevel.value
-    return
-  }
-  const touch = e.touches[0]
-  if (touch) {
-    touchStartX.value = touch.clientX
-    touchStartY.value = touch.clientY
-    if (isZoomed.value) {
-      isDragging.value = true
-      dragStartX = touch.clientX
-      dragStartY = touch.clientY
-      panStartX = panX.value
-      panStartY = panY.value
-    }
-  }
-}
-
-function handleTouchMove(e: TouchEvent) {
-  touchMoved = true
-  if (e.touches.length === 2) {
-    const dx = e.touches[0]!.clientX - e.touches[1]!.clientX
-    const dy = e.touches[0]!.clientY - e.touches[1]!.clientY
-    const dist = Math.hypot(dx, dy)
-    const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, lastPinchZoom * (dist / lastPinchDist)))
-    zoomLevel.value = next
-    if (next <= 1.01) {
-      panX.value = 0
-      panY.value = 0
-    } else {
-      const clamped = clampPan(panX.value, panY.value)
-      panX.value = clamped.x
-      panY.value = clamped.y
-    }
-    return
-  }
-  if (isDragging.value && isZoomed.value && e.touches.length === 1) {
-    const t = e.touches[0]!
-    const clamped = clampPan(
-      panStartX + (t.clientX - dragStartX),
-      panStartY + (t.clientY - dragStartY),
-    )
-    panX.value = clamped.x
-    panY.value = clamped.y
-  }
-}
-
-function handleTouchEnd(e: TouchEvent) {
-  isDragging.value = false
-  const touch = e.changedTouches[0]
-  if (!touch) return
-  if (!touchMoved) {
-    const now = Date.now()
-    if (
-      now - lastTapTime < 300 &&
-      Math.abs(touch.clientX - lastTapX) < 30 &&
-      Math.abs(touch.clientY - lastTapY) < 30
-    ) {
-      if (isZoomed.value) resetZoom()
-      else zoomLevel.value = DOUBLE_CLICK_ZOOM
-      lastTapTime = 0
-      return
-    }
-    lastTapTime = now
-    lastTapX = touch.clientX
-    lastTapY = touch.clientY
-  }
-  if (!isZoomed.value && e.changedTouches.length === 1) {
-    const deltaX = touch.clientX - touchStartX.value
-    const deltaY = touch.clientY - touchStartY.value
-    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
-      if (deltaX < 0) next()
-      else prev()
-    }
-  }
-}
-
-// ── Video Controls ───────────────────────────────────────
-function togglePlay() {
-  if (!videoRef.value) return
-  if (videoRef.value.paused) {
-    videoRef.value.play()
-    isPlaying.value = true
-  } else {
-    videoRef.value.pause()
-    isPlaying.value = false
-  }
-}
-
-function toggleMute() {
-  if (!videoRef.value) return
-  videoRef.value.muted = !videoRef.value.muted
-  isMuted.value = videoRef.value.muted
-}
-
-function handleTimeUpdate() {
-  if (!videoRef.value) return
-  currentTime.value = videoRef.value.currentTime
-}
-
-function handleLoadedMetadata() {
-  if (!videoRef.value) return
-  videoDuration.value = videoRef.value.duration
-}
-
-function seekTo(e: MouseEvent) {
-  if (!videoRef.value) return
-  const bar = e.currentTarget as HTMLElement
-  const rect = bar.getBoundingClientRect()
-  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-  videoRef.value.currentTime = ratio * videoDuration.value
-}
-
-function formatTime(secs: number): string {
-  const m = Math.floor(secs / 60)
-  const s = Math.floor(secs % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-function scheduleHideControls() {
-  showControls.value = true
-  if (controlsTimer) clearTimeout(controlsTimer)
-  controlsTimer = setTimeout(() => {
-    if (isPlaying.value) showControls.value = false
-  }, 3000)
-}
-
-function handleVideoClick() {
-  togglePlay()
-  scheduleHideControls()
-}
-
-function handleMouseMoveOnVideo() {
-  scheduleHideControls()
-}
-
-// ── Reset video state when switching items ────────────────
+// ── Reset state when switching items ───────────────────────
 watch(currentIndex, () => {
-  isPlaying.value = false
-  currentTime.value = 0
-  videoDuration.value = 0
-  showControls.value = true
-  if (controlsTimer) clearTimeout(controlsTimer)
-  resetZoom()
+  if (imageViewerRef.value) {
+    imageViewerRef.value.resetZoom()
+  }
 
   // Auto-play video on switch
   nextTick(() => {
-    if (videoRef.value && isVideo.value) {
-      videoRef.value.currentTime = 0
-      videoRef.value
-        .play()
-        .then(() => {
-          isPlaying.value = true
-          scheduleHideControls()
-          return
-        })
-        .catch(() => {
-          // autoplay blocked
-        })
+    if (isVideo.value && videoViewerRef.value) {
+      videoViewerRef.value.resetVideoState()
+      videoViewerRef.value.playVideo()
     }
   })
 })
 
-// ── Auto-play on open ────────────────────────────────────
+// ── Auto-play on open & manage scroll lock ──────────────────
 watch(isOpen, (open) => {
   if (open && isVideo.value) {
     nextTick(() => {
-      if (videoRef.value) {
-        videoRef.value
-          .play()
-          .then(() => {
-            isPlaying.value = true
-            scheduleHideControls()
-            return
-          })
-          .catch(() => {
-            // autoplay blocked
-          })
+      if (videoViewerRef.value) {
+        videoViewerRef.value.playVideo()
       }
     })
   }
+
   // Lock body scroll when open
   if (import.meta.client) {
     document.body.style.overflow = open ? 'hidden' : ''
   }
 })
 
-// ── Actions ──────────────────────────────────────────────
-const upscaling = ref(false)
+// ── Keyboard Navigation ───────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (!isOpen.value) return
 
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    if (isZoomed.value && imageViewerRef.value) {
+      imageViewerRef.value.resetZoom()
+    } else {
+      close()
+    }
+    return
+  }
+
+  // Zoom controls
+  if (e.key === '=' || e.key === '+') {
+    e.preventDefault()
+    if (imageViewerRef.value) imageViewerRef.value.zoomIn()
+    return
+  }
+  if (e.key === '-') {
+    e.preventDefault()
+    if (imageViewerRef.value) imageViewerRef.value.zoomOut()
+    return
+  }
+  if (e.key === '0') {
+    e.preventDefault()
+    if (imageViewerRef.value) imageViewerRef.value.resetZoom()
+    return
+  }
+
+  if (isZoomed.value) return
+
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+    e.preventDefault()
+    next()
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault()
+    prev()
+  } else if (e.key === ' ' && isVideo.value && videoViewerRef.value) {
+    e.preventDefault()
+    // togglePlay is not natively exposed on videoViewerRef unless we expose it
+    const videoEl = videoViewerRef.value.$el.querySelector('video')
+    if (videoEl) {
+      if (videoEl.paused) videoViewerRef.value.playVideo()
+      else videoEl.pause()
+    }
+  }
+}
+
+onMounted(() => {
+  if (import.meta.client) {
+    window.addEventListener('keydown', handleKeydown)
+  }
+})
+
+onUnmounted(() => {
+  if (import.meta.client) {
+    window.removeEventListener('keydown', handleKeydown)
+    document.body.style.overflow = ''
+  }
+})
+
+// ── Action Handlers ───────────────────────────────────────
 function handleInfo() {
   if (!currentItem.value) return
   close()
@@ -465,71 +153,19 @@ function handleInfo() {
 }
 
 async function handleRemix() {
-  if (!currentItem.value || remixingRef.value) return
-  toast.add({
-    title: 'Remixing…',
-    description: 'Creating a fresh variation of your prompt.',
-    color: 'info',
-    icon: 'i-lucide-shuffle',
-  })
-  const result = await remixGeneration(currentItem.value)
-  if (result) {
-    toast.add({
-      title: 'Remix Created',
-      description:
-        result.type === 'video'
-          ? 'Your remixed video is generating. Check the gallery soon!'
-          : 'A remixed image has been created!',
-      color: 'success',
-      icon: 'i-lucide-shuffle',
-    })
-    close()
-    navigateTo(`/gallery/${result.id}`)
-  } else if (generateError.value) {
-    toast.add({
-      title: 'Remix Failed',
-      description: generateError.value,
-      color: 'error',
-      icon: 'i-lucide-alert-circle',
-    })
-  }
+  if (currentItem.value) await _handleRemix(currentItem.value)
 }
 
 function handleUseAsSource() {
-  if (!currentItem.value) return
-  close()
-  navigateTo({ path: '/generate', query: { source: currentItem.value.id, mode: 'i2v' } })
+  if (currentItem.value) _handleUseAsSource(currentItem.value)
 }
 
 function handleEditImage() {
-  if (!currentItem.value) return
-  close()
-  navigateTo({ path: '/generate', query: { source: currentItem.value.id, mode: 'i2i' } })
+  if (currentItem.value) _handleEditImage(currentItem.value)
 }
 
 async function handleUpscale() {
-  if (!currentItem.value || upscaling.value) return
-  upscaling.value = true
-  try {
-    const result = await upscaleGeneration(currentItem.value.id)
-    if (result) {
-      toast.add({
-        title: 'Upscaling Started',
-        description: 'Your image is being upscaled to 2K resolution.',
-        color: 'success',
-        icon: 'i-lucide-sparkles',
-      })
-    } else if (generateError.value) {
-      toast.add({
-        title: 'Upscale Failed',
-        description: generateError.value,
-        color: 'error',
-        icon: 'i-lucide-alert-circle',
-      })
-    }
-  } finally {
-    upscaling.value = false
-  }
+  if (currentItem.value) await _handleUpscale(currentItem.value)
 }
 
 async function handleDelete() {
@@ -537,7 +173,6 @@ async function handleDelete() {
   const id = currentItem.value.id
   const idx = currentIndex.value
   await deleteGeneration(id)
-  // Remove from items
   items.value = items.value.filter((g: Generation) => g.id !== id)
   if (items.value.length === 0) {
     close()
@@ -546,13 +181,10 @@ async function handleDelete() {
   }
 }
 
-// ── Cleanup ──────────────────────────────────────────────
-onUnmounted(() => {
-  if (controlsTimer) clearTimeout(controlsTimer)
-  if (import.meta.client) {
-    document.body.style.overflow = ''
-  }
-})
+function handlePresetClick(presetName: string) {
+  close()
+  navigateTo({ path: '/gallery', query: { search: presetName } })
+}
 </script>
 
 <template>
@@ -566,368 +198,86 @@ onUnmounted(() => {
       leave-to-class="opacity-0"
     >
       <div v-if="isOpen && currentItem" class="fixed inset-0 z-50 flex flex-col bg-black">
-        <!-- Top Bar -->
-        <div
-          class="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-4 py-3 bg-linear-to-b from-black/80 to-transparent"
-        >
-          <div class="flex items-center gap-3">
-            <UButton
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              size="lg"
-              class="text-white hover:bg-white/10 rounded-full"
-              @click="close"
-            />
-            <span class="text-white/70 text-sm font-mono tabular-nums flex items-center gap-2">
-              {{ counter }}
-              <UIcon
-                v-if="loadingMore"
-                name="i-lucide-loader-2"
-                class="size-3.5 animate-spin text-primary"
-              />
-            </span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <!-- Zoom controls (images only) -->
-            <template v-if="!isVideo && currentItem.status === 'done'">
-              <UTooltip text="Zoom out (-)">
-                <UButton
-                  icon="i-lucide-zoom-out"
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                  :disabled="!isZoomed"
-                  class="text-white hover:bg-white/10 rounded-full"
-                  @click="zoomOut"
-                />
-              </UTooltip>
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="text-white/70 font-mono tabular-nums min-w-10 text-center hover:text-white hover:bg-white/10 rounded-md px-1"
-                @click="resetZoom"
-              >
-                {{ Math.round(zoomLevel * 100) }}%
-              </UButton>
-              <UTooltip text="Zoom in (+)">
-                <UButton
-                  icon="i-lucide-zoom-in"
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                  :disabled="zoomLevel >= MAX_ZOOM"
-                  class="text-white hover:bg-white/10 rounded-full"
-                  @click="zoomIn"
-                />
-              </UTooltip>
-              <div class="w-px h-5 bg-white/20 mx-0.5" />
-            </template>
-            <UTooltip text="View details">
-              <UButton
-                icon="i-lucide-info"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                class="text-white hover:bg-white/10 rounded-full"
-                @click="handleInfo"
-              />
-            </UTooltip>
-            <UTooltip
-              v-if="currentItem.type === 'image' && currentItem.status === 'done'"
-              text="Animate"
-            >
-              <UButton
-                icon="i-lucide-video"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                class="text-white hover:bg-white/10 rounded-full"
-                @click="handleUseAsSource"
-              />
-            </UTooltip>
-            <UTooltip
-              v-if="currentItem.type === 'image' && currentItem.status === 'done'"
-              text="Edit image"
-            >
-              <UButton
-                icon="i-lucide-layers"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                class="text-white hover:bg-white/10 rounded-full"
-                @click="handleEditImage"
-              />
-            </UTooltip>
-            <UTooltip v-if="currentItem.status === 'done'" text="Remix">
-              <UButton
-                icon="i-lucide-shuffle"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                class="text-white hover:bg-white/10 rounded-full"
-                :loading="remixingRef"
-                @click="handleRemix"
-              />
-            </UTooltip>
-            <UTooltip
-              v-if="currentItem.type === 'image' && currentItem.status === 'done'"
-              text="Upscale to 2K"
-            >
-              <UButton
-                icon="i-lucide-maximize-2"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                class="text-white hover:bg-white/10 rounded-full"
-                :loading="upscaling"
-                @click="handleUpscale"
-              />
-            </UTooltip>
-            <UTooltip text="Delete">
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                size="sm"
-                class="text-white hover:bg-white/10 rounded-full"
-                @click="handleDelete"
-              />
-            </UTooltip>
-          </div>
-        </div>
+        <!-- Top Bar extracted -->
+        <GalleryViewerToolbar
+          :item="currentItem"
+          :counter="counter"
+          :loading-more="loadingMore"
+          :is-zoomed="isZoomed"
+          :zoom-level="zoomLevel"
+          :max-zoom="maxZoom"
+          :remixing="remixingRef"
+          @close="close"
+          @zoom-in="imageViewerRef?.zoomIn()"
+          @zoom-out="imageViewerRef?.zoomOut()"
+          @reset-zoom="imageViewerRef?.resetZoom()"
+          @info="handleInfo"
+          @use-as-source="handleUseAsSource"
+          @edit-image="handleEditImage"
+          @remix="handleRemix"
+          @upscale="handleUpscale"
+          @delete="handleDelete"
+        />
 
         <!-- Main Media Area -->
+        <GalleryViewerImage
+          v-if="!isVideo && mediaUrl"
+          ref="imageViewerRef"
+          :item="currentItem"
+          :media-url="mediaUrl"
+          :has-next="hasNext"
+          :has-prev="hasPrev"
+          @next="next"
+          @prev="prev"
+        />
+
+        <GalleryViewerVideo
+          v-else-if="isVideo && mediaUrl"
+          ref="videoViewerRef"
+          :item="currentItem"
+          :media-url="mediaUrl"
+          :has-next="hasNext"
+          :has-prev="hasPrev"
+          @next="next"
+          @prev="prev"
+        />
+
+        <!-- Pending / Error States -->
         <div
-          class="flex-1 flex items-center justify-center relative min-h-0 px-4 sm:px-16 overflow-hidden"
-          @wheel.prevent="handleWheelZoom"
-          @touchstart.passive="handleTouchStart"
-          @touchmove="handleTouchMove"
-          @touchend.passive="handleTouchEnd"
+          v-else-if="currentItem.status === 'pending'"
+          class="flex flex-col items-center justify-center flex-1 gap-4"
         >
-          <!-- Prev Button (Desktop) -->
-          <UButton
-            v-if="hasPrev && !isZoomed"
-            icon="i-lucide-chevron-left"
-            color="neutral"
-            variant="ghost"
-            size="xl"
-            class="hidden sm:flex absolute left-2 z-10 text-white/60 hover:text-white hover:bg-white/10 rounded-full size-12 transition-colors"
-            @click="prev"
-          />
-
-          <!-- Image -->
-          <div
-            v-if="!isVideo && mediaUrl"
-            ref="imageContainerRef"
-            class="flex items-center justify-center w-full h-full"
-            :style="{ cursor: isZoomed ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in' }"
-            @mousedown="handleMouseDown"
-            @dblclick="handleDblClick"
-          >
-            <MediaImg
-              :src="mediaUrl"
-              :alt="currentItem.prompt"
-              class="w-full h-full object-contain select-none pointer-events-none"
-              :style="{
-                transform: imageTransform,
-                transition: isDragging ? 'none' : 'transform 0.15s ease-out',
-                transformOrigin: 'center center',
-              }"
-            />
-          </div>
-
-          <!-- Video -->
-          <div
-            v-else-if="isVideo && mediaUrl"
-            class="relative flex items-center justify-center w-full h-full"
-            @mousemove="handleMouseMoveOnVideo"
-          >
-            <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
-            <video
-              ref="videoRef"
-              :src="mediaUrl"
-              :muted="isMuted"
-              loop
-              playsinline
-              class="w-full h-full object-contain select-none cursor-pointer"
-              @click="handleVideoClick"
-              @timeupdate="handleTimeUpdate"
-              @loadedmetadata="handleLoadedMetadata"
-            />
-
-            <!-- Custom Controls Overlay -->
-            <Transition
-              enter-active-class="transition-opacity duration-200"
-              enter-from-class="opacity-0"
-              leave-active-class="transition-opacity duration-200"
-              leave-from-class="opacity-100"
-              leave-to-class="opacity-0"
-            >
-              <div
-                v-show="showControls"
-                class="absolute bottom-0 inset-x-0 bg-linear-to-t from-black/80 to-transparent px-4 pb-4 pt-12"
-                @click.stop
-              >
-                <!-- Progress Bar -->
-                <div
-                  class="group relative h-1 hover:h-2 bg-white/20 rounded-full cursor-pointer mb-3 transition-all"
-                  role="slider"
-                  :aria-valuenow="Math.round(progressPercent)"
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                  tabindex="0"
-                  @click="seekTo"
-                >
-                  <div
-                    class="absolute inset-y-0 left-0 bg-primary rounded-full transition-all"
-                    :style="{ width: `${progressPercent}%` }"
-                  />
-                  <div
-                    class="absolute top-1/2 -translate-y-1/2 size-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    :style="{ left: `calc(${progressPercent}% - 6px)` }"
-                  />
-                </div>
-
-                <!-- Controls Row -->
-                <div class="flex items-center gap-3">
-                  <UButton
-                    :icon="isPlaying ? 'i-lucide-pause' : 'i-lucide-play'"
-                    color="neutral"
-                    variant="ghost"
-                    size="sm"
-                    class="text-white hover:bg-white/10 rounded-full"
-                    @click="togglePlay"
-                  />
-                  <span class="text-white/70 text-xs font-mono tabular-nums">
-                    {{ formatTime(currentTime) }} / {{ formatTime(videoDuration) }}
-                  </span>
-                  <div class="flex-1" />
-                  <UButton
-                    :icon="isMuted ? 'i-lucide-volume-x' : 'i-lucide-volume-2'"
-                    color="neutral"
-                    variant="ghost"
-                    size="sm"
-                    class="text-white hover:bg-white/10 rounded-full"
-                    @click="toggleMute"
-                  />
-                </div>
-              </div>
-            </Transition>
-          </div>
-
-          <!-- Pending / Error States -->
-          <div
-            v-else-if="currentItem.status === 'pending'"
-            class="flex flex-col items-center gap-4"
-          >
-            <UIcon name="i-lucide-loader-2" class="size-12 animate-spin text-primary" />
-            <p class="text-white/60">Still generating...</p>
-          </div>
-          <div v-else class="flex flex-col items-center gap-4">
-            <UIcon name="i-lucide-alert-triangle" class="size-12 text-error" />
-            <p class="text-white/60">Generation {{ currentItem.status }}</p>
-          </div>
-
-          <!-- Remix Overlay -->
-          <Transition
-            enter-active-class="transition-opacity duration-200"
-            enter-from-class="opacity-0"
-            leave-active-class="transition-opacity duration-200"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0"
-          >
-            <div
-              v-if="remixingRef"
-              class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm"
-            >
-              <div class="relative">
-                <UIcon name="i-lucide-shuffle" class="size-14 text-primary animate-spin" />
-                <div class="absolute inset-0 animate-glow-pulse rounded-full" />
-              </div>
-              <p class="mt-4 text-lg font-medium text-white">Remixing your creation…</p>
-              <p class="mt-1 text-sm text-white/60">Generating a fresh variation</p>
-            </div>
-          </Transition>
-
-          <!-- Next Button (Desktop) -->
-          <UButton
-            v-if="hasNext && !isZoomed"
-            icon="i-lucide-chevron-right"
-            color="neutral"
-            variant="ghost"
-            size="xl"
-            class="hidden sm:flex absolute right-2 z-10 text-white/60 hover:text-white hover:bg-white/10 rounded-full size-12 transition-colors"
-            @click="next"
-          />
-
-          <!-- Zoom hint (when zoomed) -->
-          <Transition
-            enter-active-class="transition-opacity duration-300"
-            enter-from-class="opacity-0"
-            leave-active-class="transition-opacity duration-300"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0"
-          >
-            <div
-              v-if="isZoomed"
-              class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none"
-            >
-              <span
-                class="text-xs text-white/50 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full whitespace-nowrap"
-              >
-                Drag to pan &middot; Double-click or press 0 to reset
-              </span>
-            </div>
-          </Transition>
+          <UIcon name="i-lucide-loader-2" class="size-12 animate-spin text-primary" />
+          <p class="text-white/60">Still generating...</p>
+        </div>
+        <div v-else class="flex flex-col items-center justify-center flex-1 gap-4">
+          <UIcon name="i-lucide-alert-triangle" class="size-12 text-error" />
+          <p class="text-white/60">Generation {{ currentItem.status }}</p>
         </div>
 
-        <!-- Bottom Info Panel -->
-        <div
-          class="shrink-0 bg-linear-to-t from-black via-black/90 to-transparent px-4 sm:px-8 pb-6 pt-4"
+        <!-- Remix Overlay -->
+        <Transition
+          enter-active-class="transition-opacity duration-200"
+          enter-from-class="opacity-0"
+          leave-active-class="transition-opacity duration-200"
+          leave-from-class="opacity-100"
+          leave-to-class="opacity-0"
         >
-          <div class="max-w-3xl mx-auto space-y-2">
-            <!-- Prompt -->
-            <div class="flex items-start gap-3 group">
-              <p class="text-white/90 text-sm leading-relaxed line-clamp-2 flex-1">
-                "{{ currentItem.prompt }}"
-              </p>
-              <CopyButton
-                :text="currentItem.prompt"
-                class="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-white"
-              />
+          <div
+            v-if="remixingRef"
+            class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm"
+          >
+            <div class="relative">
+              <UIcon name="i-lucide-shuffle" class="size-14 text-primary animate-spin" />
+              <div class="absolute inset-0 animate-glow-pulse rounded-full" />
             </div>
-
-            <!-- Metadata Row -->
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/50">
-              <span class="capitalize">{{ currentItem.type }}</span>
-              <span>{{ modeLabels[currentItem.mode] || currentItem.mode }}</span>
-              <span>{{ formattedDate }}</span>
-              <span v-if="currentItem.aspectRatio">{{ currentItem.aspectRatio }}</span>
-              <span v-if="currentItem.resolution">{{ currentItem.resolution }}</span>
-              <span v-if="currentItem.duration">{{ currentItem.duration }}s</span>
-              <span v-if="currentItem.generationTimeMs" class="opacity-75">
-                ({{ (currentItem.generationTimeMs / 1000).toFixed(1) }}s gen)
-              </span>
-            </div>
-
-            <!-- Presets -->
-            <div v-if="parsedPresets?.length" class="flex flex-wrap gap-1.5 pt-1">
-              <UBadge
-                v-for="preset in parsedPresets"
-                :key="preset.name"
-                color="primary"
-                variant="subtle"
-                size="xs"
-                class="font-medium cursor-pointer hover:bg-primary/20 transition-colors"
-                @click="handlePresetClick(preset.name)"
-              >
-                {{ preset.label }}
-              </UBadge>
-            </div>
+            <p class="mt-4 text-lg font-medium text-white">Remixing your creation…</p>
+            <p class="mt-1 text-sm text-white/60">Generating a fresh variation</p>
           </div>
-        </div>
+        </Transition>
+
+        <!-- Bottom Info Panel extracted -->
+        <GalleryViewerMetadata :item="currentItem" @preset-click="handlePresetClick" />
       </div>
     </Transition>
   </Teleport>

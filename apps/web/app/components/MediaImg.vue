@@ -29,6 +29,7 @@ const isDev = import.meta.dev
     :loading="loading"
     :width="width"
     :height="height"
+    v-bind="$attrs"
   />
   <!-- eslint-enable narduk/no-native-img -->
   <NuxtImg
@@ -40,5 +41,6 @@ const isDev = import.meta.dev
     :width="width"
     :height="height"
     placeholder
+    v-bind="$attrs"
   />
 </template>

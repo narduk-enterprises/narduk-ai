@@ -1,0 +1,124 @@
+- generic [active] [ref=e1]:
+    - generic [ref=e2]:
+        - link "Skip to content" [ref=e3] [cursor=pointer]:
+            - /url: "#main-content"
+        - generic [ref=e4]:
+            - banner [ref=e5]:
+                - generic [ref=e6]:
+                    - link "Narduk AI" [ref=e7] [cursor=pointer]:
+                        - /url: /
+                        - generic [ref=e10]: Narduk AI
+                    - navigation "Main navigation" [ref=e134]:
+                        - link "Create" [ref=e135] [cursor=pointer]:
+                            - /url: /generate
+                            - text: Create
+                        - link "Chat" [ref=e137] [cursor=pointer]:
+                            - /url: /chat
+                            - text: Chat
+                        - link "Gallery" [ref=e139] [cursor=pointer]:
+                            - /url: /gallery
+                            - text: Gallery
+                        - link "Prompts" [ref=e141] [cursor=pointer]:
+                            - /url: /compose
+                            - text: Prompts
+                        - link "Presets" [ref=e143] [cursor=pointer]:
+                            - /url: /presets
+                            - text: Presets
+                        - link "Settings" [ref=e145] [cursor=pointer]:
+                            - /url: /settings
+                            - text: Settings
+                    - generic [ref=e11]:
+                        - button "Toggle color mode" [ref=e12]
+                        - button "GZ" [ref=e147]:
+                            - generic [ref=e149]: GZ
+            - main [ref=e15]:
+                - generic [ref=e150]:
+                    - generic [ref=e151]:
+                        - heading "Generate" [level=1] [ref=e152]
+                        - paragraph [ref=e153]: Create images and videos with AI
+                    - generic [ref=e154]:
+                        - generic [ref=e155]:
+                            - generic [ref=e156]:
+                                - generic [ref=e157]:
+                                    - button "Text → Image" [ref=e158]:
+                                        - generic [ref=e160]: Text → Image
+                                    - button "Text → Video" [ref=e161]:
+                                        - generic [ref=e163]: Text → Video
+                                    - button "Image → Video" [ref=e164]:
+                                        - generic [ref=e166]: Image → Video
+                                    - button "Image → Image" [ref=e167]:
+                                        - generic [ref=e169]: Image → Image
+                                - paragraph [ref=e170]: Create an image from a text description
+                            - generic [ref=e171]:
+                                - generic [ref=e172]:
+                                    - generic [ref=e174]:
+                                        - generic [ref=e175]:
+                                            - generic [ref=e177]: Prompt
+                                            - text: "*"
+                                        - generic [ref=e179]:
+                                            - button "Library" [ref=e180]: Library
+                                            - button "Remix" [disabled] [ref=e182]: Remix
+                                            - button "Enhance" [disabled] [ref=e184]: Enhance
+                                            - generic [ref=e186]: 0 chars
+                                    - textbox "Prompt *" [ref=e190]:
+                                        - /placeholder: Describe what you want to create...
+                                - generic [ref=e191]:
+                                    - generic [ref=e192]:
+                                        - generic [ref=e195]: Aspect Ratio
+                                        - combobox "Aspect Ratio" [ref=e197]:
+                                            - generic: 9:16
+                                    - generic [ref=e200]:
+                                        - generic [ref=e203]: Images
+                                        - generic [ref=e205]:
+                                            - button "1" [ref=e206]:
+                                                - generic [ref=e207]: "1"
+                                            - button "2" [ref=e208]:
+                                                - generic [ref=e209]: "2"
+                                            - button "3" [ref=e210]:
+                                                - generic [ref=e211]: "3"
+                                            - button "4" [ref=e212]:
+                                                - generic [ref=e213]: "4"
+                                    - generic [ref=e214]:
+                                        - generic [ref=e217]: Model
+                                        - combobox "Model" [ref=e219]:
+                                            - generic: Aurora
+                                - generic [ref=e222]:
+                                    - button "Generate" [disabled] [ref=e223]:
+                                        - generic [ref=e225]: Generate
+                                    - button "Feeling Lucky" [ref=e226]:
+                                        - generic [ref=e228]: Feeling Lucky
+                            - generic [ref=e229]:
+                                - generic [ref=e230]:
+                                    - heading "Recent" [level=2] [ref=e231]
+                                    - link "View All" [ref=e232] [cursor=pointer]:
+                                        - /url: /gallery
+                                        - text: View All
+                                - paragraph [ref=e237]: Your creations will appear here
+                        - paragraph [ref=e242]: Your generated image will appear here
+            - contentinfo [ref=e42]:
+                - generic [ref=e44]:
+                    - generic [ref=e45]:
+                        - link [ref=e46] [cursor=pointer]:
+                            - /url: /
+                        - paragraph [ref=e49]:
+                            - text: ©
+                            - time [ref=e50]: "2026"
+                            - text: narduk-ai
+                    - generic [ref=e51]:
+                        - generic [ref=e52]: Powered by Grok Imagine
+                        - generic [ref=e53]: ·
+                        - generic [ref=e54]: Nuxt 4
+                        - generic [ref=e55]: ·
+                        - generic [ref=e56]: Cloudflare Workers
+    - generic:
+        - img
+    - generic [ref=e90]:
+        - button "Toggle Nuxt DevTools" [ref=e91] [cursor=pointer]:
+            - img [ref=e92]
+        - generic "Page load time" [ref=e95]:
+            - generic [ref=e96]: "130"
+            - generic [ref=e97]: ms
+        - button "Toggle Component Inspector" [ref=e99] [cursor=pointer]:
+            - img [ref=e100]
+    - region "Notifications (F8)":
+        - list
