@@ -14,7 +14,7 @@ const bodySchema = z.object({
   promptElements: z.array(z.string()).optional(),
   presets: z.record(z.string(), z.string()).optional(),
   userPromptId: z.string().optional(),
-  lineage: z.string().max(50000).optional(),
+  lineage: z.string().max(500_000).optional(),
 })
 
 /**

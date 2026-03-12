@@ -4,8 +4,8 @@ import { userPrompts } from '../../database/schema'
 const bodySchema = z.object({
   title: z.string().min(1).max(200),
   prompt: z.string().min(1).max(3000),
-  initialPresets: z.string().max(10000).nullish(),
-  chatHistory: z.string().max(50000).nullish(),
+  initialPresets: z.string().max(500_000).nullish(),
+  chatHistory: z.string().max(500_000).nullish(),
 })
 
 /**
