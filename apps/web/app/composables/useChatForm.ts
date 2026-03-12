@@ -132,7 +132,11 @@ export function useChatForm() {
       // Backfill the client-side system message so it saves correctly.
       // Guard: only overwrite when baseSystemPrompt is non-empty to prevent
       // corrupting the slot when prompts haven't loaded yet (timing issue on preset editor).
-      if (baseSystemPrompt && chatMessages.value.length > 0 && chatMessages.value[0]?.role === 'system') {
+      if (
+        baseSystemPrompt &&
+        chatMessages.value.length > 0 &&
+        chatMessages.value[0]?.role === 'system'
+      ) {
         chatMessages.value[0].content = `${baseSystemPrompt}${mediaContext}`
       }
 
@@ -172,7 +176,12 @@ export function useChatForm() {
           const msg = chatMessages.value[assistantIndex]
           if (msg) {
             msg.content = '<message>Sorry, the response was empty. Please try again.</message>'
-            msg.parsedResponse = { message: 'Sorry, the response was empty. Please try again.', prompt: null, suggested_name: null, builder_state: null }
+            msg.parsedResponse = {
+              message: 'Sorry, the response was empty. Please try again.',
+              prompt: null,
+              suggested_name: null,
+              builder_state: null,
+            }
           }
         }
         return
