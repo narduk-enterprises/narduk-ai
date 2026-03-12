@@ -12,10 +12,10 @@ const bodySchema = z.object({
     .array(
       z.object({
         role: z.enum(['system', 'user', 'assistant']),
-        content: z.string().min(1).max(100_000),
+        content: z.string().min(1).max(1_000_000),
       }),
     )
-    .max(20), // Max 20 messages in history
+    .max(50), // Max 50 messages in history
   stream: z.boolean().optional().default(false),
 })
 
