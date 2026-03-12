@@ -48,7 +48,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="space-y-4 min-w-0">
+  <div class="space-y-4 min-w-0 overflow-hidden">
     <div class="flex items-center justify-between">
       <h2 class="text-lg font-display font-semibold">Recent</h2>
       <UButton variant="link" to="/gallery" size="sm" trailing-icon="i-lucide-arrow-right">
@@ -83,6 +83,7 @@ onUnmounted(() => {
         v-slot="{ item }"
         :items="generations"
         :ui="{
+          root: 'overflow-hidden w-full',
           item: 'min-w-0 shrink-0 grow-0 basis-auto ps-4',
           container: 'flex items-start -ms-4',
         }"
