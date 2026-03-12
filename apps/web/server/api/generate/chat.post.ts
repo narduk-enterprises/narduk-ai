@@ -3,12 +3,7 @@ import { eq } from 'drizzle-orm'
 import { appSettings } from '../../database/schema'
 import { grokChatStream, type GrokChatMessage } from '../../utils/grok'
 
-const ALLOWED_CHAT_MODELS = [
-  'grok-3-mini',
-  'grok-3',
-  'grok-2-1212',
-  'grok-2-vision-1212',
-] as const
+const ALLOWED_CHAT_MODELS = ['grok-3-mini', 'grok-3', 'grok-2-1212', 'grok-2-vision-1212'] as const
 
 const contentPartSchema = z.object({
   type: z.enum(['text', 'image_url']),
@@ -18,10 +13,7 @@ const contentPartSchema = z.object({
 
 const messageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant']),
-  content: z.union([
-    z.string().min(1).max(1_000_000),
-    z.array(contentPartSchema).min(1).max(10),
-  ]),
+  content: z.union([z.string().min(1).max(1_000_000), z.array(contentPartSchema).min(1).max(10)]),
 })
 
 const bodySchema = z.object({
@@ -57,19 +49,22 @@ export default defineEventHandler(async (event) => {
 
   const db = useDatabase(event)
 
-  // Fetch configured model from database
-  let chatModel = 'grok-3-mini'
-  try {
-    const settings = await db
-      .select({ promptEnhanceModel: appSettings.promptEnhanceModel })
-      .from(appSettings)
-      .where(eq(appSettings.id, 1))
-      .get()
-    if (settings?.promptEnhanceModel) {
-      chatModel = settings.promptEnhanceModel
+  // Client-supplied model takes priority over the DB setting (enables per-session model switching).
+  // Fall back to DB setting, then hard-coded default.
+  let chatModel = body.model || 'grok-3-mini'
+  if (!body.model) {
+    try {
+      const settings = await db
+        .select({ promptEnhanceModel: appSettings.promptEnhanceModel })
+        .from(appSettings)
+        .where(eq(appSettings.id, 1))
+        .get()
+      if (settings?.promptEnhanceModel) {
+        chatModel = settings.promptEnhanceModel
+      }
+    } catch (err) {
+      log.warn('Could not fetch appSettings for chatModel', { err })
     }
-  } catch (err) {
-    log.warn('Could not fetch appSettings for chatModel', { err })
   }
 
   try {
