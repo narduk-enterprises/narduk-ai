@@ -13,7 +13,7 @@
     "ship:fleet": "npx tsx tools/ship-fleet.ts",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "quality": "turbo run quality --filter='./apps/*'",
+    "quality": "pnpm run quality:fix && turbo run quality --filter='./apps/*'",
     "check": "pnpm run quality",
     "quality:fleet": "bash scripts/fleet-quality.sh",
     "sync:fleet": "bash scripts/sync-fleet-local.sh --allow-dirty-template",
