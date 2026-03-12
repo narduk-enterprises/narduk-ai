@@ -188,6 +188,10 @@ function getIterationStatusLabel(run: IterationRun) {
   if (run.status === 'failed') return 'Failed'
   return `Running ${run.completedIterations}/${run.totalIterations}`
 }
+
+function getLatestIterationReview(run: IterationRun) {
+  return [...run.steps].reverse().find((step) => step.imageAnalysis)?.imageAnalysis ?? null
+}
 </script>
 
 <template>
@@ -381,6 +385,45 @@ function getIterationStatusLabel(run: IterationRun) {
               </p>
             </div>
 
+            <div class="grid gap-3 md:grid-cols-2">
+              <div
+                v-if="entry.iterationRun.context"
+                class="rounded-xl border border-default/50 bg-default/60 px-3 py-2"
+              >
+                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed">
+                  Context & Feedback
+                </p>
+                <p class="mt-1 text-sm text-default whitespace-pre-wrap">
+                  {{ entry.iterationRun.context }}
+                </p>
+              </div>
+
+              <div class="rounded-xl border border-default/50 bg-default/60 px-3 py-2">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed">
+                  Agent Scope
+                </p>
+                <p class="mt-1 text-sm text-default whitespace-pre-wrap">
+                  {{
+                    entry.iterationRun.status === 'running'
+                      ? 'This pass uses the goal, your latest context notes, prior pass summaries, and the rendered images from this run.'
+                      : 'This run used the goal, your context notes, prior pass summaries, and the rendered images from this run.'
+                  }}
+                </p>
+              </div>
+            </div>
+
+            <div
+              v-if="getLatestIterationReview(entry.iterationRun)"
+              class="rounded-xl border border-default/50 bg-default/60 px-3 py-2"
+            >
+              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed">
+                Latest Visual Review
+              </p>
+              <p class="mt-1 text-sm text-default whitespace-pre-wrap">
+                {{ getLatestIterationReview(entry.iterationRun) }}
+              </p>
+            </div>
+
             <div class="space-y-2">
               <div
                 v-for="step in entry.iterationRun.steps"
@@ -398,6 +441,14 @@ function getIterationStatusLabel(run: IterationRun) {
                 <p class="mt-1 text-sm text-default whitespace-pre-wrap">
                   {{ step.changeSummary }}
                 </p>
+                <div v-if="step.contextSnapshot" class="mt-3 space-y-1">
+                  <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed">
+                    Context Used
+                  </p>
+                  <p class="text-xs text-default/90 leading-relaxed whitespace-pre-wrap">
+                    {{ step.contextSnapshot }}
+                  </p>
+                </div>
                 <div v-if="step.imageUrl || step.renderedPrompt || step.imageAnalysis" class="mt-3">
                   <div class="flex flex-col gap-3 md:flex-row md:items-start">
                     <div

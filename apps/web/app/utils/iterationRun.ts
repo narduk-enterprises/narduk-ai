@@ -4,6 +4,7 @@ export interface IterationStepResult {
   revisedPrompt: string
   changeSummary: string
   message?: string | null
+  contextSnapshot?: string | null
   renderedPrompt?: string | null
   imageUrl?: string | null
   imageAnalysis?: string | null
@@ -12,12 +13,15 @@ export interface IterationStepResult {
 interface RunIterationLoopOptions {
   initialPrompt: string
   goal: string
+  context?: string
   round?: number
   totalIterations?: number
   signal?: AbortSignal
+  getContext?: () => string
   runStep: (input: {
     prompt: string
     goal: string
+    context: string
     iteration: number
     totalIterations: number
     round: number
@@ -30,11 +34,13 @@ interface RunIterationLoopOptions {
 export function createIterationRun(input: {
   initialPrompt: string
   goal: string
+  context?: string
   round?: number
   totalIterations?: number
 }): IterationRun {
   return {
     goal: input.goal.trim(),
+    context: input.context?.trim() || '',
     initialPrompt: input.initialPrompt.trim(),
     currentPrompt: input.initialPrompt.trim(),
     status: 'running',
@@ -45,10 +51,24 @@ export function createIterationRun(input: {
   }
 }
 
-export function buildIterationUserMessage(prompt: string, goal: string, round = 1): string {
+export function buildIterationUserMessage(
+  prompt: string,
+  goal: string,
+  round = 1,
+  context = '',
+): string {
   const heading = round > 1 ? `Continue Iteration Round ${round}` : 'Iteration Request'
 
-  return `${heading}\nGoal: ${goal.trim()}\n\nStarting Prompt:\n${prompt.trim()}`
+  const normalizedContext = context.trim()
+
+  return [
+    `${heading}`,
+    `Goal: ${goal.trim()}`,
+    normalizedContext ? `Context:\n${normalizedContext}` : null,
+    `Starting Prompt:\n${prompt.trim()}`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
 }
 
 export function deriveIterationSessionTitle(goal: string): string {
@@ -75,6 +95,7 @@ export async function runIterationLoop(options: RunIterationLoopOptions): Promis
   const run = createIterationRun({
     initialPrompt: options.initialPrompt,
     goal: options.goal,
+    context: options.context,
     round: options.round,
     totalIterations: options.totalIterations,
   })
@@ -88,10 +109,13 @@ export async function runIterationLoop(options: RunIterationLoopOptions): Promis
       return run
     }
 
+    run.context = options.getContext?.().trim() || run.context
+
     try {
       const result = await options.runStep({
         prompt: run.currentPrompt,
         goal: run.goal,
+        context: run.context,
         iteration,
         totalIterations: run.totalIterations,
         round: run.round,
@@ -104,6 +128,7 @@ export async function runIterationLoop(options: RunIterationLoopOptions): Promis
         prompt: result.revisedPrompt.trim(),
         changeSummary: result.changeSummary.trim(),
         message: result.message?.trim() || null,
+        contextSnapshot: result.contextSnapshot?.trim() || null,
         renderedPrompt: result.renderedPrompt?.trim() || null,
         imageUrl: result.imageUrl?.trim() || null,
         imageAnalysis: result.imageAnalysis?.trim() || null,

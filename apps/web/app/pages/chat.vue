@@ -18,6 +18,7 @@ const {
   inputMode,
   iterationPrompt,
   iterationGoal,
+  iterationContext,
   activeIterationRun,
   isChatting,
   isIterating,
@@ -196,7 +197,7 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
     <div
       class="px-3 pt-3 md:px-6 md:pt-4 md:pb-8 bg-default border-t border-default/50 shrink-0 pb-safe"
     >
-      <div class="max-w-4xl mx-auto space-y-3">
+      <div class="max-w-5xl mx-auto space-y-3">
         <div class="flex flex-wrap items-center gap-2">
           <UButton
             color="neutral"
@@ -221,6 +222,16 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
             Iterate
           </UButton>
         </div>
+
+        <p class="text-xs text-muted leading-relaxed">
+          <span v-if="inputMode === 'chat'">
+            Chat mode uses the full brainstorm thread and any images you explicitly share there.
+          </span>
+          <span v-else>
+            Iterate mode uses the starting prompt, goal, your context and feedback notes, plus the
+            rendered images and reviews from this iteration run only.
+          </span>
+        </p>
 
         <UForm
           v-if="inputMode === 'chat'"
@@ -255,29 +266,52 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
         <UForm
           v-else
           :state="{ prompt: iterationPrompt, goal: iterationGoal }"
-          class="space-y-3"
+          class="w-full space-y-3"
           @submit.prevent="() => startIterationRun()"
         >
-          <UFormField label="Starting Prompt">
+          <UFormField label="Starting Prompt" class="w-full">
             <UTextarea
               v-model="iterationPrompt"
               placeholder="Paste the prompt you want to improve..."
               autoresize
-              :rows="3"
-              :maxrows="7"
+              :rows="4"
+              :maxrows="10"
               :disabled="isIterating || isChatting || generatingInline"
+              class="w-full"
               :ui="{ base: 'rounded-2xl shadow-card' }"
             />
           </UFormField>
-          <UFormField label="Goal">
-            <UInput
+          <UFormField label="Goal" class="w-full">
+            <UTextarea
               v-model="iterationGoal"
               placeholder="What should the prompt get better at?"
+              autoresize
+              :rows="2"
+              :maxrows="5"
               :disabled="isIterating || isChatting || generatingInline"
-              size="lg"
+              class="w-full"
               :ui="{ base: 'rounded-2xl shadow-card' }"
             />
           </UFormField>
+          <UFormField
+            label="Context & Feedback"
+            description="Optional. Add constraints, reference details, or notes after reviewing each pass."
+            class="w-full"
+          >
+            <UTextarea
+              v-model="iterationContext"
+              placeholder="Examples: keep the exact face shape from the preset, the breasts are still too large, preserve the plain white background, prioritize likeness over cinematic style..."
+              autoresize
+              :rows="3"
+              :maxrows="8"
+              :disabled="isChatting || generatingInline"
+              class="w-full"
+              :ui="{ base: 'rounded-2xl shadow-card' }"
+            />
+          </UFormField>
+          <p v-if="isIterating" class="text-xs text-primary">
+            Changes to context and feedback apply on the next pass.
+          </p>
           <div class="flex flex-wrap items-center gap-2">
             <UButton
               type="submit"

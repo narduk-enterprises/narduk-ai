@@ -9,6 +9,7 @@ export interface IterationStep {
   prompt: string
   changeSummary: string
   message?: string | null
+  contextSnapshot?: string | null
   renderedPrompt?: string | null
   imageUrl?: string | null
   imageAnalysis?: string | null
@@ -16,6 +17,7 @@ export interface IterationStep {
 
 export interface IterationRun {
   goal: string
+  context: string
   initialPrompt: string
   currentPrompt: string
   status: 'running' | 'completed' | 'stopped' | 'failed'

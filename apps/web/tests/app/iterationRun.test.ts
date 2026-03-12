@@ -8,11 +8,13 @@ describe('iteration run helpers', () => {
     const run = await runIterationLoop({
       initialPrompt: 'portrait prompt',
       goal: 'Make it more cinematic',
+      context: 'Keep the same face shape and plain white background.',
       async runStep({ prompt, iteration }) {
         return {
           revisedPrompt: `${prompt} :: step-${iteration}`,
           changeSummary: `Applied pass ${iteration}.`,
           message: `Pass ${iteration} done.`,
+          contextSnapshot: 'Keep the same face shape and plain white background.',
           renderedPrompt: `rendered-${iteration}`,
           imageUrl: `/api/media/iteration-${iteration}.png`,
           imageAnalysis: `Review for pass ${iteration}.`,
@@ -25,6 +27,7 @@ describe('iteration run helpers', () => {
     expect(run.steps).toHaveLength(5)
     expect(run.currentPrompt).toContain('step-5')
     expect(run.steps[0]).toMatchObject({
+      contextSnapshot: 'Keep the same face shape and plain white background.',
       renderedPrompt: 'rendered-1',
       imageUrl: '/api/media/iteration-1.png',
       imageAnalysis: 'Review for pass 1.',
@@ -37,6 +40,7 @@ describe('iteration run helpers', () => {
     const run = await runIterationLoop({
       initialPrompt: 'portrait prompt',
       goal: 'Make it more cinematic',
+      context: 'Keep the background plain.',
       signal: controller.signal,
       async runStep({ prompt, iteration }) {
         if (iteration === 3) {
@@ -63,6 +67,7 @@ describe('iteration run helpers', () => {
     const firstRun = await runIterationLoop({
       initialPrompt: 'portrait prompt',
       goal: 'Make it more cinematic',
+      context: 'Preserve facial likeness.',
       round: 1,
       async runStep({ prompt, iteration }) {
         return {
@@ -75,6 +80,7 @@ describe('iteration run helpers', () => {
     const secondRun = await runIterationLoop({
       initialPrompt: firstRun.currentPrompt,
       goal: firstRun.goal,
+      context: firstRun.context,
       round: firstRun.round + 1,
       async runStep({ prompt, iteration }) {
         return {
@@ -98,6 +104,7 @@ describe('iteration run helpers', () => {
         prompt: 'final prompt',
         iterationRun: {
           goal: 'Make it more cinematic',
+          context: 'Keep the white background and focus on likeness.',
           initialPrompt: 'portrait prompt',
           currentPrompt: 'final prompt',
           status: 'completed',
@@ -109,6 +116,7 @@ describe('iteration run helpers', () => {
               iteration: 1,
               prompt: 'portrait prompt :: step-1',
               changeSummary: 'Added dramatic lighting.',
+              contextSnapshot: 'Keep the white background and focus on likeness.',
               renderedPrompt: 'portrait prompt :: render-1',
               imageUrl: '/api/media/render-1.png',
               imageAnalysis: 'The pose is close, but the anatomy still needs refinement.',
@@ -119,6 +127,9 @@ describe('iteration run helpers', () => {
     })
 
     expect(message.parsedResponse?.iterationRun?.goal).toBe('Make it more cinematic')
+    expect(message.parsedResponse?.iterationRun?.context).toBe(
+      'Keep the white background and focus on likeness.',
+    )
     expect(message.parsedResponse?.iterationRun?.steps[0]?.changeSummary).toBe(
       'Added dramatic lighting.',
     )

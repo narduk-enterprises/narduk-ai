@@ -25,6 +25,7 @@ interface UseChatFormOptions {
 interface StartIterationRunOptions {
   prompt?: string
   goal?: string
+  context?: string
   round?: number
 }
 
@@ -91,6 +92,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
   const {
     chatModels,
     preferredChatModel,
+    preferredImageModel,
     preferredVisionModel,
     refresh: refreshModels,
   } = useXaiModels()
@@ -105,6 +107,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
   const inputMode = ref<ChatInputMode>('chat')
   const iterationPrompt = ref('')
   const iterationGoal = ref('')
+  const iterationContext = ref('')
   const activeIterationRun = ref<IterationRun | null>(null)
   const isChatting = ref(false)
   const isIterating = ref(false)
@@ -112,6 +115,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
   const error = ref<string | null>(null)
   const selectedModel = ref<string>('')
   let iterationAbortController: AbortController | null = null
+  let activeIterationAssistantIndex: number | null = null
 
   watchEffect(() => {
     if (!chatModels.value.length) return
@@ -298,12 +302,6 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     })
   }
 
-  async function resolveIterationReviewImageUrl(imageUrl: string) {
-    if (!import.meta.client) return imageUrl
-
-    return await resolveVisionImageUrl(imageUrl, window.location.origin)
-  }
-
   async function persistTurn(
     userMessage: ChatMessage,
     assistantMessage: ChatMessage | undefined,
@@ -319,6 +317,28 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       await sessions.appendMessage(sessionId, assistantMessage, sessionTitle || undefined)
     }
   }
+
+  function syncActiveIterationRun(run: IterationRun) {
+    activeIterationRun.value = run
+
+    const assistantIndex = activeIterationAssistantIndex
+    if (assistantIndex === null) return
+
+    const assistantMessage = chatMessages.value[assistantIndex]
+    if (!assistantMessage) return
+
+    assistantMessage.content = formatAssistantContent(getIterationStatusMessage(run))
+    assistantMessage.parsedResponse = createIterationParsedResponse(run)
+  }
+
+  watch(iterationContext, (nextContext) => {
+    if (!isIterating.value || !activeIterationRun.value) return
+
+    syncActiveIterationRun({
+      ...activeIterationRun.value,
+      context: nextContext.trim(),
+    })
+  })
 
   async function sendChatMessage(contextString?: string) {
     if (!chatInput.value.trim() || isChatting.value || isIterating.value) return
@@ -495,6 +515,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
 
     const startingPrompt = (optionsOverride.prompt ?? iterationPrompt.value).trim()
     const goal = (optionsOverride.goal ?? iterationGoal.value).trim()
+    const context = (optionsOverride.context ?? iterationContext.value).trim()
     const round = optionsOverride.round ?? 1
 
     if (!startingPrompt || !goal) return
@@ -502,16 +523,18 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     inputMode.value = 'iterate'
     iterationPrompt.value = startingPrompt
     iterationGoal.value = goal
+    iterationContext.value = context
     error.value = null
     isIterating.value = true
 
     const userMessage: ChatMessage = {
       role: 'user',
-      content: buildIterationUserMessage(startingPrompt, goal, round),
+      content: buildIterationUserMessage(startingPrompt, goal, round, context),
     }
     const initialRun = createIterationRun({
       initialPrompt: startingPrompt,
       goal,
+      context,
       round,
     })
 
@@ -523,86 +546,59 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     })
 
     const assistantIndex = chatMessages.value.length - 1
+    activeIterationAssistantIndex = assistantIndex
     activeIterationRun.value = initialRun
     iterationAbortController = new AbortController()
 
-    const updateIterationAssistant = (run: IterationRun) => {
-      activeIterationRun.value = run
-
-      const assistantMessage = chatMessages.value[assistantIndex]
-      if (!assistantMessage) return
-
-      assistantMessage.content = formatAssistantContent(getIterationStatusMessage(run))
-      assistantMessage.parsedResponse = createIterationParsedResponse(run)
-    }
+    const updateIterationAssistant = (run: IterationRun) => syncActiveIterationRun(run)
 
     try {
       const requestModel = await ensureSelectedChatModel()
       if (!requestModel) {
         throw new Error('No xAI chat model is available for this API key.')
       }
-      const visionModel = await ensureVisionChatModel()
-      if (!visionModel) {
-        throw new Error('No vision-capable xAI chat model is available for this API key.')
-      }
 
       const run = await runIterationLoop({
         initialPrompt: startingPrompt,
         goal,
         round,
+        context,
         signal: iterationAbortController.signal,
+        getContext: () => iterationContext.value,
         onUpdate: updateIterationAssistant,
-        runStep: async ({ prompt, goal, iteration, totalIterations, priorSteps, signal }) => {
-          const stepResult = await $fetch<{
+        runStep: async ({
+          prompt,
+          goal,
+          context,
+          iteration,
+          totalIterations,
+          priorSteps,
+          signal,
+        }) =>
+          await $fetch<{
             revisedPrompt: string
             changeSummary: string
             message?: string | null
-          }>('/api/chat/iterate-step', {
+            contextSnapshot?: string | null
+            renderedPrompt?: string | null
+            imageUrl?: string | null
+            imageAnalysis?: string | null
+          }>('/api/chat/iterate-pass', {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: {
               prompt,
               goal,
+              context,
               iteration,
               totalIterations,
               priorSteps,
               model: requestModel,
+              visionModel: preferredVisionModel.value || undefined,
+              imageModel: preferredImageModel.value || undefined,
             },
             signal,
-          })
-
-          const generated = await requestImageGeneration(stepResult.revisedPrompt, signal)
-          const imageUrl = await resolveIterationReviewImageUrl(generated.mediaUrl)
-
-          const reviewResult = await $fetch<{
-            revisedPrompt: string
-            changeSummary: string
-            message?: string | null
-            imageAnalysis: string
-          }>('/api/chat/iterate-review', {
-            method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            body: {
-              renderedPrompt: stepResult.revisedPrompt,
-              goal,
-              imageUrl,
-              iteration,
-              totalIterations,
-              priorSteps,
-              model: visionModel,
-            },
-            signal,
-          })
-
-          return {
-            revisedPrompt: reviewResult.revisedPrompt,
-            changeSummary: reviewResult.changeSummary,
-            message: reviewResult.message || stepResult.message || null,
-            renderedPrompt: stepResult.revisedPrompt,
-            imageUrl: generated.mediaUrl,
-            imageAnalysis: reviewResult.imageAnalysis,
-          }
-        },
+          }),
       })
 
       iterationPrompt.value = run.currentPrompt
@@ -621,7 +617,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
 
       const failedRun = activeIterationRun.value
         ? { ...activeIterationRun.value, status: 'failed' as const }
-        : createIterationRun({ initialPrompt: startingPrompt, goal, round })
+        : createIterationRun({ initialPrompt: startingPrompt, goal, context, round })
       updateIterationAssistant(failedRun)
 
       const assistantMessage = chatMessages.value[assistantIndex]
@@ -634,6 +630,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     } finally {
       isIterating.value = false
       iterationAbortController = null
+      activeIterationAssistantIndex = null
     }
   }
 
@@ -647,13 +644,17 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     const sourceRun = run ?? activeIterationRun.value
     if (!sourceRun || sourceRun.status === 'running') return
 
+    const nextContext = iterationContext.value.trim() || sourceRun.context
+
     iterationPrompt.value = sourceRun.currentPrompt
     iterationGoal.value = sourceRun.goal
+    iterationContext.value = nextContext
     inputMode.value = 'iterate'
 
     await startIterationRun({
       prompt: sourceRun.currentPrompt,
       goal: sourceRun.goal,
+      context: nextContext,
       round: sourceRun.round + 1,
     })
   }
@@ -848,6 +849,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     inputMode.value = 'chat'
     iterationPrompt.value = ''
     iterationGoal.value = ''
+    iterationContext.value = ''
     activeIterationRun.value = null
     error.value = null
     if (usesSessionPersistence) {
@@ -866,6 +868,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
     inputMode,
     iterationPrompt,
     iterationGoal,
+    iterationContext,
     activeIterationRun,
     isChatting,
     isIterating,
