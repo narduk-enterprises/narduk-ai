@@ -8,7 +8,7 @@ const ALLOWED_CHAT_MODELS = ['grok-3-mini', 'grok-3', 'grok-2-1212', 'grok-2-vis
 const contentPartSchema = z.object({
   type: z.enum(['text', 'image_url']),
   text: z.string().optional(),
-  image_url: z.object({ url: z.string().url() }).optional(),
+  image_url: z.object({ url: z.string().min(1) }).optional(),
 })
 
 const messageSchema = z.object({

@@ -99,38 +99,43 @@ function getDisplayContent(msg: ChatMessage): string {
       <!-- Inline Generated Image -->
       <div
         v-if="msg.parsedResponse?.isInlineGeneration && msg.parsedResponse?.imageUrl"
-        class="mt-3 w-full animate-fade-in-up"
+        class="mt-3 animate-fade-in-up"
       >
-        <UCard class="ring-1 ring-primary/20 overflow-hidden">
-          <div class="p-0">
+        <div class="flex items-end gap-3">
+          <!-- Thumbnail — click to gallery -->
+          <NuxtLink
+            to="/gallery"
+            class="shrink-0 block rounded-xl overflow-hidden ring-1 ring-primary/20 hover:ring-primary/50 transition-all hover:scale-[1.02] shadow-card"
+          >
             <img
               :src="msg.parsedResponse.imageUrl"
               :alt="msg.parsedResponse.prompt || 'Generated image'"
-              class="w-full h-auto object-cover rounded-t-lg"
+              class="h-40 w-auto max-w-[180px] object-cover"
             />
-            <div class="p-3 flex flex-wrap gap-2 border-t border-default/50">
-              <UButton
-                color="primary"
-                variant="soft"
-                icon="i-lucide-share-2"
-                size="xs"
-                @click="handleShareImage(msg.parsedResponse!.imageUrl!)"
-              >
-                Share with Agent
-              </UButton>
-              <UButton
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-external-link"
-                size="xs"
-                :to="msg.parsedResponse.imageUrl"
-                target="_blank"
-              >
-                Open Full Size
-              </UButton>
-            </div>
+          </NuxtLink>
+
+          <!-- Action buttons stacked vertically beside the image -->
+          <div class="flex flex-col gap-1.5">
+            <UButton
+              color="primary"
+              variant="soft"
+              icon="i-lucide-share-2"
+              size="xs"
+              @click="handleShareImage(msg.parsedResponse!.imageUrl!)"
+            >
+              Share with Agent
+            </UButton>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-images"
+              size="xs"
+              to="/gallery"
+            >
+              View in Gallery
+            </UButton>
           </div>
-        </UCard>
+        </div>
       </div>
 
       <!-- Generated Prompt Card -->
