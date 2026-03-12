@@ -26,11 +26,21 @@ const {
   activePresets,
   activePresetIds,
   compiledPrompt,
+  isCharacterJsonModalOpen,
+  characterJsonInput,
+  characterJsonError,
+  parsingCharacterJson,
+  hasCharacterBatchImport,
+  isCharacterBatchReady,
+  characterBatchRequestCount,
+  latestBatchSubmission,
   latestResult,
   latestResults,
   recentGenerations,
   userImages,
   generating,
+  batchSubmitting,
+  isGenerating,
   enhancing,
   isEnhanceModalOpen,
   enhanceInstructions,
@@ -42,6 +52,7 @@ const {
   currentMediaType,
   latestResultError,
   handleGenerate,
+  parseCharacterJsonImport,
   handleFeelingLucky,
   feelingLucky,
   openEnhanceModal,
@@ -77,6 +88,7 @@ const {
   loadingMoreGenerations,
   isGenerationsFinished,
   loadMoreGenerations,
+  clearCharacterJsonImport,
 } = useGenerationForm()
 
 const { deleteGeneration } = useGenerate()
@@ -166,11 +178,17 @@ function openRecentViewer(gen: Generation) {
 }
 
 function handleClearAll() {
+  if (hasCharacterBatchImport.value) {
+    clearCharacterJsonImport()
+  }
   detachPerson()
   clearTags()
 }
 
 function handleUseBuilderPrompt(newPrompt: string) {
+  if (hasCharacterBatchImport.value) {
+    clearCharacterJsonImport()
+  }
   prompt.value = newPrompt
 }
 
@@ -196,6 +214,10 @@ const showFinalPromptPanel = computed(() => {
 })
 
 const promptFieldLabel = computed(() => {
+  if (hasCharacterBatchImport.value) {
+    return activeTab.value === 't2i' ? 'Batch Preview' : 'Batch Preview (T2I Only)'
+  }
+
   if (activeTab.value === 'i2i' || activeTab.value === 'i2v') {
     return 'Final Prompt'
   }
@@ -250,6 +272,24 @@ const activeMode = computed(() => modes.find((m) => m.value === activeTab.value)
 const aspectRatios = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
 const resolutions = ['480p', '720p']
 const imageCounts = [1, 2, 3, 4]
+
+const generateButtonLabel = computed(() => {
+  if (hasCharacterBatchImport.value) {
+    if (!isCharacterBatchReady.value) return 'Switch To Text To Image'
+    if (batchSubmitting.value) return 'Submitting Batch...'
+    return `Submit ${characterBatchRequestCount.value} Batch Request${characterBatchRequestCount.value === 1 ? '' : 's'}`
+  }
+
+  if (isGenerating.value && !feelingLucky.value) {
+    return 'Generating...'
+  }
+
+  if (imageCount.value > 1 && activeTab.value === 't2i') {
+    return `Generate ${imageCount.value} Images`
+  }
+
+  return 'Generate'
+})
 
 function openBatchViewer(gen: Generation) {
   const idx = latestResults.value.findIndex((g: Generation) => g.id === gen.id)
@@ -310,7 +350,7 @@ function editResult(gen: Generation) {
         <div class="glass-card p-5 space-y-4">
           <!-- ── Preset Slot Tray ───────────────────────────────────── -->
           <div
-            v-if="personElements.length || otherPresetTypes.length"
+            v-if="!hasCharacterBatchImport && (personElements.length || otherPresetTypes.length)"
             class="flex flex-wrap items-center gap-2"
           >
             <!-- Person slot -->
@@ -432,7 +472,10 @@ function editResult(gen: Generation) {
           </div>
 
           <!-- Active modifier chips -->
-          <div v-if="selectedTagsList.length" class="flex flex-wrap gap-1.5">
+          <div
+            v-if="!hasCharacterBatchImport && selectedTagsList.length"
+            class="flex flex-wrap gap-1.5"
+          >
             <UButton
               v-for="tag in selectedTagsList"
               :key="tag.id"
@@ -527,6 +570,16 @@ function editResult(gen: Generation) {
                   variant="ghost"
                   color="neutral"
                   size="sm"
+                  icon="i-lucide-file-json"
+                  class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
+                  @click="isCharacterJsonModalOpen = true"
+                >
+                  Import JSON
+                </UButton>
+                <UButton
+                  variant="ghost"
+                  color="neutral"
+                  size="sm"
                   icon="i-lucide-library"
                   class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
                   @click="isLibraryModalOpen = true"
@@ -539,7 +592,7 @@ function editResult(gen: Generation) {
                   size="sm"
                   icon="i-lucide-shuffle"
                   :loading="remixing"
-                  :disabled="!prompt.trim() || generating || remixing"
+                  :disabled="hasCharacterBatchImport || !prompt.trim() || generating || remixing"
                   class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
                   @click="handleRemix"
                 >
@@ -551,7 +604,7 @@ function editResult(gen: Generation) {
                   size="sm"
                   icon="i-lucide-wand-2"
                   :loading="enhancing"
-                  :disabled="!prompt.trim() || generating || enhancing"
+                  :disabled="hasCharacterBatchImport || !prompt.trim() || generating || enhancing"
                   class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
                   @click="openEnhanceModal"
                 >
@@ -563,7 +616,57 @@ function editResult(gen: Generation) {
           </UFormField>
 
           <div
-            v-if="showFinalPromptPanel"
+            v-if="hasCharacterBatchImport"
+            class="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-3"
+          >
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-default">JSON Batch Test Loaded</p>
+                  <UBadge
+                    color="info"
+                    variant="subtle"
+                    size="sm"
+                    icon="i-lucide-flask-conical"
+                    label="Test Only"
+                  />
+                </div>
+                <p class="text-xs text-muted">
+                  {{ characterBatchRequestCount }} request{{
+                    characterBatchRequestCount === 1 ? '' : 's'
+                  }}
+                  prepared from the imported character schema. The prompt field is a preview only.
+                  Generate will submit an OpenAI batch job.
+                </p>
+                <p v-if="!isCharacterBatchReady" class="text-xs text-warning">
+                  Switch back to Text to Image to submit this imported batch.
+                </p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-file-json"
+                  @click="isCharacterJsonModalOpen = true"
+                >
+                  Edit JSON
+                </UButton>
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-x"
+                  @click="clearCharacterJsonImport"
+                >
+                  Clear Test Import
+                </UButton>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="!hasCharacterBatchImport && showFinalPromptPanel"
             class="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-3"
           >
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -612,7 +715,11 @@ function editResult(gen: Generation) {
             >
               <USelect v-model="aspectRatio" :items="aspectRatios" class="w-28" />
             </UFormField>
-            <UFormField v-if="activeTab === 't2i'" label="Images" class="w-auto">
+            <UFormField
+              v-if="activeTab === 't2i' && !hasCharacterBatchImport"
+              label="Images"
+              class="w-auto"
+            >
               <div class="flex gap-1">
                 <UButton
                   v-for="count in imageCounts"
@@ -645,7 +752,7 @@ function editResult(gen: Generation) {
             </UFormField>
             <!-- Image Model Picker (T2I / I2I) -->
             <UFormField
-              v-if="activeTab === 't2i' || activeTab === 'i2i'"
+              v-if="(activeTab === 't2i' || activeTab === 'i2i') && !hasCharacterBatchImport"
               label="Model"
               class="w-auto"
               :error="modelsError ? 'Load failed' : false"
@@ -697,20 +804,14 @@ function editResult(gen: Generation) {
             <UButton
               size="lg"
               icon="i-lucide-sparkles"
-              :loading="generating && !feelingLucky"
+              :loading="isGenerating && !feelingLucky"
               :disabled="isGenerateDisabled || feelingLucky"
               class="flex-1 rounded-xl shadow-lg hover:shadow-primary/20 transition-shadow"
-              :label="
-                generating && !feelingLucky
-                  ? 'Generating...'
-                  : imageCount > 1 && activeTab === 't2i'
-                    ? `Generate ${imageCount} Images`
-                    : 'Generate'
-              "
+              :label="generateButtonLabel"
               @click="handleGenerate"
             />
             <UTooltip
-              v-if="activeTab === 't2i' || activeTab === 't2v'"
+              v-if="(activeTab === 't2i' || activeTab === 't2v') && !hasCharacterBatchImport"
               text="Pick random presets and auto-generate"
             >
               <UButton
@@ -763,6 +864,40 @@ function editResult(gen: Generation) {
           @retry="handleRetry"
           @dismiss="handleDismiss"
         />
+        <div
+          v-else-if="latestBatchSubmission"
+          class="glass-card min-h-[420px] flex flex-col justify-center gap-5 p-8"
+        >
+          <div class="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <UIcon name="i-lucide-layers-3" class="size-8 text-primary/70" />
+          </div>
+          <div class="space-y-2">
+            <h2 class="font-display text-2xl font-semibold">Batch Submitted</h2>
+            <p class="text-sm text-muted">
+              {{ latestBatchSubmission.requestCount }} request{{
+                latestBatchSubmission.requestCount === 1 ? '' : 's'
+              }}
+              queued across {{ latestBatchSubmission.characterCount }} character{{
+                latestBatchSubmission.characterCount === 1 ? '' : 's'
+              }}
+              for this test import flow.
+            </p>
+          </div>
+          <div class="grid gap-3 text-sm">
+            <div class="rounded-xl border border-default/50 bg-muted/35 px-4 py-3">
+              <p class="text-xs uppercase tracking-[0.2em] text-dimmed mb-1">Batch ID</p>
+              <p class="font-mono text-sm break-all">{{ latestBatchSubmission.batchId }}</p>
+            </div>
+            <div class="rounded-xl border border-default/50 bg-muted/35 px-4 py-3">
+              <p class="text-xs uppercase tracking-[0.2em] text-dimmed mb-1">Status</p>
+              <p class="font-medium">{{ latestBatchSubmission.status }}</p>
+            </div>
+          </div>
+          <p class="text-xs text-dimmed">
+            This test path submits work to the OpenAI Batch API in the background, so results will
+            not appear instantly in the live result viewer.
+          </p>
+        </div>
         <!-- Desktop placeholder when no result yet -->
         <div
           v-else
@@ -787,6 +922,14 @@ function editResult(gen: Generation) {
 
     <!-- Prompt Library Modal -->
     <PromptLibraryModal v-model:open="isLibraryModalOpen" @use-prompt="handleUseBuilderPrompt" />
+
+    <CharacterJsonImportModal
+      v-model:open="isCharacterJsonModalOpen"
+      v-model:json-text="characterJsonInput"
+      :loading="parsingCharacterJson"
+      :error="characterJsonError"
+      @parse="parseCharacterJsonImport"
+    />
 
     <!-- Gallery Viewer -->
     <GalleryViewer />

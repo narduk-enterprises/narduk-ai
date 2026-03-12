@@ -1,4 +1,12 @@
 import type { Generation } from '~/types/generation'
+import {
+  buildCharacterBatchPreviewPrompt,
+  buildCharacterBatchRequests,
+  getCharacterInputParseErrorMessage,
+  parseCharacterInputJson,
+  type CharacterBatchImportInput,
+  type CharacterBatchSubmission,
+} from '~/utils/characterBatch'
 import type { PromptElement } from './usePromptElements'
 
 /**
@@ -14,7 +22,7 @@ export function useGenerationForm() {
   const toast = useToast()
   const { defaultAspectRatio, defaultDuration, defaultResolution } = useSettings()
   const generationStore = useGenerationsStore()
-  const { fetchGeneration } = useGenerate()
+  const { fetchGeneration, submitCharacterImageBatch, error: submitBatchError } = useGenerate()
   const supportedModes = new Set(['t2i', 't2v', 'i2v', 'i2i'])
 
   function parseQueryPrompt(value: unknown): string {
@@ -148,7 +156,7 @@ export function useGenerationForm() {
     generating,
     error,
     uploadingSource,
-    handleGenerate,
+    handleGenerate: dispatchGenerate,
     handleSourceImageUpload,
     loadMoreGenerations,
   } = useGenerationDispatch({
@@ -167,6 +175,115 @@ export function useGenerationForm() {
     compilePrompt,
     recordUsage: tags.recordUsage,
   })
+
+  // ─── Test JSON Import / Batch Submission ───────────────────
+
+  const isCharacterJsonModalOpen = ref(false)
+  const characterJsonInput = ref('')
+  const characterJsonError = ref<string | null>(null)
+  const parsingCharacterJson = ref(false)
+  const batchSubmitting = ref(false)
+  const importedCharacterBatch = ref<CharacterBatchImportInput | null>(null)
+  const importedCharacterBatchPreview = ref('')
+  const latestBatchSubmission = ref<CharacterBatchSubmission | null>(null)
+
+  const hasCharacterBatchImport = computed(() => importedCharacterBatch.value !== null)
+  const isCharacterBatchReady = computed(
+    () => importedCharacterBatch.value !== null && activeTab.value === 't2i',
+  )
+  const characterBatchRequestCount = computed(() => {
+    if (!importedCharacterBatch.value) return 0
+    return buildCharacterBatchRequests(importedCharacterBatch.value).length
+  })
+
+  function clearCharacterJsonImport() {
+    importedCharacterBatch.value = null
+    importedCharacterBatchPreview.value = ''
+    characterJsonError.value = null
+    latestBatchSubmission.value = null
+  }
+
+  function clearStructuredInputsForCharacterBatch() {
+    activePresetIds.value = []
+    activePresets.value = {}
+    activeUserPromptId.value = null
+    attachedPerson.value = null
+    attachedPresets.value = {}
+    sourceGenerationId.value = ''
+    tags.clearTags()
+  }
+
+  async function parseCharacterJsonImport() {
+    if (!characterJsonInput.value.trim() || parsingCharacterJson.value) return
+
+    parsingCharacterJson.value = true
+    characterJsonError.value = null
+
+    try {
+      const parsed = parseCharacterInputJson(characterJsonInput.value)
+      const previewPrompt = buildCharacterBatchPreviewPrompt(parsed)
+      const requestCount = buildCharacterBatchRequests(parsed).length
+      const importedItemCount = Array.isArray(parsed) ? parsed.length : parsed.characters.length
+
+      importedCharacterBatch.value = parsed
+      importedCharacterBatchPreview.value = previewPrompt
+      latestBatchSubmission.value = null
+      activeTab.value = 't2i'
+      clearStructuredInputsForCharacterBatch()
+      prompt.value = previewPrompt
+      latestResult.value = null
+      latestResults.value = []
+      error.value = null
+      isCharacterJsonModalOpen.value = false
+
+      toast.add({
+        title: 'Character JSON Imported',
+        description: `${importedItemCount} item${importedItemCount === 1 ? '' : 's'} compiled into ${requestCount} batch request${requestCount === 1 ? '' : 's'}.`,
+        color: 'success',
+        icon: 'i-lucide-file-json',
+      })
+    } catch (err) {
+      characterJsonError.value = getCharacterInputParseErrorMessage(err)
+    } finally {
+      parsingCharacterJson.value = false
+    }
+  }
+
+  async function handleGenerate() {
+    if (hasCharacterBatchImport.value) {
+      if (!isCharacterBatchReady.value || !importedCharacterBatch.value) return
+
+      batchSubmitting.value = true
+      error.value = null
+      latestResult.value = null
+      latestResults.value = []
+
+      try {
+        const result = await submitCharacterImageBatch(importedCharacterBatch.value, {
+          aspectRatio: aspectRatio.value,
+        })
+
+        if (!result) {
+          error.value = submitBatchError.value || 'Failed to submit image batch'
+          return
+        }
+
+        latestBatchSubmission.value = result
+        toast.add({
+          title: 'Image Batch Submitted',
+          description: `${result.requestCount} request${result.requestCount === 1 ? '' : 's'} queued for ${result.characterCount} character${result.characterCount === 1 ? '' : 's'}.`,
+          color: 'success',
+          icon: 'i-lucide-layers-3',
+        })
+        return
+      } finally {
+        batchSubmitting.value = false
+      }
+    }
+
+    latestBatchSubmission.value = null
+    await dispatchGenerate()
+  }
 
   // ─── Prompt Enhance ─────────────────────────────────────────
 
@@ -253,9 +370,20 @@ export function useGenerationForm() {
     handleGenerate,
   })
 
+  watch(prompt, (nextPrompt) => {
+    if (
+      hasCharacterBatchImport.value &&
+      importedCharacterBatchPreview.value &&
+      nextPrompt !== importedCharacterBatchPreview.value
+    ) {
+      clearCharacterJsonImport()
+    }
+  })
+
   // ─── Attached Presets (generic for all types) ───────────────
 
   function attachPreset(type: string, element: PromptElement) {
+    if (hasCharacterBatchImport.value) clearCharacterJsonImport()
     const current = type === 'person' ? attachedPerson.value : attachedPresets.value[type]
     if (current?.id === element.id) return
     // Remove old preset's ID before attaching new one
@@ -273,6 +401,7 @@ export function useGenerationForm() {
   }
 
   function detachPreset(type: string) {
+    if (hasCharacterBatchImport.value) clearCharacterJsonImport()
     const current = type === 'person' ? attachedPerson.value : attachedPresets.value[type]
     if (current) {
       const { [type]: _, ...rest } = activePresets.value
@@ -300,6 +429,7 @@ export function useGenerationForm() {
     presets?: Record<string, string>,
     promptId?: string,
   ) {
+    if (hasCharacterBatchImport.value) clearCharacterJsonImport()
     prompt.value = newPrompt
     if (presets) {
       activePresets.value = presets
@@ -339,11 +469,24 @@ export function useGenerationForm() {
   }
 
   function useGenerationAsSource(gen: Generation) {
+    if (hasCharacterBatchImport.value) clearCharacterJsonImport()
     activeTab.value = 'i2v'
     sourceGenerationId.value = gen.id
   }
 
   function useCompiledPromptAsDraft() {
+    if (hasCharacterBatchImport.value) {
+      clearCharacterJsonImport()
+      activeUserPromptId.value = null
+      toast.add({
+        title: 'JSON Batch Import Cleared',
+        description: 'The imported test batch was cleared so the prompt can be edited normally.',
+        color: 'info',
+        icon: 'i-lucide-file-pen-line',
+      })
+      return
+    }
+
     const nextPrompt = compiledPrompt.value.trim()
     const hadStructuredInputs =
       activePresetIds.value.length > 0 || tags.selectedTagsList.value.length > 0
@@ -371,7 +514,18 @@ export function useGenerationForm() {
   // ─── Computed ───────────────────────────────────────────────
 
   const charCount = computed(() => compiledPrompt.value.length)
-  const isGenerateDisabled = computed(() => !compiledPrompt.value.trim() || generating.value)
+  const isGenerating = computed(() => generating.value || batchSubmitting.value)
+  const isGenerateDisabled = computed(() => {
+    if (hasCharacterBatchImport.value && !isCharacterBatchReady.value) {
+      return true
+    }
+
+    if (isCharacterBatchReady.value) {
+      return isGenerating.value
+    }
+
+    return !compiledPrompt.value.trim() || isGenerating.value
+  })
 
   const resultBadgeColor = computed(() => {
     if (!latestResult.value) return 'neutral'
@@ -445,6 +599,16 @@ export function useGenerationForm() {
     compilePrompt,
     compiledPrompt,
 
+    // Test JSON import
+    isCharacterJsonModalOpen,
+    characterJsonInput,
+    characterJsonError,
+    parsingCharacterJson,
+    hasCharacterBatchImport,
+    isCharacterBatchReady,
+    characterBatchRequestCount,
+    latestBatchSubmission,
+
     // Results
     latestResult,
     latestResults,
@@ -457,6 +621,8 @@ export function useGenerationForm() {
 
     // Status
     generating,
+    batchSubmitting,
+    isGenerating,
     enhancing,
     upscaling,
     feelingLucky,
@@ -472,6 +638,8 @@ export function useGenerationForm() {
 
     // Actions
     handleGenerate,
+    parseCharacterJsonImport,
+    clearCharacterJsonImport,
     handleFeelingLucky,
     openEnhanceModal,
     enhanceCurrentPrompt,

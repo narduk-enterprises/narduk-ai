@@ -1,4 +1,3 @@
-// eslint-disable-next-line import-x/named -- Wait for playwright types fix
 import { test, expect, type ConsoleMessage } from '@playwright/test'
 
 /**

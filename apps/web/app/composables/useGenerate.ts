@@ -4,6 +4,7 @@ import type {
   ImageComparison,
   ImageComparisonVoteResponse,
 } from '~/types/imageComparison'
+import type { CharacterBatchImportInput, CharacterBatchSubmission } from '~/utils/characterBatch'
 
 /**
  * Composable for AI media generation.
@@ -47,6 +48,34 @@ export function useGenerate() {
       return result
     } catch (err: unknown) {
       error.value = err instanceof Error ? err.message : 'Failed to generate image'
+      return null
+    } finally {
+      generating.value = false
+    }
+  }
+
+  /**
+   * Submit a test-only character JSON import as an OpenAI Batch API job.
+   */
+  async function submitCharacterImageBatch(
+    input: CharacterBatchImportInput,
+    options?: {
+      aspectRatio?: string
+    },
+  ): Promise<CharacterBatchSubmission | null> {
+    generating.value = true
+    error.value = null
+    try {
+      const result = await $fetch<CharacterBatchSubmission>('/api/generate/image-batch', {
+        method: 'POST',
+        body: {
+          input,
+          aspectRatio: options?.aspectRatio,
+        },
+      })
+      return result
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'Failed to submit image batch'
       return null
     } finally {
       generating.value = false
@@ -522,6 +551,7 @@ export function useGenerate() {
     remixing,
     error,
     generateImage,
+    submitCharacterImageBatch,
     editImage,
     generateVideo,
     generateVideoFromImage,

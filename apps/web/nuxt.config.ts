@@ -36,6 +36,7 @@ export default defineNuxtConfig({
     xaiApiKey: process.env.GROK_API_KEY || '',
     xaiManagementKey: process.env.XAI_MANAGEMENT_KEY || '',
     xaiTeamId: process.env.XAI_TEAM_ID || '',
+    openaiApiKey: process.env.OPENAI_API_KEY || '',
     public: {
       appUrl: process.env.SITE_URL || 'https://narduk-ai.nard.uk',
       appName: process.env.APP_NAME || 'Narduk AI',
