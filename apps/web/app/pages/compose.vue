@@ -13,7 +13,13 @@ useWebPageSchema({
 const route = useRoute()
 
 const { elements, groupedByType, fetchElements } = usePromptElements()
-const { prompts: savedPrompts, loading: libraryLoading, fetchPrompts, deletePrompt, savePrompt } = usePromptLibrary()
+const {
+  prompts: savedPrompts,
+  loading: libraryLoading,
+  fetchPrompts,
+  deletePrompt,
+  savePrompt,
+} = usePromptLibrary()
 const savingPrompt = ref(false)
 const { prompts: systemPrompts } = useSystemPrompts()
 const { allTagsList: allModifiersList } = usePromptTags()
@@ -23,9 +29,7 @@ type MainView = 'compose' | 'library'
 const mainView = ref<MainView>((route.query.view as MainView) || 'compose')
 
 // Media type from query param (passed from generate page)
-const mediaType = ref<'image' | 'video'>(
-  (route.query.mediaType as 'image' | 'video') || 'image',
-)
+const mediaType = ref<'image' | 'video'>((route.query.mediaType as 'image' | 'video') || 'image')
 
 // ── Preset Selection ───────────────────────────────────────────────
 const searchQuery = ref('')
@@ -222,7 +226,12 @@ async function handleSaveToLibrary() {
   try {
     const initialPresetsJson = JSON.stringify(composeSelection)
     const chatHistoryJson = JSON.stringify(chatLog.value)
-    const saved = await savePrompt(title, currentPromptDraft.value, initialPresetsJson, chatHistoryJson)
+    const saved = await savePrompt(
+      title,
+      currentPromptDraft.value,
+      initialPresetsJson,
+      chatHistoryJson,
+    )
     savedPromptId.value = saved.id
   } catch (e) {
     console.error('Failed to save', e)
@@ -373,7 +382,6 @@ onMounted(() => {
 
     <!-- ── COMPOSE VIEW ──────────────────────────────────────────────── -->
     <div v-if="mainView === 'compose'" class="space-y-6">
-
       <!-- Step indicator -->
       <div class="flex items-center gap-3">
         <UButton
@@ -473,10 +481,7 @@ onMounted(() => {
       </div>
 
       <!-- ── STEP 2: REFINE ───────────────────────────────────────────── -->
-      <div
-        v-else-if="step === 'refine'"
-        class="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[60vh]"
-      >
+      <div v-else-if="step === 'refine'" class="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[60vh]">
         <!-- Left: Current Prompt Draft -->
         <div class="glass-card p-6 flex flex-col space-y-4">
           <h3
@@ -490,7 +495,9 @@ onMounted(() => {
             v-if="currentPromptDraft"
             class="bg-default rounded-xl border border-primary/20 p-4 shadow-sm relative group flex-1"
           >
-            <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div
+              class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
               <CopyButton :text="currentPromptDraft" size="xs" />
             </div>
             <p class="text-sm leading-relaxed text-default whitespace-pre-wrap pr-6">
@@ -547,7 +554,9 @@ onMounted(() => {
 
         <!-- Right: Grok Chat -->
         <div class="glass-card flex flex-col h-full overflow-hidden min-h-[400px]">
-          <div class="p-4 border-b border-default/10 bg-muted/10 shrink-0 flex items-center justify-between">
+          <div
+            class="p-4 border-b border-default/10 bg-muted/10 shrink-0 flex items-center justify-between"
+          >
             <span
               class="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-1.5"
             >
@@ -615,8 +624,12 @@ onMounted(() => {
               </div>
             </div>
 
-            <div v-if="chatLog.length === 0 && !chatting" class="text-center text-muted text-sm py-8">
-              Select presets and click "Compose Draft" to start, or type a message below to get Grok's help.
+            <div
+              v-if="chatLog.length === 0 && !chatting"
+              class="text-center text-muted text-sm py-8"
+            >
+              Select presets and click "Compose Draft" to start, or type a message below to get
+              Grok's help.
             </div>
           </div>
 

@@ -164,8 +164,18 @@ export function usePromptElements() {
    * Person-identity keys are intentionally excluded to preserve the subject.
    */
   const REMIX_ATTRIBUTE_KEYS = new Set([
-    'lighting', 'time_of_day', 'weather', 'mood', 'location', 'background',
-    'color_palette', 'season', 'environment', 'atmosphere', 'camera_angle', 'depth_of_field',
+    'lighting',
+    'time_of_day',
+    'weather',
+    'mood',
+    'location',
+    'background',
+    'color_palette',
+    'season',
+    'environment',
+    'atmosphere',
+    'camera_angle',
+    'depth_of_field',
   ])
 
   /**
@@ -273,7 +283,9 @@ export function usePromptElements() {
             : 'Keep the core subject recognizable') +
           '\n- Vary the scene naturally: change time of day, light direction, or weather' +
           '\n- Try a slightly different camera angle or framing (not extreme)' +
-          (isVideo ? '\n- Vary camera movement subtly — handheld feel, gentle pan, or static' : '') +
+          (isVideo
+            ? '\n- Vary camera movement subtly — handheld feel, gentle pan, or static'
+            : '') +
           '\n- Result MUST look like a real photograph — photorealistic, natural lighting, real environments' +
           '\n- NEVER produce cartoon, illustration, CGI, 3D render, or anime results' +
           '\n\nReturn JSON: { "message": "one-line summary of what you changed", "prompt": "the remixed prompt" }. Make natural creative variations, not extreme transformations.',

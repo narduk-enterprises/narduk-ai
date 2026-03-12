@@ -170,10 +170,30 @@ function handleDismiss() {
 }
 
 const modes = [
-  { value: 't2i', label: 'Text → Image', icon: 'i-lucide-image', desc: 'Create an image from a text description' },
-  { value: 't2v', label: 'Text → Video', icon: 'i-lucide-video', desc: 'Generate a video from a text description' },
-  { value: 'i2v', label: 'Image → Video', icon: 'i-lucide-wand-2', desc: 'Animate an existing image into a video' },
-  { value: 'i2i', label: 'Image → Image', icon: 'i-lucide-layers', desc: 'Edit or transform an existing image' },
+  {
+    value: 't2i',
+    label: 'Text → Image',
+    icon: 'i-lucide-image',
+    desc: 'Create an image from a text description',
+  },
+  {
+    value: 't2v',
+    label: 'Text → Video',
+    icon: 'i-lucide-video',
+    desc: 'Generate a video from a text description',
+  },
+  {
+    value: 'i2v',
+    label: 'Image → Video',
+    icon: 'i-lucide-wand-2',
+    desc: 'Animate an existing image into a video',
+  },
+  {
+    value: 'i2i',
+    label: 'Image → Image',
+    icon: 'i-lucide-layers',
+    desc: 'Edit or transform an existing image',
+  },
 ]
 
 const activeMode = computed(() => modes.find((m) => m.value === activeTab.value))
@@ -196,8 +216,6 @@ function editResult(gen: Generation) {
   activeTab.value = 'i2i'
   sourceGenerationId.value = gen.id
 }
-
-
 </script>
 
 <template>

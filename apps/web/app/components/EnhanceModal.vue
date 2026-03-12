@@ -52,8 +52,8 @@ function removeImage() {
     <template #body>
       <div class="space-y-4">
         <p class="text-sm text-muted">
-          Tell Grok how you want to enhance your prompt. You can ask for a specific style,
-          lighting, camera angle, or just leave it blank for a general enhancement.
+          Tell Grok how you want to enhance your prompt. You can ask for a specific style, lighting,
+          camera angle, or just leave it blank for a general enhancement.
         </p>
         <UFormField label="Instructions (Optional)">
           <UTextarea
