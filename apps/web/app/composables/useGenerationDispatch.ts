@@ -118,17 +118,14 @@ export function useGenerationDispatch(deps: {
         }
       } else {
         const { successes } = await generateImageBatch(
-          [
-            {
-              prompt: compiled,
-              model: opts.model,
-              promptElements: opts.promptElements,
-              presets: opts.presets,
-              userPromptId: opts.userPromptId,
-              lineage: opts.lineage,
-              count,
-            },
-          ],
+          Array.from({ length: count }, () => ({
+            prompt: compiled,
+            model: opts.model,
+            promptElements: opts.promptElements,
+            presets: opts.presets,
+            userPromptId: opts.userPromptId,
+            lineage: opts.lineage,
+          })),
           {
             aspectRatio: opts.aspectRatio,
           },

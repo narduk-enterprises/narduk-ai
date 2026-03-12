@@ -10,7 +10,6 @@ const requestSchema = z.object({
   presets: z.record(z.string(), z.string()).optional(),
   userPromptId: z.string().optional(),
   lineage: z.string().max(500_000).optional(),
-  count: z.number().int().min(1).max(10).optional(),
 })
 
 const bodySchema = z.object({
@@ -29,9 +28,7 @@ async function sleep(ms: number) {
 /**
  * POST /api/generate/image-batch — xAI image batch orchestration.
  *
- * Matches xAI guidance:
- * - same prompt variations should use `n`
- * - different prompts can run concurrently up to the team's console limit
+ * Runs one xAI image request per prompt using a bounded worker pool.
  */
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('GenerateBatch')
@@ -47,44 +44,17 @@ export default defineEventHandler(async (event) => {
   const maxRetries = Math.max(1, Math.min(5, Number(config.xaiImportedImageMaxRetries || 3)))
   const retryDelayMs = Math.max(250, Number(config.xaiImportedImageRetryDelayMs || 1500))
 
-  const groupedRequests = new Map<
-    string,
-    z.infer<typeof requestSchema> & {
-      count: number
-    }
-  >()
-
-  for (const request of body.requests) {
-    const key = JSON.stringify([
-      request.prompt,
-      request.aspectRatio || '',
-      request.model || '',
-      request.userPromptId || '',
-      request.lineage || '',
-      JSON.stringify(request.promptElements || []),
-      JSON.stringify(request.presets || {}),
-    ])
-    const existing = groupedRequests.get(key)
-    if (existing) {
-      existing.count = Math.min(10, existing.count + (request.count || 1))
-    } else {
-      groupedRequests.set(key, {
-        ...request,
-        count: request.count || 1,
-      })
-    }
-  }
-
-  const queue = Array.from(groupedRequests.values())
-  const results: Awaited<ReturnType<typeof generateStoredImages>> = []
+  const queue = body.requests
+  const orderedResults = new Array<Awaited<ReturnType<typeof generateStoredImages>>[number] | null>(
+    queue.length,
+  ).fill(null)
   let failures = 0
   let nextIndex = 0
 
   log.info('AUDIT: T2I batch request', {
     action: 'generate_t2i_batch',
     userId: user.id,
-    requestCount: queue.reduce((sum, request) => sum + request.count, 0),
-    groupedRequestCount: queue.length,
+    requestCount: queue.length,
     maxConcurrent,
   })
 
@@ -112,15 +82,15 @@ export default defineEventHandler(async (event) => {
               presets: request.presets,
               userPromptId: request.userPromptId,
               lineage: request.lineage,
-              n: request.count,
+              n: 1,
             },
             log,
           )
-          results.push(...stored)
+          orderedResults[currentIndex] = stored[0] || null
           completed = true
         } catch (err) {
           if (!isConcurrentLimitError(err) || attempt >= maxRetries) {
-            failures += request.count
+            failures++
             completed = true
             continue
           }
@@ -134,7 +104,9 @@ export default defineEventHandler(async (event) => {
   await Promise.all(Array.from({ length: Math.min(maxConcurrent, queue.length) }, () => worker()))
 
   return {
-    results,
+    results: orderedResults.filter(
+      (result): result is NonNullable<(typeof orderedResults)[number]> => result !== null,
+    ),
     failures,
   }
 })

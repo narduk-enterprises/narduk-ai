@@ -61,7 +61,6 @@ export function useGenerate() {
       presets?: Record<string, string>
       userPromptId?: string
       lineage?: string
-      count?: number
     }>,
     options?: {
       aspectRatio?: string
@@ -83,7 +82,6 @@ export function useGenerate() {
               presets: request.presets,
               userPromptId: request.userPromptId,
               lineage: request.lineage,
-              count: request.count || 1,
             })),
           },
         },

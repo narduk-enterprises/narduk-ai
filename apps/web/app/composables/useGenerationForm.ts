@@ -255,40 +255,16 @@ export function useGenerationForm() {
       latestResult.value = null
       latestResults.value = []
 
-      const groupedRequests = new Map<
-        string,
-        {
-          prompt: string
-          model?: string | null
-          count: number
-        }
-      >()
-
-      for (const request of buildCharacterBatchRequests(importedCharacterBatch.value)) {
-        const key = JSON.stringify([
-          request.prompt,
-          request.requestedModel || selectedImageModel.value,
-        ])
-        const existing = groupedRequests.get(key)
-        if (existing) {
-          existing.count++
-        } else {
-          groupedRequests.set(key, {
-            prompt: request.prompt,
-            model: request.requestedModel || selectedImageModel.value,
-            count: 1,
-          })
-        }
-      }
+      const requests = buildCharacterBatchRequests(importedCharacterBatch.value).map((request) => ({
+        prompt: request.prompt,
+        model: request.requestedModel || selectedImageModel.value,
+      }))
 
       batchGenerating.value = true
       try {
-        const { successes, failures } = await generateImageBatch(
-          Array.from(groupedRequests.values()),
-          {
-            aspectRatio: aspectRatio.value,
-          },
-        )
+        const { successes, failures } = await generateImageBatch(requests, {
+          aspectRatio: aspectRatio.value,
+        })
 
         if (successes.length > 0) {
           latestResult.value = successes[0]!
