@@ -289,6 +289,7 @@ export const PRESET_SCHEMAS: Record<string, AttributeField[]> = {
   action: ACTION_SCHEMA,
   style: STYLE_SCHEMA,
 }
+const FALLBACK_PROMPT_ATTRIBUTE_KEY = 'prompt'
 
 /**
  * Get the ordered list of attribute keys for a given preset type.
@@ -369,16 +370,64 @@ export function parseContentToAttributes(content: string): Record<string, string
   return attrs
 }
 
+export function parseAttributesJson(
+  attributes: string | null | undefined,
+): Record<string, string> | null {
+  if (!attributes) return null
+
+  try {
+    const parsed = JSON.parse(attributes) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null
+    }
+
+    const normalized: Record<string, string> = {}
+
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value !== 'string') continue
+
+      const normalizedKey = key.trim()
+      const normalizedValue = value.trim()
+
+      if (normalizedKey && normalizedValue) {
+        normalized[normalizedKey] = normalizedValue
+      }
+    }
+
+    return Object.keys(normalized).length > 0 ? normalized : null
+  } catch {
+    return null
+  }
+}
+
 /**
  * Serialize a structured attributes Record back to "Key: value\n" content.
  */
 export function attributesToContent(attrs: Record<string, string | null>): string {
-  return Object.entries(attrs)
-    .filter(([, v]) => v)
-    .map(
-      ([k, v]) =>
-        `${String(k).charAt(0).toUpperCase() + String(k).slice(1).replaceAll('_', ' ')}: ${v}`,
-    )
+  const entries = Object.entries(attrs).filter(([, value]) => value)
+  const nonNameEntries = entries.filter(([key]) => key !== 'name')
+
+  if (
+    nonNameEntries.length === 1 &&
+    nonNameEntries[0]?.[0] === FALLBACK_PROMPT_ATTRIBUTE_KEY &&
+    nonNameEntries[0][1]
+  ) {
+    return nonNameEntries[0][1]
+  }
+
+  return entries
+    .map(([key, value]) => {
+      const normalizedValue =
+        typeof value === 'string' && value.includes('\n')
+          ? value
+              .split('\n')
+              .map((line) => line.trim())
+              .filter(Boolean)
+              .join(' ')
+          : value
+
+      return `${String(key).charAt(0).toUpperCase() + String(key).slice(1).replaceAll('_', ' ')}: ${normalizedValue}`
+    })
     .join('\n')
 }
 

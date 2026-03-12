@@ -1,9 +1,9 @@
-import { eq, isNull } from 'drizzle-orm'
+import { and, eq, inArray, or, isNull, sql } from 'drizzle-orm'
 import { promptElements } from '../../database/schema'
+import { isPresetElementType, normalizePresetElementState } from '#server/utils/promptElementData'
 
 /**
- * POST /api/admin/backfill-attributes — Backfill attributes JSON from content text.
- * Admin-only endpoint. Parses existing "Key: value" content lines into structured JSON.
+ * POST /api/admin/backfill-attributes — Backfill or repair preset attributes JSON from content text.
  */
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('BackfillAttributes')
@@ -12,14 +12,22 @@ export default defineEventHandler(async (event) => {
 
   const db = useDatabase(event)
 
-  // Find all elements missing attributes
+  // Find preset elements missing or carrying invalid attributes JSON.
   const elements = await db
     .select({
       id: promptElements.id,
+      type: promptElements.type,
+      name: promptElements.name,
       content: promptElements.content,
+      attributes: promptElements.attributes,
     })
     .from(promptElements)
-    .where(isNull(promptElements.attributes))
+    .where(
+      and(
+        inArray(promptElements.type, ['person', 'scene', 'framing', 'action', 'style']),
+        or(isNull(promptElements.attributes), sql`json_valid(${promptElements.attributes}) = 0`),
+      ),
+    )
     .all()
 
   if (elements.length === 0) {
@@ -31,27 +39,26 @@ export default defineEventHandler(async (event) => {
 
   for (const el of elements) {
     try {
-      // Parse "Key: value" content lines into structured JSON
-      const attrs: Record<string, string> = {}
-      for (const line of el.content.split('\n')) {
-        const idx = line.indexOf(':')
-        if (idx > 0) {
-          const key = line.slice(0, idx).trim().toLowerCase().replaceAll(' ', '_')
-          const val = line.slice(idx + 1).trim()
-          if (val) attrs[key] = val
-        }
-      }
+      if (!isPresetElementType(el.type)) continue
 
-      if (Object.keys(attrs).length > 0) {
-        await db
-          .update(promptElements)
-          .set({
-            attributes: JSON.stringify(attrs),
-            updatedAt: new Date().toISOString(),
-          })
-          .where(eq(promptElements.id, el.id))
-        updated++
-      }
+      const normalized = normalizePresetElementState({
+        type: el.type,
+        name: el.name,
+        content: el.content,
+        attributes: el.attributes,
+      })
+
+      if (!normalized.attributes) continue
+
+      await db
+        .update(promptElements)
+        .set({
+          content: normalized.content,
+          attributes: normalized.attributes,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(promptElements.id, el.id))
+      updated++
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       errors.push(`${el.id}: ${msg}`)

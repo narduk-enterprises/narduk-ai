@@ -1,5 +1,6 @@
 import { eq, and } from 'drizzle-orm'
 import { promptElements } from '#server/database/schema'
+import { hydratePromptElementForRead } from '#server/utils/promptElementData'
 
 /**
  * GET /api/elements/:id — Fetch a single prompt element by ID.
@@ -24,5 +25,5 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Element not found' })
   }
 
-  return row
+  return hydratePromptElementForRead(row)
 })

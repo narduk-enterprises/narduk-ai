@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { PromptElement, PresetMetadata } from '~/composables/usePromptElements'
-import { PRESET_ATTRIBUTES } from '~/utils/presetSchemas'
+import {
+  PRESET_ATTRIBUTES,
+  parseAttributesJson,
+  parseContentToAttributes,
+} from '~/utils/presetSchemas'
 
 const props = defineProps<{
   preset: PromptElement
@@ -35,20 +39,16 @@ const typeConfig: Record<string, { icon: string; label: string; color: string }>
 
 const config = computed(() => typeConfig[props.preset.type] || typeConfig.prompt)
 
+const parsedAttributes = computed(
+  () =>
+    parseAttributesJson(props.preset.attributes) ?? parseContentToAttributes(props.preset.content),
+)
+
 const cardDescription = computed(() => {
-  if (props.preset.attributes) {
-    try {
-      const attrs = JSON.parse(props.preset.attributes) as Record<string, string>
-      if (attrs.description) return attrs.description
-    } catch {
-      /* invalid JSON — fall through */
-    }
+  if (parsedAttributes.value.description) {
+    return parsedAttributes.value.description
   }
-  // plain content fallback (safety net for legacy data)
-  const line = props.preset.content
-    .split('\n')
-    .find((l) => l.toLowerCase().startsWith('description:'))
-  return line ? line.slice(line.indexOf(':') + 1).trim() : props.preset.content.slice(0, 80)
+  return props.preset.content.slice(0, 80)
 })
 
 const isModalOpen = ref(false)
@@ -58,20 +58,16 @@ const isModalOpen = ref(false)
  * Optionally excluding specified keys.
  */
 function parseChars(excludeKeys: string[] = []) {
-  if (!props.preset.attributes) return []
-  try {
-    const attrs = JSON.parse(props.preset.attributes) as Record<string, string>
-    const schema = PRESET_ATTRIBUTES[props.preset.type]
-    const keys = schema ?? Object.keys(attrs)
-    return keys
-      .filter((k) => !excludeKeys.includes(k) && attrs[k])
-      .map((k) => ({
-        label: k.charAt(0).toUpperCase() + k.slice(1).replaceAll('_', ' '),
-        value: attrs[k]!,
-      }))
-  } catch {
-    return []
-  }
+  const attrs = parsedAttributes.value
+  const schema = PRESET_ATTRIBUTES[props.preset.type]
+  const extraKeys = Object.keys(attrs).filter((key) => !(schema ?? []).includes(key))
+  const keys = schema ? [...schema, ...extraKeys] : Object.keys(attrs)
+  return keys
+    .filter((k) => !excludeKeys.includes(k) && attrs[k])
+    .map((k) => ({
+      label: k.charAt(0).toUpperCase() + k.slice(1).replaceAll('_', ' '),
+      value: attrs[k]!,
+    }))
 }
 
 /** Card preview: excludes name & description (shown separately) */
@@ -83,12 +79,9 @@ const allCharacteristics = computed(() => parseChars([]))
 /** Build a state object from content lines for generatePreview */
 function parseContentToState(): Record<string, string | null> {
   const state: Record<string, string | null> = {}
-  for (const line of props.preset.content.split('\n')) {
-    const idx = line.indexOf(':')
-    if (idx > 0) {
-      const key = line.slice(0, idx).trim().toLowerCase().replaceAll(' ', '_')
-      const val = line.slice(idx + 1).trim()
-      if (val) state[key] = val
+  for (const [key, value] of Object.entries(parsedAttributes.value)) {
+    if (value) {
+      state[key] = value
     }
   }
   return state

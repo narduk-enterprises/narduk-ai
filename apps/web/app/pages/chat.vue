@@ -22,7 +22,7 @@ const {
   generateInline,
   shareImageWithAgent,
   startNewChat,
-} = useChatForm()
+} = useChatForm({ persistence: 'session', resumeMode: 'general' })
 
 const { createElement, fetchElements } = usePromptElements()
 

@@ -12,6 +12,9 @@ import type { PromptElement } from './usePromptElements'
 export function useGenerationForm() {
   const route = useRoute()
   const { defaultAspectRatio, defaultDuration, defaultResolution } = useSettings()
+  const generationStore = useGenerationsStore()
+  const { fetchGeneration } = useGenerate()
+  const supportedModes = new Set(['t2i', 't2v', 'i2v', 'i2i'])
 
   // ─── Form State ─────────────────────────────────────────────
 
@@ -21,6 +24,25 @@ export function useGenerationForm() {
   const duration = ref(defaultDuration.value)
   const resolution = ref(defaultResolution.value)
   const sourceGenerationId = ref((route.query.source as string) || '')
+
+  watch(
+    () => route.query.mode,
+    (mode) => {
+      if (typeof mode === 'string' && supportedModes.has(mode) && mode !== activeTab.value) {
+        activeTab.value = mode
+      }
+    },
+  )
+
+  watch(
+    () => route.query.source,
+    (source) => {
+      const nextSource = typeof source === 'string' ? source : ''
+      if (nextSource !== sourceGenerationId.value) {
+        sourceGenerationId.value = nextSource
+      }
+    },
+  )
 
   // ─── Model Selection ────────────────────────────────────────
   const selectedImageModel = ref<string>('grok-imagine-image')
@@ -110,9 +132,47 @@ export function useGenerationForm() {
     return activeTab.value === 't2v' || activeTab.value === 'i2v' ? 'video' : 'image'
   })
 
+  const hydratedSourceGeneration = ref<Generation | null>(null)
+  let sourceLookupToken = 0
+
+  watch(
+    [sourceGenerationId, userImages],
+    async ([sourceId, images]) => {
+      if (!sourceId) {
+        hydratedSourceGeneration.value = null
+        return
+      }
+
+      const existing = images.find((g: Generation) => g.id === sourceId) || null
+      if (existing) {
+        hydratedSourceGeneration.value = existing
+        return
+      }
+
+      const currentLookup = ++sourceLookupToken
+
+      try {
+        const fetched = await fetchGeneration(sourceId)
+        if (currentLookup !== sourceLookupToken) return
+
+        hydratedSourceGeneration.value = fetched
+        generationStore.upsert(fetched)
+      } catch {
+        if (currentLookup !== sourceLookupToken) return
+        hydratedSourceGeneration.value = null
+      }
+    },
+    { immediate: true },
+  )
+
   const sourceGeneration = computed(() => {
     if (!sourceGenerationId.value) return null
-    return userImages.value.find((g: Generation) => g.id === sourceGenerationId.value) || null
+    return (
+      userImages.value.find((g: Generation) => g.id === sourceGenerationId.value) ||
+      (hydratedSourceGeneration.value?.id === sourceGenerationId.value
+        ? hydratedSourceGeneration.value
+        : null)
+    )
   })
 
   const {

@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { PromptElement } from '~/composables/usePromptElements'
 import type { Generation } from '~/types/generation'
-import { PRESET_ATTRIBUTES } from '~/utils/presetSchemas'
+import {
+  PRESET_ATTRIBUTES,
+  parseAttributesJson,
+  parseContentToAttributes,
+} from '~/utils/presetSchemas'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -57,7 +61,7 @@ const {
   error: chatError,
   initializeChat,
   sendChatMessage,
-} = useChatForm()
+} = useChatForm({ persistence: 'memory' })
 
 const chatScrollContainer = ref<HTMLElement | null>(null)
 
@@ -99,21 +103,15 @@ async function initPreset(el: PromptElement) {
       chatMessages.value = savedChat
     }
   } else {
-    const lines = el.content.split('\n').filter((l) => l.trim())
-    const parsed: Record<string, string> = {}
-    for (const line of lines) {
-      const colonIdx = line.indexOf(':')
-      if (colonIdx > 0) {
-        const key = line.slice(0, colonIdx).trim().toLowerCase().replaceAll(' ', '_')
-        const val = line.slice(colonIdx + 1).trim()
-        if (val) parsed[key] = val
-      }
-    }
-
+    const parsed = parseAttributesJson(el.attributes) ?? parseContentToAttributes(el.content)
     const schema = PRESET_ATTRIBUTES[el.type]
-    const builderState = schema
+    const schemaState = schema
       ? Object.fromEntries(schema.map((a: string) => [a, parsed[a] || null]))
-      : parsed
+      : {}
+    const extraState = Object.fromEntries(
+      Object.entries(parsed).filter(([key]) => !(schema ?? []).includes(key)),
+    )
+    const builderState = schema ? { ...schemaState, ...extraState } : parsed
 
     chatMessages.value.push({
       role: 'assistant',

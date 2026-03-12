@@ -1,5 +1,6 @@
 import { eq, desc } from 'drizzle-orm'
 import { promptElements } from '../../database/schema'
+import { hydratePromptElementForRead } from '#server/utils/promptElementData'
 
 /**
  * GET /api/elements — List user's prompt elements (newest first).
@@ -18,5 +19,5 @@ export default defineEventHandler(async (event) => {
 
   log.debug('Prompt elements listed', { userId: user.id, count: rows.length })
 
-  return rows
+  return rows.map((row) => hydratePromptElementForRead(row))
 })

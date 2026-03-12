@@ -17,11 +17,20 @@ export interface ChatMessage {
   }
 }
 
-export function useChatForm() {
+export type ChatPersistenceMode = 'memory' | 'session'
+
+interface UseChatFormOptions {
+  persistence?: ChatPersistenceMode
+  resumeMode?: ChatMode
+}
+
+export function useChatForm(options: UseChatFormOptions = {}) {
   const { elements, fetchElements } = usePromptElements()
   const { prompts } = useSystemPrompts()
   const { ensureLoaded: ensureTagsLoaded } = usePromptTags()
   const sessions = useChatSessions()
+  const persistence = options.persistence ?? 'memory'
+  const usesSessionPersistence = persistence === 'session'
 
   const chatMode = ref<ChatMode>('general')
   const mediaType = ref<'image' | 'video'>('image')
@@ -38,20 +47,24 @@ export function useChatForm() {
   })
 
   async function initializeChat() {
-    // First load: try to resume the most recent session from D1
-    await sessions.fetchSessions()
+    if (usesSessionPersistence) {
+      // Only the standalone brainstorm chat should restore D1-backed sessions.
+      await sessions.fetchSessions()
 
-    const latestSession = sessions.sessions.value[0]
+      const latestSession = options.resumeMode
+        ? sessions.sessions.value.find((session) => session.mode === options.resumeMode)
+        : sessions.sessions.value[0]
 
-    if (latestSession) {
-      // Resume existing session
-      chatMode.value = (latestSession.mode as ChatMode) || 'general'
-      selectedModel.value = latestSession.model || 'grok-3-mini'
-      const persisted = await sessions.loadSession(latestSession.id)
-      if (persisted.length > 0) {
-        // Re-inject the system message slot (rebuilt at send-time, blank for display purposes)
-        chatMessages.value = [{ role: 'system', content: '' }, ...persisted]
-        return
+      if (latestSession) {
+        // Resume existing session
+        chatMode.value = (latestSession.mode as ChatMode) || 'general'
+        selectedModel.value = latestSession.model || 'grok-3-mini'
+        const persisted = await sessions.loadSession(latestSession.id)
+        if (persisted.length > 0) {
+          // Re-inject the system message slot (rebuilt at send-time, blank for display purposes)
+          chatMessages.value = [{ role: 'system', content: '' }, ...persisted]
+          return
+        }
       }
     }
 
@@ -89,13 +102,14 @@ export function useChatForm() {
       },
     ]
 
-    // Create a new D1 session
-    const newSessionId = await sessions.createSession(mode, selectedModel.value)
-    if (newSessionId) {
-      // Persist the initial assistant greeting
-      const greetingMsg = chatMessages.value[1]
-      if (greetingMsg) {
-        await sessions.appendMessage(newSessionId, greetingMsg)
+    if (usesSessionPersistence) {
+      const newSessionId = await sessions.createSession(mode, selectedModel.value)
+      if (newSessionId) {
+        // Persist the initial assistant greeting
+        const greetingMsg = chatMessages.value[1]
+        if (greetingMsg) {
+          await sessions.appendMessage(newSessionId, greetingMsg)
+        }
       }
     }
   }
@@ -262,20 +276,21 @@ export function useChatForm() {
         msg.parsedResponse = { ...parsed }
       }
 
-      // ── Persist both messages to D1 ──────────────────────────
-      const sessionId = sessions.activeSessionId.value
-      if (sessionId) {
-        const assistantMsg = chatMessages.value[assistantIndex]
-        // Extract session title from agent's suggested_name (first time only)
-        const existingSession = sessions.sessions.value.find((s) => s.id === sessionId)
-        const shouldSetTitle = !existingSession?.title && parsed.suggested_name
-        await sessions.appendMessage(sessionId, userMessage)
-        if (assistantMsg) {
-          await sessions.appendMessage(
-            sessionId,
-            assistantMsg,
-            shouldSetTitle ? parsed.suggested_name : undefined,
-          )
+      if (usesSessionPersistence) {
+        const sessionId = sessions.activeSessionId.value
+        if (sessionId) {
+          const assistantMsg = chatMessages.value[assistantIndex]
+          // Extract session title from agent's suggested_name (first time only)
+          const existingSession = sessions.sessions.value.find((s) => s.id === sessionId)
+          const shouldSetTitle = !existingSession?.title && parsed.suggested_name
+          await sessions.appendMessage(sessionId, userMessage)
+          if (assistantMsg) {
+            await sessions.appendMessage(
+              sessionId,
+              assistantMsg,
+              shouldSetTitle ? parsed.suggested_name : undefined,
+            )
+          }
         }
       }
     } catch (e) {
@@ -345,11 +360,12 @@ export function useChatForm() {
         }
       }
 
-      // Persist inline generation result to D1
-      const sessionId = sessions.activeSessionId.value
-      const finalMsg = chatMessages.value[placeholderIndex]
-      if (sessionId && finalMsg) {
-        await sessions.appendMessage(sessionId, finalMsg)
+      if (usesSessionPersistence) {
+        const sessionId = sessions.activeSessionId.value
+        const finalMsg = chatMessages.value[placeholderIndex]
+        if (sessionId && finalMsg) {
+          await sessions.appendMessage(sessionId, finalMsg)
+        }
       }
     } catch (e) {
       const err = e as { data?: { message?: string }; message?: string }
@@ -486,13 +502,14 @@ export function useChatForm() {
         msg.parsedResponse = { ...parsed }
       }
 
-      // Persist to D1
-      const sessionId = sessions.activeSessionId.value
-      if (sessionId) {
-        const assistantMsg = chatMessages.value[assistantIndex]
-        await sessions.appendMessage(sessionId, userMessage)
-        if (assistantMsg) {
-          await sessions.appendMessage(sessionId, assistantMsg)
+      if (usesSessionPersistence) {
+        const sessionId = sessions.activeSessionId.value
+        if (sessionId) {
+          const assistantMsg = chatMessages.value[assistantIndex]
+          await sessions.appendMessage(sessionId, userMessage)
+          if (assistantMsg) {
+            await sessions.appendMessage(sessionId, assistantMsg)
+          }
         }
       }
     } catch (e) {
@@ -523,7 +540,9 @@ export function useChatForm() {
     chatMessages.value = []
     chatInput.value = ''
     error.value = null
-    sessions.activeSessionId.value = null
+    if (usesSessionPersistence) {
+      sessions.activeSessionId.value = null
+    }
     await _startFreshChat()
   }
 

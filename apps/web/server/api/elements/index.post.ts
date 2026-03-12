@@ -1,5 +1,10 @@
 import { z } from 'zod'
 import { promptElements } from '../../database/schema'
+import {
+  normalizeChatHistoryJson,
+  normalizeMetadataJson,
+  normalizePresetElementState,
+} from '#server/utils/promptElementData'
 
 const bodySchema = z.object({
   type: z.enum(['person', 'scene', 'framing', 'action', 'style', 'prompt']),
@@ -23,16 +28,35 @@ export default defineEventHandler(async (event) => {
 
   const now = new Date().toISOString()
   const id = crypto.randomUUID()
+  let normalizedPresetState: ReturnType<typeof normalizePresetElementState>
+  let normalizedMetadata: string | null
+  let normalizedChatHistory: string | null
+
+  try {
+    normalizedPresetState = normalizePresetElementState({
+      type: body.type,
+      name: body.name,
+      content: body.content,
+      attributes: body.attributes ?? null,
+    })
+    normalizedMetadata = normalizeMetadataJson(body.metadata ?? null)
+    normalizedChatHistory = normalizeChatHistoryJson(body.chatHistory ?? null)
+  } catch (error) {
+    throw createError({
+      statusCode: 400,
+      message: error instanceof Error ? error.message : 'Invalid prompt element payload',
+    })
+  }
 
   const element = {
     id,
     userId: user.id,
     type: body.type,
     name: body.name,
-    content: body.content,
-    attributes: body.attributes ?? null,
-    metadata: body.metadata ?? null,
-    chatHistory: body.chatHistory ?? null,
+    content: normalizedPresetState.content,
+    attributes: normalizedPresetState.attributes,
+    metadata: normalizedMetadata,
+    chatHistory: normalizedChatHistory,
     createdAt: now,
     updatedAt: now,
   }
