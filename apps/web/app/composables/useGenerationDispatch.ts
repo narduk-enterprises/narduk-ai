@@ -51,24 +51,14 @@ export function useGenerationDispatch(deps: {
     uploadImage,
   } = useGenerate()
 
+  const store = useGenerationsStore()
+
   // ─── Batch Count ────────────────────────────────────────────
   const imageCount = ref(1)
 
   // ─── Generation Results ─────────────────────────────────────
   const latestResult = ref<Generation | null>(null)
   const latestResults = ref<Generation[]>([])
-  const recentGenerations = ref<Generation[]>([])
-  const userImages = ref<Generation[]>([])
-
-  async function loadUserImages() {
-    try {
-      const all = await fetchGenerations(100)
-      userImages.value = all.filter((g) => g.type === 'image' && g.status === 'done')
-      recentGenerations.value = all.slice(0, 20)
-    } catch {
-      // silent
-    }
-  }
 
   // ─── Lineage (Dual-Write) ──────────────────────────────────
 
@@ -119,7 +109,7 @@ export function useGenerationDispatch(deps: {
         if (result) {
           latestResult.value = result
           latestResults.value = [result]
-          await loadUserImages()
+          store.upsert(result)
         }
       } else {
         const settled = await Promise.allSettled(
@@ -134,7 +124,7 @@ export function useGenerationDispatch(deps: {
         if (successes.length > 0) {
           latestResult.value = successes[0]!
           latestResults.value = successes
-          await loadUserImages()
+          for (const s of successes) store.upsert(s)
         } else {
           error.value = 'All image generations failed. Please try again.'
         }
@@ -167,7 +157,7 @@ export function useGenerationDispatch(deps: {
       if (result) {
         latestResult.value = result
         latestResults.value = [result]
-        await loadUserImages()
+        store.upsert(result)
       }
     }
 
@@ -195,6 +185,7 @@ export function useGenerationDispatch(deps: {
     const toast = useToast()
     pollGeneration(genRef, (completed) => {
       latestResult.value = completed
+      store.upsert(completed)
       if (completed.status === 'failed' || completed.status === 'expired') {
         const errorMsg = (() => {
           if (!completed.metadata) return null
@@ -219,7 +210,6 @@ export function useGenerationDispatch(deps: {
           icon: 'i-lucide-check-circle',
         })
       }
-      loadUserImages()
     })
   }
 
@@ -233,7 +223,7 @@ export function useGenerationDispatch(deps: {
       const result = await uploadImage(file)
       if (result) {
         sourceGenerationId.value = result.id
-        await loadUserImages()
+        store.upsert(result)
       }
     } catch (e) {
       const err = e as { message?: string }
@@ -248,14 +238,13 @@ export function useGenerationDispatch(deps: {
     imageCount,
     latestResult,
     latestResults,
-    recentGenerations,
-    userImages,
+    recentGenerations: computed(() => store.items.slice(0, 20)),
+    userImages: store.doneImages,
     generating,
     error,
     uploadingSource,
 
     // Actions
-    loadUserImages,
     handleGenerate,
     handleSourceImageUpload,
     uploadImage,

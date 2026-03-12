@@ -12,37 +12,24 @@ useWebPageSchema({
   description: 'Browse your AI-generated images and videos.',
 })
 
-const {
-  fetchGenerations,
-  deleteGeneration,
-  upscaleGeneration,
-  remixGeneration,
-  error: generateError,
-} = useGenerate()
+const store = useGenerationsStore()
+const { deleteGeneration, upscaleGeneration, remixGeneration, error: generateError } = useGenerate()
 const remixingId = ref<string | null>(null)
 const toast = useToast()
 const galleryViewer = useGalleryViewer()
 
 const route = useRoute()
-const generations = ref<Generation[]>([])
-const loading = ref(true)
 const activeFilter = computed(() => (route.query.filter as string) || 'all')
 
-// Derive server-side filter params from activeFilter
 const serverFilters = computed(() => {
   const f = activeFilter.value
   if (f === 'images') return { type: 'image' }
   if (f === 'videos') return { type: 'video' }
-  // mode-based filters (t2i, t2v, i2v, i2i)
   if (f !== 'all') return { mode: f }
   return {}
 })
 
 const limit = 24
-const offset = ref(0)
-const isFinished = ref(false)
-const loadingMore = ref(false)
-
 const searchQuery = ref((route.query.search as string) || '')
 const debouncedSearchQuery = ref((route.query.search as string) || '')
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
@@ -54,56 +41,21 @@ watch(searchQuery, (newVal) => {
   }, 300)
 })
 
-watch(debouncedSearchQuery, () => {
-  load()
-})
-
-// Re-load when filter changes
-watch(activeFilter, () => {
-  load()
-})
+watch(debouncedSearchQuery, () => load())
+watch(activeFilter, () => load())
 
 async function load() {
-  loading.value = true
-  offset.value = 0
-  isFinished.value = false
-  try {
-    generations.value = await fetchGenerations(
-      limit,
-      offset.value,
-      debouncedSearchQuery.value,
-      serverFilters.value,
-    )
-    if (generations.value.length < limit) {
-      isFinished.value = true
-    }
-  } finally {
-    loading.value = false
-  }
+  await store.load(limit, debouncedSearchQuery.value, serverFilters.value)
 }
 
 async function loadMore() {
-  if (loadingMore.value || isFinished.value) return
-  loadingMore.value = true
-  offset.value += limit
-  try {
-    const nextBatch = await fetchGenerations(
-      limit,
-      offset.value,
-      debouncedSearchQuery.value,
-      serverFilters.value,
-    )
-    if (nextBatch.length < limit) {
-      isFinished.value = true
-    }
-    generations.value.push(...nextBatch)
-  } catch {
-    // silent
-  } finally {
-    loadingMore.value = false
-  }
+  await store.loadMore(limit, debouncedSearchQuery.value, serverFilters.value)
 }
 
+// ── Live polling — always on, visibility-aware, never auto-stops ──
+useGalleryPoller()
+
+// ── Infinite scroll ───────────────────────────────────────────────
 const loadMoreTarget = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
 
@@ -111,91 +63,46 @@ onMounted(() => {
   load()
   observer = new IntersectionObserver(
     ([entry]: IntersectionObserverEntry[]) => {
-      if (entry?.isIntersecting) {
-        loadMore()
-      }
+      if (entry?.isIntersecting) loadMore()
     },
     { rootMargin: '400px' },
   )
 })
 
-// Re-observe whenever the sentinel element enters/leaves the DOM
-// (it lives inside a v-else block that unmounts during loading)
 watch(loadMoreTarget, (el, oldEl) => {
   if (oldEl && observer) observer.unobserve(oldEl)
   if (el && observer) observer.observe(el)
 })
 
-// Auto-refresh while any generations are pending
-const hasPending = computed(() => generations.value.some((g) => g.status === 'pending'))
-let refreshInterval: ReturnType<typeof setInterval> | null = null
+onUnmounted(() => {
+  observer?.disconnect()
+  observer = null
+})
 
-watch(
-  hasPending,
-  (pending) => {
-    if (pending && !refreshInterval) {
-      refreshInterval = setInterval(async () => {
-        try {
-          // fetch only the first page for fast updates of pending items
-          const fresh = await fetchGenerations(
-            limit,
-            0,
-            debouncedSearchQuery.value,
-            serverFilters.value,
-          )
-
-          // update existing items in the generations array
-          for (const item of fresh) {
-            const index = generations.value.findIndex((g) => g.id === item.id)
-            if (index !== -1) {
-              generations.value[index] = item
-            } else if (activeFilter.value === 'all') {
-              generations.value.unshift(item)
-            }
-          }
-        } catch {
-          // silent
-        }
-      }, 5000)
-    } else if (!pending && refreshInterval) {
-      clearInterval(refreshInterval)
-      refreshInterval = null
-    }
-  },
-  { immediate: true },
+// ── Sorted view ───────────────────────────────────────────────────
+const filteredGenerations = computed(() =>
+  [...store.items].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  ),
 )
 
-onUnmounted(() => {
-  if (refreshInterval) {
-    clearInterval(refreshInterval)
-    refreshInterval = null
-  }
-  if (observer) {
-    observer.disconnect()
-    observer = null
-  }
+// ── Sync viewer when list changes ─────────────────────────────────
+watch(filteredGenerations, (newList) => {
+  if (galleryViewer.isOpen.value) galleryViewer.updateItems(newList)
 })
 
-// Server already filters by type/mode, so just sort here
-const filteredGenerations = computed(() => {
-  return [...generations.value].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  )
-})
-
+// ── Actions ───────────────────────────────────────────────────────
 async function handleDelete(gen: Generation) {
   try {
     await deleteGeneration(gen.id)
-    generations.value = generations.value.filter((g) => g.id !== gen.id)
+    store.remove(gen.id)
   } catch {
-    // silent
+    /* silent */
   }
 }
 
 function setFilter(value: string) {
-  navigateTo({
-    query: { ...route.query, filter: value === 'all' ? undefined : value },
-  })
+  navigateTo({ query: { ...route.query, filter: value === 'all' ? undefined : value } })
 }
 
 function handleUseAsSource(gen: Generation) {
@@ -211,17 +118,10 @@ function openViewer(gen: Generation) {
   galleryViewer.open(filteredGenerations.value, idx >= 0 ? idx : 0, loadMore)
 }
 
-// Sync items to viewer when generations list changes
-watch(filteredGenerations, (newList) => {
-  if (galleryViewer.isOpen.value) {
-    galleryViewer.updateItems(newList)
-  }
-})
-
 async function handleUpscale(gen: Generation) {
   const result = await upscaleGeneration(gen.id)
   if (result) {
-    generations.value.unshift(result)
+    store.upsert(result)
     toast.add({
       title: 'Upscaling Started',
       description:
@@ -251,7 +151,7 @@ async function handleRemix(gen: Generation) {
   try {
     const result = await remixGeneration(gen)
     if (result) {
-      generations.value.unshift(result)
+      store.upsert(result)
       toast.add({
         title: 'Remix Created',
         description:
@@ -325,7 +225,7 @@ const filters = [
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="flex flex-col items-center gap-4 py-24">
+    <div v-if="store.loading" class="flex flex-col items-center gap-4 py-24">
       <div class="relative">
         <UIcon name="i-lucide-loader-2" class="size-10 animate-spin text-primary" />
         <div class="absolute inset-0 animate-glow-pulse rounded-full" />
@@ -372,11 +272,11 @@ const filters = [
 
       <!-- Infinite Scroll Trigger -->
       <div ref="loadMoreTarget" class="h-20 flex items-center justify-center w-full">
-        <div v-if="loadingMore" class="flex flex-col items-center gap-2">
+        <div v-if="store.loadingMore" class="flex flex-col items-center gap-2">
           <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-primary" />
         </div>
         <p
-          v-else-if="isFinished && filteredGenerations.length > 0"
+          v-else-if="store.isFinished && filteredGenerations.length > 0"
           class="text-sm text-dimmed uppercase tracking-widest font-semibold flex items-center gap-2"
         >
           <UIcon name="i-lucide-check-circle-2" class="size-4" /> End of Gallery

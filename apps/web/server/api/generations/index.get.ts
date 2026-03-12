@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { eq, desc, like, and, or } from 'drizzle-orm'
+import { eq, desc, like, and, or, gt } from 'drizzle-orm'
 import { generations } from '../../database/schema'
 import { GENERATION_STALE_TIMEOUT_MS } from '../../utils/constants'
 
@@ -9,6 +9,8 @@ const querySchema = z.object({
   search: z.string().optional(),
   type: z.enum(['image', 'video']).optional(),
   mode: z.string().optional(),
+  /** ISO timestamp — return only rows created after this value (for live polling). */
+  since: z.string().datetime({ offset: true }).optional(),
 })
 
 /**
@@ -19,7 +21,7 @@ const querySchema = z.object({
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Generations')
   const user = await requireAuth(event)
-  const { limit, offset, search, type, mode } = querySchema.parse(getQuery(event))
+  const { limit, offset, search, type, mode, since } = querySchema.parse(getQuery(event))
 
   const db = useDatabase(event)
   const config = useRuntimeConfig(event)
@@ -41,13 +43,19 @@ export default defineEventHandler(async (event) => {
   if (mode) {
     filters.push(eq(generations.mode, mode))
   }
+  if (since) {
+    filters.push(gt(generations.createdAt, since))
+  }
 
   const baseQuery = db
     .select()
     .from(generations)
     .where(and(...filters))
 
-  const rows = await baseQuery.orderBy(desc(generations.createdAt)).limit(limit).offset(offset)
+  // When polling with `since`, skip pagination — always return newest delta
+  const rows = since
+    ? await baseQuery.orderBy(desc(generations.createdAt)).limit(100)
+    : await baseQuery.orderBy(desc(generations.createdAt)).limit(limit).offset(offset)
 
   // Refresh pending video generations from xAI
   const pendingVideos = rows.filter(
