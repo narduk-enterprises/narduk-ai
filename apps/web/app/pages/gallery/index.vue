@@ -81,7 +81,7 @@ onUnmounted(() => {
 
 // ── Sorted view ───────────────────────────────────────────────────
 const filteredGenerations = computed(() =>
-  [...store.items].sort(
+  [...store.items.value].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   ),
 )

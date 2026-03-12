@@ -1,13 +1,34 @@
 export type ChatMode = 'general' | 'person' | 'scene' | 'framing' | 'action' | 'style'
 
+export type ChatModelId = 'grok-3-mini' | 'grok-3' | 'grok-2-1212' | 'grok-2-vision-1212'
+
+export interface ChatModel {
+  id: ChatModelId
+  label: string
+  supportsVision: boolean
+}
+
+export const CHAT_MODELS: ChatModel[] = [
+  { id: 'grok-3-mini', label: 'Grok 3 Mini', supportsVision: false },
+  { id: 'grok-3', label: 'Grok 3', supportsVision: false },
+  { id: 'grok-2-1212', label: 'Grok 2', supportsVision: false },
+  { id: 'grok-2-vision-1212', label: 'Grok 2 Vision', supportsVision: true },
+]
+
+export type ContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } }
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
-  content: string
+  content: string | ContentPart[]
   parsedResponse?: {
     message: string
     prompt: string | null
     suggested_name?: string | null
     builder_state?: Record<string, string | null> | null
+    imageUrl?: string | null
+    isInlineGeneration?: boolean
   }
 }
 
@@ -21,7 +42,9 @@ export function useChatForm() {
   const chatMessages = ref<ChatMessage[]>([])
   const chatInput = ref('')
   const isChatting = ref(false)
+  const generatingInline = ref(false)
   const error = ref<string | null>(null)
+  const selectedModel = ref<ChatModelId>('grok-3-mini')
 
   watch(chatMode, () => {
     chatMessages.value = []
@@ -59,6 +82,17 @@ export function useChatForm() {
         },
       ]
     }
+  }
+
+  /**
+   * Helper to get a string version of a message's content for API payloads
+   * that need content as a string (e.g. filtering empty messages).
+   */
+  function contentAsString(content: string | ContentPart[]): string {
+    if (typeof content === 'string') return content
+    return content
+      .map((p) => (p.type === 'text' ? p.text : '[image]'))
+      .join(' ')
   }
 
   async function sendChatMessage(contextString?: string) {
@@ -160,11 +194,15 @@ export function useChatForm() {
         },
         body: JSON.stringify({
           chatMode: chatMode.value,
+          model: selectedModel.value,
           // Filter out any messages with empty content to avoid Zod min(1) failures
           // (can happen if initializeChat ran before prompts loaded, or stream was interrupted)
           messages: payloadMessages
             .map((m) => ({ role: m.role, content: m.content }))
-            .filter((m) => m.content.trim().length > 0),
+            .filter((m) => {
+              const str = contentAsString(m.content)
+              return str.trim().length > 0
+            }),
           stream: true,
         }),
       })
@@ -199,6 +237,8 @@ export function useChatForm() {
         prompt: null,
         suggested_name: null,
         builder_state: null,
+        imageUrl: null,
+        isInlineGeneration: false,
       }
 
       while (true) {
@@ -252,6 +292,230 @@ export function useChatForm() {
     }
   }
 
+  /**
+   * Generate an image inline in the chat thread without navigating away.
+   * Injects a synthetic assistant message with the result image.
+   */
+  async function generateInline(prompt: string) {
+    if (generatingInline.value) return
+    generatingInline.value = true
+    error.value = null
+
+    // Inject a placeholder assistant message immediately
+    chatMessages.value.push({
+      role: 'assistant',
+      content: '<message>Generating image…</message>',
+      parsedResponse: {
+        message: 'Generating image…',
+        prompt,
+        suggested_name: null,
+        builder_state: null,
+        imageUrl: null,
+        isInlineGeneration: true,
+      },
+    })
+    const placeholderIndex = chatMessages.value.length - 1
+
+    try {
+      const result = await $fetch<{ mediaUrl: string; id: string }>(
+        '/api/generate/image',
+        {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          body: { prompt },
+        },
+      )
+
+      const msg = chatMessages.value[placeholderIndex]
+      if (msg) {
+        const successMsg = 'Here's your generated image! You can share it with me to get feedback or ideas for next steps.'
+        msg.content = `<message>${successMsg}</message>`
+        msg.parsedResponse = {
+          message: successMsg,
+          prompt,
+          suggested_name: null,
+          builder_state: null,
+          imageUrl: result.mediaUrl,
+          isInlineGeneration: true,
+        }
+      }
+    } catch (e) {
+      const err = e as { data?: { message?: string }; message?: string }
+      const errorMsg = err.data?.message || err.message || 'Image generation failed'
+      error.value = errorMsg
+
+      const msg = chatMessages.value[placeholderIndex]
+      if (msg) {
+        msg.content = `<message>⚠️ ${errorMsg}</message>`
+        msg.parsedResponse = {
+          message: `⚠️ ${errorMsg}`,
+          prompt,
+          suggested_name: null,
+          builder_state: null,
+          imageUrl: null,
+          isInlineGeneration: true,
+        }
+      }
+    } finally {
+      generatingInline.value = false
+    }
+  }
+
+  /**
+   * Send a generated image back to the chat agent as a vision message.
+   * Automatically switches to a vision-capable model for that turn.
+   */
+  async function shareImageWithAgent(imageUrl: string, userComment?: string) {
+    if (isChatting.value) return
+    error.value = null
+
+    // Build the vision message
+    const text = userComment?.trim() || 'Here is the generated image. What do you think? Can you suggest improvements or next steps?'
+    const visionContent: ContentPart[] = [
+      { type: 'text', text },
+      { type: 'image_url', image_url: { url: imageUrl } },
+    ]
+
+    // Remember current model and switch to vision if needed
+    const originalModel = selectedModel.value
+    const needsVisionSwitch = selectedModel.value !== 'grok-2-vision-1212'
+    if (needsVisionSwitch) {
+      selectedModel.value = 'grok-2-vision-1212'
+    }
+
+    // Inject user message with the image
+    chatMessages.value.push({ role: 'user', content: visionContent })
+    isChatting.value = true
+
+    let assistantIndex = -1
+
+    try {
+      await ensureTagsLoaded()
+
+      let baseSystemPrompt = prompts.value[`chat_${chatMode.value}`] || ''
+      const elementsContext = elements.value.length
+        ? `The user has the following saved Prompt Elements in their library:\n${elements.value
+            .map((e) => `- [${e.type}] "${e.name}": ${e.content}`)
+            .join('\n')}`
+        : 'The user has no saved Prompt Elements yet.'
+
+      const payloadMessages = [...chatMessages.value]
+      payloadMessages[0] = {
+        role: 'system',
+        content: `${baseSystemPrompt}\n\n${elementsContext}`,
+      }
+
+      chatMessages.value.push({
+        role: 'assistant',
+        content: '',
+        parsedResponse: { message: '', prompt: null, suggested_name: null, builder_state: null },
+      })
+      assistantIndex = chatMessages.value.length - 1
+
+      // Show "Switched to vision model" notice
+      if (needsVisionSwitch) {
+        const switchMsg = chatMessages.value[assistantIndex]
+        if (switchMsg) {
+          switchMsg.parsedResponse = {
+            message: '_(Switched to Grok 2 Vision for image analysis)_',
+            prompt: null,
+            suggested_name: null,
+            builder_state: null,
+          }
+        }
+      }
+
+      const res = await fetch('/api/generate/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({
+          chatMode: chatMode.value,
+          model: 'grok-2-vision-1212',
+          messages: payloadMessages
+            .map((m) => ({ role: m.role, content: m.content }))
+            .filter((m) => {
+              const str = contentAsString(m.content)
+              return str.trim().length > 0
+            }),
+          stream: true,
+        }),
+      })
+
+      if (!res.ok) throw new Error(`API Error (${res.status})`)
+
+      if (!res.body) {
+        console.warn('[useChatForm] res.body is null on vision turn')
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let fullContent = ''
+      const parsed: Required<NonNullable<ChatMessage['parsedResponse']>> = {
+        message: '',
+        prompt: null,
+        suggested_name: null,
+        builder_state: null,
+        imageUrl: null,
+        isInlineGeneration: false,
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        fullContent += decoder.decode(value, { stream: true })
+
+        const msgMatch = fullContent.match(/<message>([\s\S]*?)(?:<\/message>|$)/i)
+        const promptMatch = fullContent.match(/<prompt>([\s\S]*?)(?:<\/prompt>|$)/i)
+        const titleMatch = fullContent.match(/<suggested_title>([\s\S]*?)(?:<\/suggested_title>|$)/i)
+        const stateMatch = fullContent.match(/<builder_state>([\s\S]*?)(?:<\/builder_state>|$)/i)
+
+        if (msgMatch?.[1]) parsed.message = msgMatch[1].trim()
+        if (promptMatch?.[1]) parsed.prompt = promptMatch[1].trim()
+        if (titleMatch?.[1]) parsed.suggested_name = titleMatch[1].trim()
+        if (stateMatch?.[1]) {
+          try { parsed.builder_state = JSON.parse(stateMatch[1].trim()) } catch { /* wait */ }
+        }
+
+        const msg = chatMessages.value[assistantIndex]!
+        msg.content = fullContent
+        msg.parsedResponse = { ...parsed }
+      }
+    } catch (e) {
+      const err = e as { data?: { message?: string }; message?: string }
+      const errorMsg = err.data?.message || err.message || 'Failed to get vision response'
+      error.value = errorMsg
+      if (assistantIndex >= 0) {
+        const msg = chatMessages.value[assistantIndex]
+        if (msg) {
+          msg.content = `<message>${errorMsg}</message>`
+          msg.parsedResponse = {
+            message: `⚠️ ${errorMsg}`,
+            prompt: null,
+            suggested_name: null,
+            builder_state: null,
+          }
+        }
+      }
+    } finally {
+      isChatting.value = false
+      // Restore original model after vision turn
+      if (needsVisionSwitch) {
+        selectedModel.value = originalModel
+      }
+    }
+  }
+
+  function startNewChat() {
+    chatMessages.value = []
+    chatInput.value = ''
+    error.value = null
+    initializeChat()
+  }
+
   return {
     elements,
     fetchElements,
@@ -260,8 +524,13 @@ export function useChatForm() {
     chatMessages,
     chatInput,
     isChatting,
+    generatingInline,
     error,
+    selectedModel,
     initializeChat,
     sendChatMessage,
+    generateInline,
+    shareImageWithAgent,
+    startNewChat,
   }
 }

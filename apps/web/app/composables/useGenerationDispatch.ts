@@ -237,7 +237,7 @@ export function useGenerationDispatch(deps: {
     imageCount,
     latestResult,
     latestResults,
-    recentGenerations: computed(() => store.items.slice(0, 20)),
+    recentGenerations: computed(() => store.items.value.slice(0, 20)),
     userImages: store.doneImages,
     generating,
     error,

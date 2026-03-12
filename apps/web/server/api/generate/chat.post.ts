@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
         .where(eq(appSettings.id, 1))
         .get()
       if (settings?.promptEnhanceModel) {
-        chatModel = settings.promptEnhanceModel
+        chatModel = settings.promptEnhanceModel as (typeof ALLOWED_CHAT_MODELS)[number]
       }
     } catch (err) {
       log.warn('Could not fetch appSettings for chatModel', { err })

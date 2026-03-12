@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { ChatMessage } from '~/composables/useChatForm'
 
-defineProps<{
+const props = defineProps<{
   messages: ChatMessage[]
   isChatting: boolean
-  generatingPreview?: boolean
+  generatingInline?: boolean
   headshotUrl?: string | null
   showBuilderState?: boolean
 }>()
@@ -12,6 +12,8 @@ defineProps<{
 const emit = defineEmits<{
   'use-prompt': [text: string]
   'save-prompt': [text: string]
+  'generate-inline': [prompt: string]
+  'share-image': [imageUrl: string]
 }>()
 
 function handleUsePrompt(prompt: string) {
@@ -22,8 +24,23 @@ function handleSavePrompt(prompt: string) {
   emit('save-prompt', prompt)
 }
 
+function handleGenerateInline(prompt: string) {
+  emit('generate-inline', prompt)
+}
+
+function handleShareImage(imageUrl: string) {
+  emit('share-image', imageUrl)
+}
+
 function formatKey(key: string | number) {
   return String(key).replaceAll('_', ' ')
+}
+
+/** Get displayable text from a message (strips XML tags from assistant replies) */
+function getDisplayContent(msg: ChatMessage): string {
+  if (msg.parsedResponse?.message) return msg.parsedResponse.message
+  const raw = typeof msg.content === 'string' ? msg.content : ''
+  return raw.replace(/<[^>]+>/g, '')
 }
 </script>
 
@@ -35,32 +52,95 @@ function formatKey(key: string | number) {
       class="flex flex-col max-w-[90%] md:max-w-[80%]"
       :class="msg.role === 'user' ? 'self-end items-end' : 'self-start items-start'"
     >
-      <!-- Chat Bubble -->
+      <!-- User message: handle multimodal content (text + image) -->
+      <template v-if="msg.role === 'user'">
+        <!-- Text portion -->
+        <div
+          v-if="typeof msg.content === 'string' && msg.content.trim()"
+          class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-primary text-white rounded-tr-sm whitespace-pre-wrap"
+        >
+          {{ msg.content }}
+        </div>
+        <!-- Multimodal: text part -->
+        <template v-else-if="Array.isArray(msg.content)">
+          <div
+            v-for="(part, pi) in msg.content"
+            :key="pi"
+          >
+            <div
+              v-if="part.type === 'text'"
+              class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-primary text-white rounded-tr-sm whitespace-pre-wrap mb-2"
+            >
+              {{ part.text }}
+            </div>
+            <div
+              v-else-if="part.type === 'image_url'"
+              class="mt-1 rounded-xl overflow-hidden ring-2 ring-primary/30 max-w-xs"
+            >
+              <img
+                :src="part.image_url.url"
+                alt="Shared image"
+                class="w-full h-auto object-cover"
+              >
+            </div>
+          </div>
+        </template>
+      </template>
+
+      <!-- Assistant Chat Bubble -->
       <div
-        v-if="
+        v-else-if="
           msg.parsedResponse?.message ||
           (!msg.parsedResponse && msg.content) ||
           (msg.role === 'assistant' && msg.content)
         "
-        class="p-4 rounded-2xl text-sm md:text-base leading-relaxed"
-        :class="[
-          msg.role === 'user'
-            ? 'bg-primary text-white rounded-tr-sm whitespace-pre-wrap'
-            : 'bg-elevated text-default border border-default rounded-tl-sm shadow-sm',
-        ]"
+        class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-elevated text-default border border-default rounded-tl-sm shadow-sm"
       >
-        <!-- Render markdown for assistant messages, plain text for user -->
-        <MarkdownRenderer
-          v-if="msg.role === 'assistant'"
-          :content="msg.parsedResponse?.message || msg.content?.replace(/<[^>]+>/g, '') || ''"
-        />
-        <template v-else>
-          {{ msg.parsedResponse?.message || msg.content?.replace(/<[^>]+>/g, '') || '' }}
-        </template>
+        <MarkdownRenderer :content="getDisplayContent(msg)" />
+      </div>
+
+      <!-- Inline Generated Image -->
+      <div
+        v-if="msg.parsedResponse?.isInlineGeneration && msg.parsedResponse?.imageUrl"
+        class="mt-3 w-full animate-fade-in-up"
+      >
+        <UCard class="ring-1 ring-primary/20 overflow-hidden">
+          <div class="p-0">
+            <img
+              :src="msg.parsedResponse.imageUrl"
+              :alt="msg.parsedResponse.prompt || 'Generated image'"
+              class="w-full h-auto object-cover rounded-t-lg"
+            >
+            <div class="p-3 flex flex-wrap gap-2 border-t border-default/50">
+              <UButton
+                color="primary"
+                variant="soft"
+                icon="i-lucide-share-2"
+                size="xs"
+                @click="handleShareImage(msg.parsedResponse!.imageUrl!)"
+              >
+                Share with Agent
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-external-link"
+                size="xs"
+                :to="msg.parsedResponse.imageUrl"
+                target="_blank"
+              >
+                Open Full Size
+              </UButton>
+            </div>
+          </div>
+        </UCard>
       </div>
 
       <!-- Generated Prompt Card -->
-      <div v-if="msg.parsedResponse?.prompt" class="mt-3 w-full animate-fade-in-up">
+      <div
+        v-if="msg.parsedResponse?.prompt && !msg.parsedResponse?.isInlineGeneration"
+        class="mt-3 w-full animate-fade-in-up"
+      >
         <UCard class="ring-1 ring-primary/20 bg-primary/5">
           <div class="p-4 sm:p-5 flex items-start gap-3">
             <UIcon name="i-lucide-sparkles" class="size-5 text-primary shrink-0 mt-0.5" />
@@ -77,6 +157,15 @@ function formatKey(key: string | number) {
                   @click="handleUsePrompt(msg.parsedResponse.prompt!)"
                 >
                   Use This Prompt
+                </UButton>
+                <UButton
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-image"
+                  size="sm"
+                  @click="handleGenerateInline(msg.parsedResponse.prompt!)"
+                >
+                  Generate Here
                 </UButton>
                 <UButton
                   color="neutral"
@@ -112,7 +201,7 @@ function formatKey(key: string | number) {
                 :src="headshotUrl"
                 alt="Headshot"
                 class="size-7 rounded-full object-cover ring-1 ring-primary/30 shrink-0"
-              />
+              >
               <UIcon v-else name="i-lucide-hammer" class="size-4 text-primary" />
               <span class="text-xs font-semibold text-primary">Attributes Updated</span>
             </div>
@@ -142,13 +231,13 @@ function formatKey(key: string | number) {
       <span class="size-2 rounded-full bg-primary animate-bounce"></span>
     </div>
 
-    <!-- Preview Loading -->
+    <!-- Inline Generation Loading -->
     <div
-      v-if="generatingPreview"
+      v-if="generatingInline"
       class="flex self-start items-center gap-3 p-4 rounded-2xl bg-elevated border border-default rounded-tl-sm max-w-[85%] animate-fade-in-up"
     >
       <UIcon name="i-lucide-loader-2" class="size-5 animate-spin text-primary" />
-      <span class="text-sm text-muted">Generating preview...</span>
+      <span class="text-sm text-muted">Generating image…</span>
     </div>
   </div>
 </template>
