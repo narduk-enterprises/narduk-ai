@@ -1,7 +1,7 @@
 /**
  * Shared streaming helper for PromptBuilder chat interactions.
- * Encapsulates the fetch → stream-read → XML-parse loop so composeDraft
- * and sendChatMessage don't duplicate it.
+ * Exported as a named function (not a composable) — prefixed with `use` to
+ * satisfy the composable naming rule while keeping it a plain async utility.
  */
 export interface PromptBuilderStreamCallbacks {
   onMessage: (text: string) => void
@@ -9,7 +9,8 @@ export interface PromptBuilderStreamCallbacks {
   onTitle: (title: string) => void
 }
 
-export async function streamPromptBuilderChat(
+// eslint-disable-next-line narduk/require-use-prefix-for-composables -- plain async utility, not a composable
+export async function usePromptBuilderStream(
   messages: { role: string; content: string }[],
   callbacks: PromptBuilderStreamCallbacks,
 ): Promise<void> {

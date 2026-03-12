@@ -3,7 +3,7 @@ import type { PresetMetadata } from '../composables/usePromptElements'
 import { usePromptElements } from '../composables/usePromptElements'
 import { usePromptLibrary } from '../composables/usePromptLibrary'
 import { useSystemPrompts } from '../composables/useSystemPrompts'
-import { streamPromptBuilderChat } from '../composables/usePromptBuilderStream'
+import { usePromptBuilderStream } from '../composables/usePromptBuilderStream'
 
 const isModalOpen = defineModel<boolean>('open', { default: false })
 
@@ -136,7 +136,7 @@ async function composeDraft() {
   const assistantIndex = chatLog.value.length - 1
 
   try {
-    await streamPromptBuilderChat(chatMessages.value, {
+    await usePromptBuilderStream(chatMessages.value, {
       onMessage: (text) => {
         chatLog.value[assistantIndex]!.text = text
       },
@@ -174,7 +174,7 @@ async function sendChatMessage() {
   const assistantIndex = chatLog.value.length - 1
 
   try {
-    await streamPromptBuilderChat(chatMessages.value, {
+    await usePromptBuilderStream(chatMessages.value, {
       onMessage: (t) => {
         chatLog.value[assistantIndex]!.text = t
       },

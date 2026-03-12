@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { PRESET_ATTRIBUTES } from '~/utils/presetSchemas'
+
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({

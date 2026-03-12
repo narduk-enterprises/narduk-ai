@@ -36,9 +36,6 @@ const typeConfig: Record<string, { icon: string; label: string; color: string }>
 const config = computed(() => typeConfig[props.preset.type] || typeConfig.prompt)
 
 const cardDescription = computed(() => {
-  if (parsedMeta.value) {
-    // prefer attributes JSON description
-  }
   if (props.preset.attributes) {
     try {
       const attrs = JSON.parse(props.preset.attributes) as Record<string, string>
