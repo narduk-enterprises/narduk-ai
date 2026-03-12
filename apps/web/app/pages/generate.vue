@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Generation } from '~/types/generation'
-import type { PromptTagCategory } from '~/types/promptTag'
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -30,14 +29,13 @@ const {
   enhancing,
   isEnhanceModalOpen,
   enhanceInstructions,
+  enhanceImageBase64,
   error,
   charCount,
   isGenerateDisabled,
-  resultBadgeColor,
   latestMediaType,
   currentMediaType,
   latestResultError,
-  loadUserImages,
   handleGenerate,
   handleFeelingLucky,
   feelingLucky,
@@ -46,9 +44,6 @@ const {
   animateLatestImage,
   editLatestImage,
   useGenerationAsSource,
-  handleImageUpload,
-  removeEnhanceImage,
-  enhanceImageBase64,
   upscaleGeneration,
   upscaling,
   uploadingSource,
@@ -65,11 +60,9 @@ const {
   attachPreset,
   detachPreset,
   compiledPrompt,
-  // Tag API (from singleton usePromptTags, re-exported)
   tagCategories,
   ensureTagsLoaded,
   toggleTag,
-  isTagSelected,
   clearTags,
   selectedTagsList,
   tagSearchQuery,
@@ -78,17 +71,10 @@ const {
 } = useGenerationForm()
 
 const { deleteGeneration } = useGenerate()
-
 const { elements, fetchElements, remixPrompt } = usePromptElements()
 
 const isModifierSlideoverOpen = ref(false)
-const activeModifierCategory = ref<PromptTagCategory | null>(null)
-
-watch(tagCategories, (newVal) => {
-  if (newVal.length > 0 && !activeModifierCategory.value) {
-    activeModifierCategory.value = newVal[0] ?? null
-  }
-})
+const isLibraryModalOpen = ref(false)
 
 // Preset type configuration for UI rendering
 const PRESET_TYPE_CONFIG: Record<string, { label: string; icon: string; order: number }> = {
@@ -99,10 +85,8 @@ const PRESET_TYPE_CONFIG: Record<string, { label: string; icon: string; order: n
   action: { label: 'Action', icon: 'i-lucide-zap', order: 4 },
 }
 
-// Person presets for quick attachment (backward compat)
 const personElements = computed(() => elements.value.filter((el) => el.type === 'person'))
 
-// Non-person preset types that have elements
 const otherPresetTypes = computed(() => {
   const types = ['scene', 'style', 'framing', 'action']
   return types
@@ -126,45 +110,6 @@ function getPersonPreviewUrl(el: { metadata?: string | null }): string | null {
 }
 
 const galleryViewer = useGalleryViewer()
-const isComposeModalOpen = ref(false)
-const isLibraryModalOpen = ref(false)
-
-function openComposeModal() {
-  isComposeModalOpen.value = true
-}
-
-interface DropdownItem {
-  label: string
-  description?: string
-  onSelect?: () => void
-}
-
-const presetDropdownItems = computed(() => {
-  if (!elements.value.length) return []
-
-  const typeMap: Record<string, DropdownItem[]> = {}
-  for (const el of elements.value) {
-    if (!typeMap[el.type]) typeMap[el.type] = []
-    typeMap[el.type]!.push({
-      label: el.name,
-      description: el.content.substring(0, 30) + '...',
-      onSelect: () => {
-        prompt.value = prompt.value ? `${prompt.value}\n\n${el.content}` : el.content
-      },
-    })
-  }
-
-  const nestedItems = []
-  for (const [type, items] of Object.entries(typeMap)) {
-    nestedItems.push({
-      label: type.charAt(0).toUpperCase() + type.slice(1),
-      children: items,
-      icon: 'i-lucide-folder',
-    })
-  }
-
-  return [nestedItems]
-})
 
 function openRecentViewer(gen: Generation) {
   const idx = recentGenerations.value.findIndex((g: Generation) => g.id === gen.id)
@@ -196,7 +141,6 @@ async function handleRemix() {
 }
 
 onMounted(() => {
-  loadUserImages()
   fetchElements()
   ensureTagsLoaded()
 })
@@ -205,43 +149,6 @@ function handlePromptKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
     handleGenerate()
-  }
-}
-
-// ── Prompt Parser ──────────────────────────────────────────
-const { parsing: promptParsing, parsePrompt } = usePromptParser()
-
-async function handleParsePrompt() {
-  if (!prompt.value.trim() || promptParsing.value) return
-  const result = await parsePrompt(prompt.value)
-  if (!result) return
-
-  // Auto-select matched tags
-  if (result.matchedModifierIds.length) {
-    for (const modId of result.matchedModifierIds) {
-      if (!isTagSelected(modId)) {
-        toggleTag(modId)
-      }
-    }
-  }
-
-  // Build structured content from extracted attributes
-  const attrKeys = Object.keys(result.attributes || {})
-  if (attrKeys.length > 0) {
-    const attrLines = attrKeys
-      .filter((k) => result.attributes[k])
-      .map(
-        (k) =>
-          `${k.charAt(0).toUpperCase() + k.slice(1).replaceAll('_', ' ')}: ${result.attributes[k]}`,
-      )
-      .join('\n')
-
-    // Set the structured attributes as the prompt content, with remaining text appended
-    const parts = [attrLines, result.remainingPrompt].filter(Boolean)
-    prompt.value = parts.join('\n\n')
-  } else if (result.remainingPrompt) {
-    // No attributes extracted — just use the remaining prompt
-    prompt.value = result.remainingPrompt
   }
 }
 
@@ -258,17 +165,19 @@ function handleDismiss() {
 }
 
 const modes = [
-  { value: 't2i', label: 'Text → Image', icon: 'i-lucide-image' },
-  { value: 't2v', label: 'Text → Video', icon: 'i-lucide-video' },
-  { value: 'i2v', label: 'Image → Video', icon: 'i-lucide-wand-2' },
-  { value: 'i2i', label: 'Image → Image', icon: 'i-lucide-layers' },
+  { value: 't2i', label: 'Text → Image', icon: 'i-lucide-image', desc: 'Create an image from a text description' },
+  { value: 't2v', label: 'Text → Video', icon: 'i-lucide-video', desc: 'Generate a video from a text description' },
+  { value: 'i2v', label: 'Image → Video', icon: 'i-lucide-wand-2', desc: 'Animate an existing image into a video' },
+  { value: 'i2i', label: 'Image → Image', icon: 'i-lucide-layers', desc: 'Edit or transform an existing image' },
 ]
+
+const activeMode = computed(() => modes.find((m) => m.value === activeTab.value))
 
 const aspectRatios = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3']
 const resolutions = ['480p', '720p']
 const imageCounts = [1, 2, 3, 4]
 
-function selectResultAndOpenViewer(gen: Generation) {
+function openBatchViewer(gen: Generation) {
   const idx = latestResults.value.findIndex((g: Generation) => g.id === gen.id)
   galleryViewer.open(latestResults.value, idx >= 0 ? idx : 0)
 }
@@ -282,6 +191,8 @@ function editResult(gen: Generation) {
   activeTab.value = 'i2i'
   sourceGenerationId.value = gen.id
 }
+
+
 </script>
 
 <template>
@@ -294,19 +205,22 @@ function editResult(gen: Generation) {
 
     <div class="space-y-6">
       <!-- Mode Selector — Pill Toolbar -->
-      <div class="flex flex-wrap gap-2">
-        <UButton
-          v-for="mode in modes"
-          :key="mode.value"
-          :icon="mode.icon"
-          :label="mode.label"
-          :variant="activeTab === mode.value ? 'solid' : 'outline'"
-          :color="activeTab === mode.value ? 'primary' : 'neutral'"
-          size="sm"
-          class="rounded-full min-h-11"
-          :class="activeTab === mode.value ? 'shadow-lg shadow-primary/20' : ''"
-          @click="activeTab = mode.value"
-        />
+      <div class="space-y-2">
+        <div class="flex flex-wrap gap-2">
+          <UButton
+            v-for="mode in modes"
+            :key="mode.value"
+            :icon="mode.icon"
+            :label="mode.label"
+            :variant="activeTab === mode.value ? 'solid' : 'outline'"
+            :color="activeTab === mode.value ? 'primary' : 'neutral'"
+            size="sm"
+            class="rounded-full min-h-11"
+            :class="activeTab === mode.value ? 'shadow-lg shadow-primary/20' : ''"
+            @click="activeTab = mode.value"
+          />
+        </div>
+        <p v-if="activeMode" class="text-xs text-muted pl-1">{{ activeMode.desc }}</p>
       </div>
 
       <!-- Generation Form -->
@@ -400,43 +314,6 @@ function editResult(gen: Generation) {
                 @click="isLibraryModalOpen = true"
               >
                 Library
-              </UButton>
-              <UDropdownMenu v-if="presetDropdownItems?.length" :items="presetDropdownItems">
-                <UButton
-                  key="btn-presets"
-                  variant="ghost"
-                  color="neutral"
-                  size="sm"
-                  icon="i-lucide-bookmark"
-                  class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
-                >
-                  Presets
-                </UButton>
-              </UDropdownMenu>
-              <UButton
-                key="btn-compose"
-                variant="ghost"
-                color="neutral"
-                size="sm"
-                icon="i-lucide-puzzle"
-                :disabled="!elements.length"
-                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
-                @click="openComposeModal"
-              >
-                Compose
-              </UButton>
-              <UButton
-                key="btn-parse"
-                variant="ghost"
-                color="neutral"
-                size="sm"
-                icon="i-lucide-scan-text"
-                :loading="promptParsing"
-                :disabled="!prompt.trim() || generating || promptParsing"
-                class="hover:text-primary transition-colors duration-200 uppercase tracking-widest text-xs min-h-9"
-                @click="handleParsePrompt"
-              >
-                Parse
               </UButton>
               <UButton
                 key="btn-remix"
@@ -647,6 +524,22 @@ function editResult(gen: Generation) {
             <USelect v-model="aspectRatio" :items="aspectRatios" class="w-full sm:w-28" />
           </UFormField>
 
+          <!-- Image Count (T2I only) — inline with aspect ratio -->
+          <UFormField v-if="activeTab === 't2i'" label="Images" class="w-full sm:w-auto">
+            <div class="flex gap-1">
+              <UButton
+                v-for="count in imageCounts"
+                :key="count"
+                :label="String(count)"
+                :variant="imageCount === count ? 'solid' : 'outline'"
+                :color="imageCount === count ? 'primary' : 'neutral'"
+                size="sm"
+                class="min-w-9"
+                @click="imageCount = count"
+              />
+            </div>
+          </UFormField>
+
           <!-- Duration -->
           <UFormField
             v-if="activeTab === 't2v' || activeTab === 'i2v'"
@@ -666,22 +559,6 @@ function editResult(gen: Generation) {
             class="w-full sm:w-auto"
           >
             <USelect v-model="resolution" :items="resolutions" class="w-full sm:w-24" />
-          </UFormField>
-
-          <!-- Image Count (T2I only) -->
-          <UFormField v-if="activeTab === 't2i'" label="Images" class="w-full sm:w-auto">
-            <div class="flex gap-1">
-              <UButton
-                v-for="count in imageCounts"
-                :key="count"
-                :label="String(count)"
-                :variant="imageCount === count ? 'solid' : 'outline'"
-                :color="imageCount === count ? 'primary' : 'neutral'"
-                size="sm"
-                class="min-w-9"
-                @click="imageCount = count"
-              />
-            </div>
           </UFormField>
         </div>
 
@@ -735,249 +612,23 @@ function editResult(gen: Generation) {
       </div>
 
       <!-- Result Display -->
-      <div v-if="latestResult" class="glass-card p-6 space-y-4 animate-fade-in-up">
-        <div class="flex items-center gap-3">
-          <h2 class="text-lg font-display font-semibold">Result</h2>
-          <UBadge :color="resultBadgeColor" :label="latestResult.status" />
-        </div>
-
-        <!-- Pending -->
-        <div
-          v-if="latestResult.status === 'pending'"
-          class="flex flex-col items-center gap-4 py-16"
-        >
-          <div class="relative">
-            <UIcon name="i-lucide-loader-2" class="size-12 animate-spin text-primary" />
-            <div class="absolute inset-0 animate-glow-pulse rounded-full" />
-          </div>
-          <p class="text-muted">
-            Generating your {{ latestResult.type }}...
-            {{
-              latestResult.type === 'video'
-                ? 'Videos may take several minutes.'
-                : 'This should take a moment.'
-            }}
-          </p>
-        </div>
-
-        <!-- Done: Batch Grid (multiple results) -->
-        <template
-          v-else-if="latestResults.length > 1 && latestResults.every((r) => r.status === 'done')"
-        >
-          <div
-            class="grid gap-4"
-            :class="{
-              'grid-cols-2': latestResults.length === 2 || latestResults.length === 4,
-              'grid-cols-3': latestResults.length === 3,
-            }"
-          >
-            <div
-              v-for="gen in latestResults"
-              :key="gen.id"
-              class="relative overflow-hidden rounded-2xl neon-border bg-elevated/30 cursor-pointer group"
-              @click="selectResultAndOpenViewer(gen)"
-            >
-              <NuxtImg
-                v-if="gen.mediaUrl"
-                :src="gen.mediaUrl"
-                :alt="gen.prompt"
-                class="w-full aspect-square object-cover transition-transform duration-300 hover:scale-[1.03]"
-                placeholder
-                loading="lazy"
-              />
-              <!-- Quick Actions Overlay -->
-              <div
-                class="absolute bottom-0 inset-x-0 p-2 bg-linear-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-              >
-                <div class="flex justify-center gap-1.5">
-                  <UTooltip text="Animate">
-                    <UButton
-                      variant="solid"
-                      color="neutral"
-                      icon="i-lucide-video"
-                      size="xs"
-                      class="rounded-full"
-                      @click.stop="animateResult(gen)"
-                    />
-                  </UTooltip>
-                  <UTooltip text="Edit">
-                    <UButton
-                      variant="solid"
-                      color="neutral"
-                      icon="i-lucide-layers"
-                      size="xs"
-                      class="rounded-full"
-                      @click.stop="editResult(gen)"
-                    />
-                  </UTooltip>
-                  <UTooltip text="Upscale">
-                    <UButton
-                      variant="solid"
-                      color="neutral"
-                      icon="i-lucide-maximize-2"
-                      size="xs"
-                      class="rounded-full"
-                      :loading="upscaling"
-                      @click.stop="upscaleGeneration(gen.id)"
-                    />
-                  </UTooltip>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="flex items-start gap-3 group w-full">
-            <p class="text-sm text-muted flex-1">{{ latestResult?.prompt }}</p>
-            <CopyButton
-              v-if="latestResult"
-              :text="latestResult.prompt"
-              class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-            />
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <UTooltip text="View all past generations" class="flex-1 sm:flex-initial">
-              <UButton
-                variant="outline"
-                icon="i-lucide-grid-3x3"
-                size="sm"
-                to="/gallery"
-                class="rounded-full min-h-11 w-full"
-              >
-                Gallery
-              </UButton>
-            </UTooltip>
-          </div>
-        </template>
-
-        <!-- Done: Single Result -->
-        <template v-else-if="latestResult?.status === 'done' && latestResult.mediaUrl">
-          <div
-            class="relative overflow-hidden rounded-2xl neon-border bg-elevated/30 cursor-pointer"
-            @click="galleryViewer.open([latestResult!], 0)"
-          >
-            <MediaImg
-              v-if="latestMediaType === 'image'"
-              :src="latestResult.mediaUrl!"
-              :alt="latestResult.prompt"
-              class="max-h-[60vh] w-full object-contain transition-transform duration-300 hover:scale-[1.02]"
-              loading="lazy"
-            />
-            <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
-            <video
-              v-else
-              :src="latestResult.mediaUrl!"
-              controls
-              class="max-h-[60vh] w-full bg-black"
-              preload="metadata"
-            >
-              Your browser does not support the video tag.
-            </video>
-          </div>
-          <div class="flex items-start gap-3 group w-full">
-            <p class="text-sm text-muted flex-1">{{ latestResult.prompt }}</p>
-            <CopyButton
-              :text="latestResult.prompt"
-              class="opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-            />
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <UTooltip
-              v-if="latestResult.type === 'image'"
-              text="Create a video from this image"
-              class="flex-1 sm:flex-initial"
-            >
-              <UButton
-                variant="outline"
-                icon="i-lucide-video"
-                size="sm"
-                class="rounded-full min-h-11 w-full"
-                @click="animateLatestImage"
-              >
-                Animate
-              </UButton>
-            </UTooltip>
-            <UTooltip
-              v-if="latestResult.type === 'image'"
-              text="Create a new image based on this one"
-              class="flex-1 sm:flex-initial"
-            >
-              <UButton
-                variant="outline"
-                icon="i-lucide-layers"
-                size="sm"
-                class="rounded-full min-h-11 w-full"
-                @click="editLatestImage"
-              >
-                Edit
-              </UButton>
-            </UTooltip>
-            <UTooltip
-              v-if="latestResult.type === 'image'"
-              text="Increase resolution to 2K (Costs more)"
-              class="flex-1 sm:flex-initial"
-            >
-              <UButton
-                variant="outline"
-                icon="i-lucide-maximize-2"
-                size="sm"
-                class="rounded-full min-h-11 w-full"
-                :loading="upscaling"
-                @click="upscaleGeneration(latestResult!.id)"
-              >
-                Upscale
-              </UButton>
-            </UTooltip>
-            <UTooltip text="View all past generations" class="flex-1 sm:flex-initial">
-              <UButton
-                variant="outline"
-                icon="i-lucide-grid-3x3"
-                size="sm"
-                to="/gallery"
-                class="rounded-full min-h-11 w-full"
-              >
-                Gallery
-              </UButton>
-            </UTooltip>
-          </div>
-        </template>
-
-        <!-- Failed -->
-        <div
-          v-else-if="latestResult.status === 'failed' || latestResult.status === 'expired'"
-          class="rounded-xl border border-error/20 bg-error/5 p-5 space-y-4"
-        >
-          <div class="flex items-start gap-3">
-            <UIcon name="i-lucide-alert-triangle" class="size-6 text-error shrink-0 mt-0.5" />
-            <div>
-              <p class="font-medium text-error">Generation {{ latestResult.status }}</p>
-              <p class="text-sm text-muted mt-1">
-                {{ latestResultError || 'Something went wrong. Please try again.' }}
-              </p>
-            </div>
-          </div>
-          <div class="flex gap-2 pl-9">
-            <UButton
-              variant="outline"
-              color="warning"
-              icon="i-lucide-refresh-cw"
-              size="sm"
-              class="rounded-full"
-              @click="handleRetry"
-            >
-              Retry
-            </UButton>
-            <UButton
-              variant="ghost"
-              color="error"
-              icon="i-lucide-trash-2"
-              size="sm"
-              class="rounded-full"
-              @click="handleDismiss"
-            >
-              Dismiss
-            </UButton>
-          </div>
-        </div>
-      </div>
+      <GenerationResult
+        v-if="latestResult"
+        :latest-result="latestResult"
+        :latest-results="latestResults"
+        :latest-media-type="latestMediaType"
+        :latest-result-error="latestResultError"
+        :upscaling="upscaling"
+        @open-viewer="(gen: Generation) => galleryViewer.open([gen], 0)"
+        @open-batch-viewer="openBatchViewer"
+        @animate="animateResult"
+        @edit="editResult"
+        @upscale="(id: string) => upscaleGeneration(id)"
+        @animate-latest="animateLatestImage"
+        @edit-latest="editLatestImage"
+        @retry="handleRetry"
+        @dismiss="handleDismiss"
+      />
 
       <!-- Recent Generations -->
       <RecentImagesCarousel
@@ -989,104 +640,12 @@ function editResult(gen: Generation) {
     </div>
 
     <!-- Enhance Modal -->
-    <UModal v-model:open="isEnhanceModalOpen">
-      <template #header>
-        <div class="flex items-center justify-between">
-          <h3 class="font-display font-semibold text-lg flex items-center gap-2">
-            <UIcon name="i-lucide-wand-2" class="size-5 text-primary" />
-            Enhance Prompt
-          </h3>
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-x"
-            class="-my-1"
-            @click="isEnhanceModalOpen = false"
-          />
-        </div>
-      </template>
-
-      <template #body>
-        <div class="space-y-4">
-          <p class="text-sm text-muted">
-            Tell Grok how you want to enhance your prompt. You can ask for a specific style,
-            lighting, camera angle, or just leave it blank for a general enhancement.
-          </p>
-          <UFormField label="Instructions (Optional)">
-            <UTextarea
-              v-model="enhanceInstructions"
-              placeholder="e.g. Make it highly cinematic, neon cyberpunk style, 8k resolution..."
-              :rows="3"
-              autoresize
-              class="w-full"
-            />
-          </UFormField>
-
-          <!-- Optional Image Attachment -->
-          <div class="flex items-center gap-4 pt-2">
-            <UButton
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-image-plus"
-              size="sm"
-              @click="
-                (
-                  ($refs.fileInput as HTMLInputElement[])[0] ||
-                  ($refs.fileInput as HTMLInputElement)
-                ).click()
-              "
-            >
-              {{ enhanceImageBase64 ? 'Change Image' : 'Attach Image' }}
-            </UButton>
-            <!-- eslint-disable-next-line narduk/no-native-input -- Hidden file input for direct DOM click handling -->
-            <input
-              ref="fileInput"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="handleImageUpload"
-            />
-            <div v-if="enhanceImageBase64" class="relative group">
-              <NuxtImg
-                :src="enhanceImageBase64"
-                alt="Enhanced Source"
-                class="size-16 object-contain bg-black/5 dark:bg-black/40 p-1 rounded-lg ring-1 ring-default shadow-sm"
-              />
-              <UButton
-                color="error"
-                variant="solid"
-                icon="i-lucide-x"
-                :padded="false"
-                class="absolute -top-2 -right-2 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center size-5 shadow-sm hover:scale-110"
-                @click="removeEnhanceImage"
-              />
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <UButton color="neutral" variant="ghost" @click="isEnhanceModalOpen = false">
-            Cancel
-          </UButton>
-          <UButton
-            color="primary"
-            icon="i-lucide-sparkles"
-            :loading="enhancing"
-            @click="enhanceCurrentPrompt"
-          >
-            Enhance
-          </UButton>
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Prompt Builder Modal -->
-    <PromptBuilder
-      v-model:open="isComposeModalOpen"
-      :media-type="currentMediaType"
-      @use-prompt="handleUseBuilderPrompt"
+    <EnhanceModal
+      v-model:open="isEnhanceModalOpen"
+      v-model:instructions="enhanceInstructions"
+      v-model:image-base64="enhanceImageBase64"
+      :enhancing="enhancing"
+      @enhance="enhanceCurrentPrompt"
     />
 
     <!-- Prompt Library Modal -->
@@ -1096,109 +655,14 @@ function editResult(gen: Generation) {
     <GalleryViewer />
 
     <!-- Quick Modifiers Slideover -->
-    <USlideover v-model:open="isModifierSlideoverOpen" title="Quick Modifiers">
-      <template #body>
-        <div class="flex flex-col h-full overflow-hidden">
-          <!-- Search Input -->
-          <div class="p-3 sm:px-4 sm:py-3 border-b border-default/10 shrink-0">
-            <UInput
-              v-model="tagSearchQuery"
-              icon="i-lucide-search"
-              placeholder="Search modifiers..."
-              class="w-full"
-            >
-              <template #trailing>
-                <UButton
-                  v-if="tagSearchQuery"
-                  color="neutral"
-                  variant="link"
-                  icon="i-lucide-x"
-                  :padded="false"
-                  @click="tagSearchQuery = ''"
-                />
-              </template>
-            </UInput>
-          </div>
-
-          <!-- Slideover Content area -->
-          <div
-            class="flex-1 overflow-hidden"
-            :class="tagSearchQuery ? 'p-4 overflow-y-auto' : 'flex'"
-          >
-            <!-- Search Results -->
-            <div v-if="tagSearchQuery">
-              <div v-if="filteredTags.length" class="flex flex-wrap gap-1.5">
-                <UButton
-                  v-for="tag in filteredTags"
-                  :key="tag.id"
-                  size="xs"
-                  :variant="isTagSelected(tag.id) ? 'solid' : 'outline'"
-                  :color="isTagSelected(tag.id) ? 'primary' : 'neutral'"
-                  class="rounded-full transition-shadow duration-200"
-                  :class="isTagSelected(tag.id) ? 'shadow-sm shadow-primary/20' : ''"
-                  @click="toggleTag(tag.id)"
-                >
-                  {{ tag.label }}
-                </UButton>
-              </div>
-              <div v-else class="text-center text-muted py-8 text-sm">
-                No modifiers found for "{{ tagSearchQuery }}"
-              </div>
-            </div>
-
-            <!-- Category Tabs (No Search) -->
-            <template v-else>
-              <!-- Sidebar -->
-              <div
-                class="w-1/3 sm:w-2/5 border-r border-default/10 overflow-y-auto py-2 flex shrink-0 flex-col"
-              >
-                <UButton
-                  v-for="cat in tagCategories"
-                  :key="cat.attributeKey"
-                  variant="ghost"
-                  :color="
-                    activeModifierCategory?.attributeKey === cat.attributeKey
-                      ? 'primary'
-                      : 'neutral'
-                  "
-                  class="w-full justify-start rounded-none px-3 py-2 text-left shrink-0"
-                  :class="
-                    activeModifierCategory?.attributeKey === cat.attributeKey
-                      ? 'bg-primary/10 font-medium'
-                      : 'text-muted'
-                  "
-                  @click="activeModifierCategory = cat"
-                >
-                  <span class="truncate text-xs sm:text-sm">{{ cat.label }}</span>
-                </UButton>
-              </div>
-              <!-- Content -->
-              <div class="flex-1 p-3 sm:p-4 overflow-y-auto">
-                <div v-if="activeModifierCategory" class="flex flex-wrap gap-1.5">
-                  <UButton
-                    v-for="tag in activeModifierCategory.tags"
-                    :key="tag.id"
-                    size="xs"
-                    :variant="isTagSelected(tag.id) ? 'solid' : 'outline'"
-                    :color="isTagSelected(tag.id) ? 'primary' : 'neutral'"
-                    class="rounded-full transition-shadow duration-200"
-                    :class="isTagSelected(tag.id) ? 'shadow-sm shadow-primary/20' : ''"
-                    @click="toggleTag(tag.id)"
-                  >
-                    {{ tag.label }}
-                  </UButton>
-                </div>
-              </div>
-            </template>
-          </div>
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end p-3 sm:pr-4 sm:pb-4 sm:pt-2">
-          <UButton color="primary" @click="isModifierSlideoverOpen = false"> Done </UButton>
-        </div>
-      </template>
-    </USlideover>
+    <ModifierSlideover
+      v-model:open="isModifierSlideoverOpen"
+      :tag-categories="tagCategories"
+      :selected-tags-list="selectedTagsList"
+      :filtered-tags="filteredTags"
+      :tag-search-query="tagSearchQuery"
+      @toggle-tag="toggleTag"
+      @update:tag-search-query="tagSearchQuery = $event"
+    />
   </div>
 </template>

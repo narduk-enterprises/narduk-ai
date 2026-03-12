@@ -61,13 +61,26 @@ async function handleDelete(id: string) {
           <UIcon name="i-lucide-library" class="size-5 text-primary" />
           Prompt Library
         </h3>
-        <UButton
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-x"
-          class="-my-1"
-          @click="isModalOpen = false"
-        />
+        <div class="flex items-center gap-2">
+          <UButton
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-wand-2"
+            size="sm"
+            class="rounded-full"
+            to="/compose"
+            @click="isModalOpen = false"
+          >
+            Open Builder
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            class="-my-1"
+            @click="isModalOpen = false"
+          />
+        </div>
       </div>
     </template>
 

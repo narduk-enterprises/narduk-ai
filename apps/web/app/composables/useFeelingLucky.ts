@@ -135,19 +135,17 @@ export function useFeelingLucky(deps: {
             {
               role: 'system',
               content:
-                `You are a wildly creative ${mediaLabel} prompt generator for Grok Imagine. ` +
-                `The user has given you some preset components. Your job is to invent an AMAZING, ` +
-                `unexpected, and visually stunning scenario using these components. Be bold and imaginative — ` +
-                `surreal situations are great (e.g. riding a rhino at a football game, having tea on the moon, ` +
-                `swimming with whales in a city). The crazier the better!\n\n` +
-                `CRITICAL PHOTOREALISM RULES:\n` +
-                `- The ${mediaLabel} MUST look like it was captured by a REAL camera — photorealistic, cinematic, lifelike\n` +
+                `You are an everyday photography prompt generator for Grok Imagine. ` +
+                `The user has given you some preset components. Your job is to invent a realistic, ` +
+                `visually interesting scenario using these components — think candid lifestyle photography, ` +
+                `street photography, portraiture, travel, food, or nature. Keep it grounded and real.\n\n` +
+                `PHOTOREALISM RULES:\n` +
+                `- The ${mediaLabel} MUST look like it was captured by a REAL camera — photorealistic, natural, lifelike\n` +
                 `- Include anchors like "photorealistic", "shot on Sony A7IV", "natural lighting", "shallow depth of field", "film grain", "35mm"\n` +
                 `- NEVER produce anything that looks like CGI, cartoon, anime, illustration, 3D render, digital art, painting, or fantasy art\n` +
-                `- Real skin textures, real environments, real physics of light — even if the scenario itself is impossible\n` +
-                `- Think of it as "what if a photographer actually captured this impossible moment?"\n` +
+                `- Real skin textures, real environments, real physics of light\n` +
                 (isVideo
-                  ? `- For video: emphasize natural motion, camera movement, temporal progression, and cinematic pacing\n`
+                  ? `- For video: emphasize natural motion, gentle camera movement, and cinematic pacing\n`
                   : '') +
                 `\nReturn JSON ONLY: { "prompt": "the complete generation prompt" }`,
             },
