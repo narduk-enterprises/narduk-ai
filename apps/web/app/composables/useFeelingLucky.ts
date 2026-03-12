@@ -78,7 +78,7 @@ export function useFeelingLucky(deps: {
         return
       }
 
-      // ── Fallback: real-time Grok generation ──
+      // ── Fallback: pick random presets locally (no LLM) ──
       if (!elements.value.length) {
         await fetchElements()
       }
@@ -99,13 +99,11 @@ export function useFeelingLucky(deps: {
       // Pick random elements: always pick a person if available, then 1-2 others
       const picked: Record<string, string> = {}
       const pickedIds: string[] = []
-      const pickedContent: string[] = []
 
       if (byType.person?.length) {
         const person = byType.person[Math.floor(Math.random() * byType.person.length)]!
         picked.person = person.name
         pickedIds.push(person.id)
-        pickedContent.push(`person: ${person.content}`)
       }
 
       const otherTypes = ['scene', 'framing', 'action', 'style'].filter((t) => byType[t]?.length)
@@ -116,57 +114,15 @@ export function useFeelingLucky(deps: {
         const el = byType[type]![Math.floor(Math.random() * byType[type]!.length)]!
         picked[type] = el.name
         pickedIds.push(el.id)
-        pickedContent.push(`${type}: ${el.content}`)
       }
 
-      if (!pickedContent.length) {
+      if (!pickedIds.length) {
         error.value = 'No suitable presets found.'
         return
       }
 
-      // Generate prompt via Grok with strong photorealism guardrails
-      const mediaLabel = isVideo ? 'video' : 'image'
-
-      const res = await $fetch<{ content: string }>('/api/generate/chat', {
-        method: 'POST',
-        body: {
-          chatMode: 'general',
-          messages: [
-            {
-              role: 'system',
-              content:
-                `You are an everyday photography prompt generator for Grok Imagine. ` +
-                `The user has given you some preset components. Your job is to invent a realistic, ` +
-                `visually interesting scenario using these components — think candid lifestyle photography, ` +
-                `street photography, portraiture, travel, food, or nature. Keep it grounded and real.\n\n` +
-                `PHOTOREALISM RULES:\n` +
-                `- The ${mediaLabel} MUST look like it was captured by a REAL camera — photorealistic, natural, lifelike\n` +
-                `- Include anchors like "photorealistic", "shot on Sony A7IV", "natural lighting", "shallow depth of field", "film grain", "35mm"\n` +
-                `- NEVER produce anything that looks like CGI, cartoon, anime, illustration, 3D render, digital art, painting, or fantasy art\n` +
-                `- Real skin textures, real environments, real physics of light\n` +
-                (isVideo
-                  ? `- For video: emphasize natural motion, gentle camera movement, and cinematic pacing\n`
-                  : '') +
-                `\nReturn JSON ONLY: { "prompt": "the complete generation prompt" }`,
-            },
-            {
-              role: 'user',
-              content: `Here are my presets — invent something wild:\n\n${pickedContent.join('\n')}`,
-            },
-          ],
-        },
-      })
-
-      const parsed = JSON.parse(res.content)
-      const luckyPrompt = (parsed.prompt || '') as string
-
-      if (!luckyPrompt) {
-        error.value = 'Failed to generate a lucky prompt. Try again!'
-        return
-      }
-
-      // Set the prompt, presets (names + IDs), then auto-generate
-      prompt.value = luckyPrompt
+      // Set presets and let the prompt compiler do the work — no LLM call
+      prompt.value = ''
       activePresets.value = picked
       activePresetIds.value = pickedIds
 

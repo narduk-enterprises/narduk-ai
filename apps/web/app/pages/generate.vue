@@ -143,6 +143,11 @@ async function handleRemix() {
 onMounted(() => {
   fetchElements()
   ensureTagsLoaded()
+  // Pre-fill prompt from query param (navigated from /compose "Use in Generate")
+  const routePrompt = useRoute().query.prompt
+  if (routePrompt && typeof routePrompt === 'string') {
+    prompt.value = decodeURIComponent(routePrompt)
+  }
 })
 
 function handlePromptKeydown(e: KeyboardEvent) {

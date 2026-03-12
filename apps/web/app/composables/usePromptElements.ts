@@ -157,6 +157,49 @@ export function usePromptElements() {
     return (parsed.prompt || parsed.message || res.content) as string
   }
 
+  // ── Client-side remix helpers ─────────────────────────────────────
+
+  /**
+   * Attribute keys we're willing to randomize client-side.
+   * Person-identity keys are intentionally excluded to preserve the subject.
+   */
+  const REMIX_ATTRIBUTE_KEYS = new Set([
+    'lighting', 'time_of_day', 'weather', 'mood', 'location', 'background',
+    'color_palette', 'season', 'environment', 'atmosphere', 'camera_angle', 'depth_of_field',
+  ])
+
+  /**
+   * Replace attribute lines in a compiled prompt with a randomly chosen
+   * snippet from the loaded tag catalog for the same attributeKey.
+   * Falls back silently if no alternative tags are available.
+   */
+  function remixClientSide(compiledPrompt: string): string {
+    // Access the shared tag catalog via its useState key
+    const tagCatalog = useState<{ attributeKey: string; tags: { snippet: string }[] }[]>(
+      'prompt-tag-catalog',
+      () => [],
+    )
+    if (!tagCatalog.value.length) return compiledPrompt
+
+    // Build a lookup: attributeKey → list of available snippets
+    const snippetMap: Record<string, string[]> = {}
+    for (const cat of tagCatalog.value) {
+      if (REMIX_ATTRIBUTE_KEYS.has(cat.attributeKey)) {
+        snippetMap[cat.attributeKey] = cat.tags.map((t) => t.snippet).filter(Boolean)
+      }
+    }
+
+    // Replace matching `Key: Value` lines in the compiled prompt
+    return compiledPrompt.replace(/^([A-Za-z_][A-Za-z0-9_ ]*?):\s*(.+)$/gm, (match, key) => {
+      const attrKey = key.trim().toLowerCase().replaceAll(' ', '_')
+      const options = snippetMap[attrKey]
+      if (!options?.length) return match
+      // Pick a random different snippet
+      const randomIdx = Math.floor(Math.random() * options.length)
+      return `${key.trim()}: ${options[randomIdx]}`
+    })
+  }
+
   async function remixPrompt(
     currentPrompt: string,
     mediaType: 'image' | 'video' = 'image',
@@ -181,6 +224,17 @@ export function usePromptElements() {
     }
 
     const hasPresets = Object.keys(resolved).length > 0
+
+    // ── Fast path: client-side remix for structured prompts ──────────
+    // When presets are attached, we have structured key: value lines that
+    // can be randomized locally from the tag catalog — no LLM call needed.
+    if (hasPresets) {
+      const remixed = remixClientSide(currentPrompt)
+      // If nothing was changed (no matching tags in catalog), fall through to Grok
+      if (remixed !== currentPrompt) return remixed
+    }
+
+    // ── Slow path: Grok LLM call for free-form text ──────────────────
     const personPreset = resolved.person
     const themePresets = Object.entries(resolved).filter(([type]) => type !== 'person')
     const isVideo = mediaType === 'video'
