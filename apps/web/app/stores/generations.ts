@@ -11,6 +11,8 @@ import type { Generation } from '~/types/generation'
  *   - Provides applyDelta for merging since-poll results
  */
 export const useGenerationsStore = defineStore('generations', () => {
+  const apiFetch = useRequestFetch()
+
   const items = ref<Generation[]>([])
   const loading = ref(false)
   const loadingMore = ref(false)
@@ -38,7 +40,7 @@ export const useGenerationsStore = defineStore('generations', () => {
     loading.value = true
     isFinished.value = false
     try {
-      const rows = await $fetch<Generation[]>('/api/generations', {
+      const rows = await apiFetch<Generation[]>('/api/generations', {
         query: {
           limit,
           search: search || undefined,
@@ -61,7 +63,7 @@ export const useGenerationsStore = defineStore('generations', () => {
     if (loadingMore.value || isFinished.value) return
     loadingMore.value = true
     try {
-      const rows = await $fetch<Generation[]>('/api/generations', {
+      const rows = await apiFetch<Generation[]>('/api/generations', {
         query: {
           limit,
           offset: items.value.length,
