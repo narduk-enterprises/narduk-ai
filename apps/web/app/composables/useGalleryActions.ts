@@ -1,4 +1,5 @@
 import type { Generation } from '~/types/generation'
+import type { CompareSourceContext } from '~/types/imageComparison'
 
 /**
  * useGalleryActions — centralized UI actions for generation items (delete, upscale, remix, navigate).
@@ -15,6 +16,7 @@ export function useGalleryActions(options?: {
     remixGeneration,
     error: generateError,
   } = useGenerate()
+  const { launchCompare } = useCompareLauncher()
   const toast = useToast()
 
   const remixingId = ref<string | null>(null)
@@ -119,6 +121,11 @@ export function useGalleryActions(options?: {
     }
   }
 
+  async function handleCompare(gen: Generation, sourceContext: CompareSourceContext) {
+    galleryViewer.close()
+    await launchCompare(gen, sourceContext)
+  }
+
   return {
     remixingId,
     upscalingId,
@@ -130,5 +137,6 @@ export function useGalleryActions(options?: {
     openViewer,
     handleUpscale,
     handleRemix,
+    handleCompare,
   }
 }

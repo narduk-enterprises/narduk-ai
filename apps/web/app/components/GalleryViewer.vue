@@ -25,6 +25,7 @@ const {
   handleUsePrompt: _handleUsePrompt,
   handleUpscale: _handleUpscale,
   handleRemix: _handleRemix,
+  handleCompare: _handleCompare,
 } = useGalleryActions()
 
 // ── Subcomponent Refs ──────────────────────────────────────
@@ -197,6 +198,10 @@ function handleUsePrompt() {
   if (currentItem.value) _handleUsePrompt(currentItem.value)
 }
 
+async function handleCompare() {
+  if (currentItem.value) await _handleCompare(currentItem.value, 'gallery-viewer')
+}
+
 async function handleUpscale() {
   if (currentItem.value) await _handleUpscale(currentItem.value)
 }
@@ -251,6 +256,7 @@ function handlePresetClick(presetName: string) {
           @reset-zoom="imageViewerRef?.resetZoom()"
           @toggle-select-zoom-mode="handleToggleSelectZoomMode"
           @info="handleInfo"
+          @compare="handleCompare"
           @use-as-source="handleUseAsSource"
           @edit-image="handleEditImage"
           @use-prompt="handleUsePrompt"

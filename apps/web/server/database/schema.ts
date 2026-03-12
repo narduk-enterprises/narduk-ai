@@ -5,7 +5,7 @@
  * drizzle-kit can discover them from this workspace. Add app-specific
  * tables below the re-export.
  */
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { users } from '../../../../layers/narduk-nuxt-layer/server/database/schema'
 
 export * from '../../../../layers/narduk-nuxt-layer/server/database/schema'
@@ -28,6 +28,10 @@ export const generations = sqliteTable(
     r2Key: text('r2_key'),
     mediaUrl: text('media_url'),
     thumbnailUrl: text('thumbnail_url'),
+    comparisonScore: integer('comparison_score').notNull().default(1000),
+    comparisonWins: integer('comparison_wins').notNull().default(0),
+    comparisonLosses: integer('comparison_losses').notNull().default(0),
+    lastComparedAt: text('last_compared_at'),
     duration: integer('duration'),
     generationTimeMs: integer('generation_time_ms'),
     aspectRatio: text('aspect_ratio'),
@@ -44,6 +48,39 @@ export const generations = sqliteTable(
     index('generations_user_id_idx').on(table.userId),
     index('generations_status_idx').on(table.status),
     index('generations_xai_request_id_idx').on(table.xaiRequestId),
+    index('generations_comparison_score_idx').on(table.comparisonScore),
+  ],
+)
+
+export const imageComparisons = sqliteTable(
+  'image_comparisons',
+  {
+    id: text('id').primaryKey().notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    pairKey: text('pair_key').notNull(),
+    leftGenerationId: text('left_generation_id')
+      .notNull()
+      .references(() => generations.id, { onDelete: 'cascade' }),
+    rightGenerationId: text('right_generation_id')
+      .notNull()
+      .references(() => generations.id, { onDelete: 'cascade' }),
+    winnerGenerationId: text('winner_generation_id')
+      .notNull()
+      .references(() => generations.id, { onDelete: 'cascade' }),
+    loserGenerationId: text('loser_generation_id')
+      .notNull()
+      .references(() => generations.id, { onDelete: 'cascade' }),
+    sourceContext: text('source_context').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('image_comparisons_user_pair_key_idx').on(table.userId, table.pairKey),
+    index('image_comparisons_user_id_idx').on(table.userId),
+    index('image_comparisons_winner_generation_id_idx').on(table.winnerGenerationId),
+    index('image_comparisons_created_at_idx').on(table.createdAt),
   ],
 )
 

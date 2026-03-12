@@ -107,6 +107,13 @@ export default defineEventHandler(async (event) => {
     .returning()
     .get()
 
+  if (!result) {
+    throw createError({
+      statusCode: 500,
+      message: 'Update succeeded but failed to read back element',
+    })
+  }
+
   log.info('Prompt element updated', { userId: user.id, elementId: id })
 
   return hydratePromptElementForRead(result)

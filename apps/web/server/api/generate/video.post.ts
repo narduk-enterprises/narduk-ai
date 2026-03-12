@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
-import { generations, appSettings } from '../../database/schema'
+import { generations, appSettings } from '#server/database/schema'
+import { useAppDatabase } from '#server/utils/database'
+import { createGenerationComparisonDefaults } from '#server/utils/imageComparisons'
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
@@ -42,7 +44,7 @@ export default defineEventHandler(async (event) => {
     resolution: body.resolution,
   })
 
-  const db = useDatabase(event)
+  const db = useAppDatabase(event)
 
   // Prefer client-supplied model; fall back to DB-configured model
   let videoModel = body.model || 'grok-imagine-video'
@@ -84,6 +86,7 @@ export default defineEventHandler(async (event) => {
     prompt: body.prompt,
     status: 'pending' as const,
     xaiRequestId: result.request_id,
+    ...createGenerationComparisonDefaults(),
     duration: body.duration,
     aspectRatio: body.aspectRatio,
     resolution: body.resolution,

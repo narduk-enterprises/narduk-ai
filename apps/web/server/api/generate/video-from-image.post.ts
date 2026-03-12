@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { eq, and } from 'drizzle-orm'
-import { generations, appSettings } from '../../database/schema'
+import { generations, appSettings } from '#server/database/schema'
+import { useAppDatabase } from '#server/utils/database'
+import { createGenerationComparisonDefaults } from '#server/utils/imageComparisons'
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
@@ -38,7 +40,7 @@ export default defineEventHandler(async (event) => {
     resolution: body.resolution,
   })
 
-  const db = useDatabase(event)
+  const db = useAppDatabase(event)
 
   // Load source image (must belong to user and be a completed image)
   const source = await db
@@ -121,6 +123,7 @@ export default defineEventHandler(async (event) => {
     sourceGenerationId: body.sourceGenerationId,
     status: 'pending' as const,
     xaiRequestId: result.request_id,
+    ...createGenerationComparisonDefaults(),
     duration: body.duration,
     resolution: body.resolution,
     promptElements: body.promptElements ? JSON.stringify(body.promptElements) : null,

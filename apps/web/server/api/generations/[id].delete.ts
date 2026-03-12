@@ -1,5 +1,6 @@
 import { eq, and } from 'drizzle-orm'
-import { generations } from '../../database/schema'
+import { generations } from '#server/database/schema'
+import { useAppDatabase } from '#server/utils/database'
 
 /**
  * DELETE /api/generations/[id] — Delete a generation + its R2 asset.
@@ -13,7 +14,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Missing generation ID' })
   }
 
-  const db = useDatabase(event)
+  const db = useAppDatabase(event)
 
   const gen = await db
     .select()

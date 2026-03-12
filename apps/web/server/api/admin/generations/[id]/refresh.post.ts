@@ -48,6 +48,7 @@ export default defineEventHandler(async (event) => {
           status: 'done',
           r2Key,
           mediaUrl: `/api/media/${r2Key}`,
+          thumbnailUrl: result.video.coverImg ?? null,
           duration: result.video.duration,
           metadata: JSON.stringify(result),
           updatedAt: now,

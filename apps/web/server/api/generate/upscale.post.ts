@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { eq, and } from 'drizzle-orm'
-import { generations, appSettings } from '../../database/schema'
+import { generations, appSettings } from '#server/database/schema'
+import { useAppDatabase } from '#server/utils/database'
+import { createGenerationComparisonDefaults } from '#server/utils/imageComparisons'
 
 const bodySchema = z.object({
   generationId: z.string().min(1),
@@ -21,7 +23,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
   }
 
-  const db = useDatabase(event)
+  const db = useAppDatabase(event)
 
   // Load source generation (must belong to user and be a completed image)
   const source = await db
@@ -118,6 +120,7 @@ export default defineEventHandler(async (event) => {
     status: 'done' as const,
     r2Key,
     mediaUrl: `/api/media/${r2Key}`,
+    ...createGenerationComparisonDefaults(),
     metadata: JSON.stringify({
       revised_prompt: imageData.revised_prompt,
       upscaled: true,

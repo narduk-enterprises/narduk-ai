@@ -19,6 +19,7 @@ defineEmits<{
   resetZoom: []
   toggleSelectZoomMode: []
   info: []
+  compare: []
   useAsSource: []
   editImage: []
   usePrompt: []
@@ -120,6 +121,17 @@ const isDone = computed(() => props.item?.status === 'done')
           size="sm"
           class="text-white hover:bg-white/10 rounded-full"
           @click="$emit('info')"
+        />
+      </UTooltip>
+      <UTooltip v-if="isImage && isDone" text="Compare">
+        <UButton
+          icon="i-lucide-scale"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="text-white hover:bg-white/10 rounded-full"
+          aria-label="Compare viewer image"
+          @click="$emit('compare')"
         />
       </UTooltip>
       <UTooltip v-if="isImage && isDone" text="Animate">

@@ -108,22 +108,33 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
       </div>
       <div class="flex items-center gap-2">
         <!-- Model picker -->
-        <UTooltip :text="modelsError ? 'Failed to load' : ''" :prevent="!modelsError">
-          <USelectMenu
-            v-model="selectedModel"
-            :items="chatModels"
-            :loading="modelsPending"
-            :disabled="modelsPending || !!modelsError"
-            size="sm"
-            class="min-w-40 w-auto hidden sm:flex"
-            :ui="{ base: 'rounded-lg' }"
-          >
-            <template #leading>
-              <UIcon v-if="modelsError" name="i-lucide-alert-circle" class="size-3.5 text-error" />
-              <UIcon v-else name="i-lucide-cpu" class="size-3.5 text-muted" />
-            </template>
-          </USelectMenu>
-        </UTooltip>
+        <ClientOnly>
+          <UTooltip :text="modelsError ? 'Failed to load' : ''" :prevent="!modelsError">
+            <USelectMenu
+              v-model="selectedModel"
+              :items="chatModels"
+              :loading="modelsPending"
+              :disabled="modelsPending || !!modelsError"
+              size="sm"
+              class="min-w-40 w-auto hidden sm:flex"
+              :ui="{ base: 'rounded-lg' }"
+            >
+              <template #leading>
+                <UIcon
+                  v-if="modelsError"
+                  name="i-lucide-alert-circle"
+                  class="size-3.5 text-error"
+                />
+                <UIcon v-else name="i-lucide-cpu" class="size-3.5 text-muted" />
+              </template>
+            </USelectMenu>
+          </UTooltip>
+          <template #fallback>
+            <div
+              class="hidden sm:block min-w-40 h-8 rounded-lg bg-elevated border border-default"
+            />
+          </template>
+        </ClientOnly>
 
         <!-- New Chat -->
         <UButton
@@ -200,5 +211,7 @@ const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels(
         Press Enter to send · Shift+Enter for new line
       </p>
     </div>
+
+    <GalleryViewer />
   </div>
 </template>

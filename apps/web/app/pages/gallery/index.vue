@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { GenerationQueryFilters } from '~/types/generation'
+
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({
@@ -21,17 +23,19 @@ const {
   openViewer,
   handleUpscale,
   handleRemix,
+  handleCompare,
 } = useGalleryActions({ store, galleryViewer })
 
 const route = useRoute()
 const activeFilter = computed(() => (route.query.filter as string) || 'all')
+const activeSort = computed(() => ((route.query.sort as string) === 'rank' ? 'rank' : 'recent'))
 
-const serverFilters = computed(() => {
+const serverFilters = computed<GenerationQueryFilters>(() => {
   const f = activeFilter.value
-  if (f === 'images') return { type: 'image' }
-  if (f === 'videos') return { type: 'video' }
-  if (f !== 'all') return { mode: f }
-  return {}
+  if (f === 'images') return { type: 'image', sort: activeSort.value }
+  if (f === 'videos') return { type: 'video', sort: activeSort.value }
+  if (f !== 'all') return { mode: f, sort: activeSort.value }
+  return { sort: activeSort.value }
 })
 
 const limit = 24
@@ -48,6 +52,7 @@ watch(searchQuery, (newVal) => {
 
 watch(debouncedSearchQuery, () => load())
 watch(activeFilter, () => load())
+watch(activeSort, () => load())
 
 async function load() {
   await store.load(limit, debouncedSearchQuery.value, serverFilters.value)
@@ -86,9 +91,24 @@ onUnmounted(() => {
 
 // ── Sorted view ───────────────────────────────────────────────────
 const filteredGenerations = computed(() =>
-  [...store.items].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  ),
+  [...store.items].sort((a, b) => {
+    if (activeSort.value === 'rank') {
+      if (b.comparisonScore !== a.comparisonScore) {
+        return b.comparisonScore - a.comparisonScore
+      }
+      if (b.comparisonWins !== a.comparisonWins) {
+        return b.comparisonWins - a.comparisonWins
+      }
+      const comparedAtDiff =
+        new Date(b.lastComparedAt || b.createdAt).getTime() -
+        new Date(a.lastComparedAt || a.createdAt).getTime()
+      if (comparedAtDiff !== 0) {
+        return comparedAtDiff
+      }
+    }
+
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  }),
 )
 
 // ── Sync viewer when list changes ─────────────────────────────────
@@ -98,6 +118,10 @@ watch(filteredGenerations, (newList) => {
 
 function setFilter(value: string) {
   navigateTo({ query: { ...route.query, filter: value === 'all' ? undefined : value } })
+}
+
+function setSort(value: 'recent' | 'rank') {
+  navigateTo({ query: { ...route.query, sort: value === 'recent' ? undefined : value } })
 }
 
 const filters = [
@@ -125,7 +149,7 @@ const filters = [
 
     <!-- Filter and Search Bar -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
         <UButton
           v-for="filterItem in filters"
           :key="filterItem.value"
@@ -137,6 +161,27 @@ const filters = [
           class="rounded-full"
           :class="activeFilter === filterItem.value ? 'shadow-lg shadow-primary/20' : ''"
           @click="setFilter(filterItem.value)"
+        />
+      </div>
+
+      <div class="flex items-center gap-2">
+        <UButton
+          icon="i-lucide-clock-3"
+          label="Newest"
+          :variant="activeSort === 'recent' ? 'solid' : 'outline'"
+          :color="activeSort === 'recent' ? 'primary' : 'neutral'"
+          size="sm"
+          class="rounded-full"
+          @click="setSort('recent')"
+        />
+        <UButton
+          icon="i-lucide-trophy"
+          label="Rank"
+          :variant="activeSort === 'rank' ? 'solid' : 'outline'"
+          :color="activeSort === 'rank' ? 'primary' : 'neutral'"
+          size="sm"
+          class="rounded-full"
+          @click="setSort('rank')"
         />
       </div>
 
@@ -194,6 +239,7 @@ const filters = [
           @delete="handleDelete"
           @retry="handleRetry"
           @remix="handleRemix"
+          @compare="(generation) => handleCompare(generation, 'gallery-card')"
         />
       </div>
 

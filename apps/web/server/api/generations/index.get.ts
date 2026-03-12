@@ -1,14 +1,17 @@
 import { z } from 'zod'
 import { eq, desc, like, and, or, gt } from 'drizzle-orm'
-import { generations } from '../../database/schema'
-import { GENERATION_STALE_TIMEOUT_MS } from '../../utils/constants'
+import { generations } from '#server/database/schema'
+import { useAppDatabase } from '#server/utils/database'
+import { GENERATION_STALE_TIMEOUT_MS } from '#server/utils/constants'
 
 const querySchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(50),
   offset: z.coerce.number().min(0).default(0),
   search: z.string().optional(),
   type: z.enum(['image', 'video']).optional(),
+  status: z.enum(['pending', 'done', 'failed', 'expired']).optional(),
   mode: z.string().optional(),
+  sort: z.enum(['recent', 'rank']).optional().default('recent'),
   /** ISO timestamp — return only rows created after this value (for live polling). */
   since: z.string().datetime({ offset: true }).optional(),
 })
@@ -21,9 +24,11 @@ const querySchema = z.object({
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Generations')
   const user = await requireAuth(event)
-  const { limit, offset, search, type, mode, since } = querySchema.parse(getQuery(event))
+  const { limit, offset, search, type, status, mode, sort, since } = querySchema.parse(
+    getQuery(event),
+  )
 
-  const db = useDatabase(event)
+  const db = useAppDatabase(event)
   const config = useRuntimeConfig(event)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Drizzle dynamic query filter array avoids tricky SQL conditional typings
@@ -39,6 +44,9 @@ export default defineEventHandler(async (event) => {
   }
   if (type) {
     filters.push(eq(generations.type, type))
+  }
+  if (status) {
+    filters.push(eq(generations.status, status))
   }
   if (mode) {
     filters.push(eq(generations.mode, mode))
@@ -154,9 +162,19 @@ export default defineEventHandler(async (event) => {
   // When polling with `since`, skip pagination — always return newest delta
   const rows = since
     ? await baseQuery.orderBy(desc(generations.updatedAt)).limit(100)
-    : await baseQuery.orderBy(desc(generations.createdAt)).limit(limit).offset(offset)
+    : sort === 'rank'
+      ? await baseQuery
+          .orderBy(
+            desc(generations.comparisonScore),
+            desc(generations.comparisonWins),
+            desc(generations.lastComparedAt),
+            desc(generations.createdAt),
+          )
+          .limit(limit)
+          .offset(offset)
+      : await baseQuery.orderBy(desc(generations.createdAt)).limit(limit).offset(offset)
 
-  log.debug('Generations listed', { userId: user.id, count: rows.length, limit, offset })
+  log.debug('Generations listed', { userId: user.id, count: rows.length, limit, offset, sort })
 
   return rows
 })

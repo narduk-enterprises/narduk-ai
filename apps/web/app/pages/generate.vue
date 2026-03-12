@@ -157,6 +157,7 @@ function getPresetPreviewUrl(el: { metadata?: string | null }): string | null {
 }
 
 const galleryViewer = useGalleryViewer()
+const { handleCompare } = useGalleryActions({ galleryViewer })
 
 function openRecentViewer(gen: Generation) {
   const idx = recentGenerations.value.findIndex((g: Generation) => g.id === gen.id)
@@ -733,6 +734,7 @@ function editResult(gen: Generation) {
           @use-as-source="useGenerationAsSource"
           @use-prompt="handleUseGenerationPrompt"
           @upscale="(gen) => upscaleGeneration(gen.id)"
+          @compare="(gen) => handleCompare(gen, 'recent-carousel')"
           @load-more="loadMoreGenerations(20)"
         />
       </div>

@@ -1,4 +1,9 @@
-import type { Generation } from '~/types/generation'
+import type { Generation, GenerationQueryFilters } from '~/types/generation'
+import type {
+  CompareSourceContext,
+  ImageComparison,
+  ImageComparisonVoteResponse,
+} from '~/types/imageComparison'
 
 /**
  * Composable for AI media generation.
@@ -237,7 +242,7 @@ export function useGenerate() {
     limit = 50,
     offset = 0,
     search?: string,
-    filters?: { type?: string; mode?: string },
+    filters?: GenerationQueryFilters,
   ): Promise<Generation[]> {
     return await $fetch<Generation[]>('/api/generations', {
       query: {
@@ -246,6 +251,8 @@ export function useGenerate() {
         search: search || undefined,
         type: filters?.type || undefined,
         mode: filters?.mode || undefined,
+        status: filters?.status || undefined,
+        sort: filters?.sort || undefined,
       },
     })
   }
@@ -484,6 +491,27 @@ export function useGenerate() {
     }
   }
 
+  async function fetchImageComparison(
+    leftId: string,
+    rightId: string,
+  ): Promise<ImageComparison | null> {
+    return await $fetch<ImageComparison | null>('/api/image-comparisons/pair', {
+      query: { leftId, rightId },
+    })
+  }
+
+  async function submitImageComparison(payload: {
+    leftId: string
+    rightId: string
+    winnerId: string
+    sourceContext: CompareSourceContext
+  }): Promise<ImageComparisonVoteResponse> {
+    return await $fetch<ImageComparisonVoteResponse>('/api/image-comparisons', {
+      method: 'POST',
+      body: payload,
+    })
+  }
+
   // Cleanup polling on unmount
   onUnmounted(() => {
     stopAllPolling()
@@ -506,5 +534,7 @@ export function useGenerate() {
     retryGeneration,
     remixGeneration,
     uploadImage,
+    fetchImageComparison,
+    submitImageComparison,
   }
 }

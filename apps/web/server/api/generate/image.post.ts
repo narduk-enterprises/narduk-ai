@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
-import { generations, appSettings } from '../../database/schema'
+import { generations, appSettings } from '#server/database/schema'
+import { useAppDatabase } from '#server/utils/database'
+import { createGenerationComparisonDefaults } from '#server/utils/imageComparisons'
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(20_000),
@@ -32,7 +34,7 @@ export default defineEventHandler(async (event) => {
     promptLength: body.prompt.length,
   })
 
-  const db = useDatabase(event)
+  const db = useAppDatabase(event)
 
   // Prefer client-supplied model; fall back to DB-configured model
   let imageModel = body.model || 'grok-imagine-image'
@@ -91,6 +93,7 @@ export default defineEventHandler(async (event) => {
     status: 'done' as const,
     r2Key,
     mediaUrl: `/api/media/${r2Key}`,
+    ...createGenerationComparisonDefaults(),
     aspectRatio: body.aspectRatio || null,
     promptElements: body.promptElements ? JSON.stringify(body.promptElements) : null,
     presets: body.presets ? JSON.stringify(body.presets) : null,

@@ -9,7 +9,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'click' | 'use-as-source' | 'use-prompt' | 'upscale', gen: Generation): void
+  (e: 'click' | 'use-as-source' | 'use-prompt' | 'upscale' | 'compare', gen: Generation): void
   (e: 'load-more'): void
 }>()
 
@@ -94,6 +94,7 @@ onUnmounted(() => {
         <div
           class="group relative h-48 sm:h-56 overflow-hidden rounded-xl bg-elevated/50 cursor-pointer ring-1 ring-default/10 hover:ring-primary/30 transition-all duration-300 shadow-sm hover:shadow-md"
           :class="isLandscape(item) ? 'w-64 sm:w-72' : 'w-36 sm:w-40'"
+          :data-generation-id="item.id"
           @click="emit('click', item)"
         >
           <template v-if="item.status === 'done' && item.mediaUrl">
@@ -153,6 +154,16 @@ onUnmounted(() => {
               icon="i-lucide-file-text"
               class="rounded-full backdrop-blur-sm bg-black/40 hover:bg-black/60 border-0"
               @click.stop="emit('use-prompt', item)"
+            />
+            <UButton
+              v-if="item.type === 'image' && item.status === 'done'"
+              size="xs"
+              variant="solid"
+              color="neutral"
+              icon="i-lucide-scale"
+              class="rounded-full backdrop-blur-sm bg-black/40 hover:bg-black/60 border-0"
+              aria-label="Compare recent image"
+              @click.stop="emit('compare', item)"
             />
             <UButton
               v-if="item.type === 'image' && item.status === 'done'"

@@ -26,6 +26,9 @@ interface UseChatFormOptions {
   resumeMode?: ChatMode
 }
 
+const INLINE_IMAGE_ACKNOWLEDGEMENT_PROMPT =
+  'I am sharing the image you just generated. Acknowledge receipt in one very short sentence by briefly describing what you received, then wait for my next instruction. Do not suggest edits, ideas, or next steps yet.'
+
 export function useChatForm(options: UseChatFormOptions = {}) {
   const { elements, fetchElements } = usePromptElements()
   const { prompts } = useSystemPrompts()
@@ -443,7 +446,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
       })
 
       const successMsg =
-        "Here's your generated image! You can share it with me to get feedback or ideas for next steps."
+        "Here's your generated image. I've shared it back into the chat so I can confirm what I received."
       const msg = chatMessages.value[placeholderIndex]
       if (msg) {
         msg.content = `<message>${successMsg}</message>`
@@ -464,6 +467,10 @@ export function useChatForm(options: UseChatFormOptions = {}) {
           await sessions.appendMessage(sessionId, finalMsg)
         }
       }
+
+      generatingInline.value = false
+      await shareImageWithAgent(result.mediaUrl, INLINE_IMAGE_ACKNOWLEDGEMENT_PROMPT)
+      return
     } catch (e) {
       const err = e as { data?: { message?: string }; message?: string }
       const errorMsg = err.data?.message || err.message || 'Image generation failed'

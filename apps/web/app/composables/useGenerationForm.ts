@@ -67,8 +67,12 @@ export function useGenerationForm() {
 
   // ─── Model Selection ────────────────────────────────────────
   const { imageModels, videoModels, preferredImageModel, preferredVideoModel } = useXaiModels()
-  const selectedImageModel = ref<string>('')
-  const selectedVideoModel = ref<string>('')
+  const selectedImageModel = ref<string>(
+    preferredImageModel.value || imageModels.value[0] || 'grok-imagine-image',
+  )
+  const selectedVideoModel = ref<string>(
+    preferredVideoModel.value || videoModels.value[0] || 'grok-imagine-video',
+  )
 
   watchEffect(() => {
     if (

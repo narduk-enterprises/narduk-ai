@@ -1,6 +1,16 @@
 /**
  * Generation type definition for frontend use.
  */
+export type GenerationStatus = 'pending' | 'done' | 'failed' | 'expired'
+export type GenerationSort = 'recent' | 'rank'
+
+export interface GenerationQueryFilters {
+  type?: 'image' | 'video'
+  mode?: string
+  status?: GenerationStatus
+  sort?: GenerationSort
+}
+
 export interface Generation {
   id: string
   userId: string
@@ -13,6 +23,10 @@ export interface Generation {
   r2Key: string | null
   mediaUrl: string | null
   thumbnailUrl: string | null
+  comparisonScore: number
+  comparisonWins: number
+  comparisonLosses: number
+  lastComparedAt: string | null
   duration: number | null
   generationTimeMs: number | null
   aspectRatio: string | null

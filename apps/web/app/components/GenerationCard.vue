@@ -15,6 +15,7 @@ const emit = defineEmits<{
   delete: [generation: Generation]
   retry: [generation: Generation]
   remix: [generation: Generation]
+  compare: [generation: Generation]
 }>()
 
 const statusColors: Record<string, string> = {
@@ -82,10 +83,18 @@ function handleUpscale() {
 function handleRemix() {
   emit('remix', props.generation)
 }
+
+function handleCompare() {
+  emit('compare', props.generation)
+}
 </script>
 
 <template>
-  <div class="glow-card group block cursor-pointer overflow-hidden" @click="emit('click')">
+  <div
+    class="glow-card group block cursor-pointer overflow-hidden"
+    :data-generation-id="generation.id"
+    @click="emit('click')"
+  >
     <!-- Media Preview -->
     <div class="relative w-full overflow-hidden bg-elevated/50 aspect-4/5">
       <template v-if="generation.status === 'done' && generation.mediaUrl">
@@ -160,6 +169,14 @@ function handleRemix() {
         <span class="text-xs text-dimmed">{{
           GENERATION_MODE_LABELS[generation.mode] || generation.mode
         }}</span>
+        <UBadge
+          v-if="generation.type === 'image' && generation.status === 'done'"
+          color="primary"
+          variant="subtle"
+          size="xs"
+          icon="i-lucide-trophy"
+          :label="String(generation.comparisonScore)"
+        />
       </div>
 
       <div v-if="parsedPresets?.length" class="flex flex-wrap gap-1.5 pt-0.5 pb-1">
@@ -275,6 +292,20 @@ function handleRemix() {
               :loading="props.remixing"
               :disabled="props.remixing"
               @click.stop.prevent="handleRemix"
+            />
+          </UTooltip>
+          <UTooltip
+            v-if="generation.type === 'image' && generation.status === 'done'"
+            text="Compare"
+          >
+            <UButton
+              size="sm"
+              variant="ghost"
+              color="primary"
+              icon="i-lucide-scale"
+              class="touch-target"
+              aria-label="Compare gallery image"
+              @click.stop.prevent="handleCompare"
             />
           </UTooltip>
           <UTooltip text="Delete">

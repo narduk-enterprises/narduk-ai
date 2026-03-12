@@ -2,7 +2,7 @@
 import type { ChatMessage } from '~/composables/useChatForm'
 import type { Generation } from '~/types/generation'
 
-defineProps<{
+const props = defineProps<{
   messages: ChatMessage[]
   isChatting: boolean
   generatingInline?: boolean
@@ -19,6 +19,41 @@ const emit = defineEmits<{
 
 const galleryViewer = useGalleryViewer()
 
+type BuilderState = Record<string, string | null>
+
+interface VisibleMessage {
+  message: ChatMessage
+  inlineImagePrompt: string | null
+  inlineImageUrl: string | null
+  promptText: string | null
+  builderState: BuilderState | null
+  hasAssistantBubbleContent: boolean
+  hasUserTextContent: boolean
+}
+
+const visibleMessages = computed<VisibleMessage[]>(() =>
+  props.messages
+    .filter((message) => message.role !== 'system')
+    .map((message) => {
+      const promptText = message.parsedResponse?.isInlineGeneration
+        ? null
+        : (message.parsedResponse?.prompt ?? null)
+      const inlineImageUrl = message.parsedResponse?.isInlineGeneration
+        ? (message.parsedResponse.imageUrl ?? null)
+        : null
+
+      return {
+        message,
+        inlineImagePrompt: message.parsedResponse?.prompt ?? null,
+        inlineImageUrl,
+        promptText,
+        builderState: resolveBuilderState(message, promptText),
+        hasAssistantBubbleContent: hasAssistantBubbleContent(message),
+        hasUserTextContent: hasUserTextContent(message),
+      }
+    }),
+)
+
 function openInViewer(imageUrl: string, prompt = '') {
   const synth: Generation = {
     id: imageUrl,
@@ -32,6 +67,10 @@ function openInViewer(imageUrl: string, prompt = '') {
     r2Key: null,
     mediaUrl: imageUrl,
     thumbnailUrl: imageUrl,
+    comparisonScore: 0,
+    comparisonWins: 0,
+    comparisonLosses: 0,
+    lastComparedAt: null,
     duration: null,
     generationTimeMs: null,
     aspectRatio: null,
@@ -64,6 +103,27 @@ function formatKey(key: string | number) {
   return String(key).replaceAll('_', ' ')
 }
 
+function hasUserTextContent(msg: ChatMessage) {
+  return typeof msg.content === 'string' && msg.content.trim().length > 0
+}
+
+function hasAssistantBubbleContent(msg: ChatMessage) {
+  return Boolean(
+    msg.parsedResponse?.message ||
+    (!msg.parsedResponse && msg.content) ||
+    (msg.role === 'assistant' && msg.content),
+  )
+}
+
+function resolveBuilderState(msg: ChatMessage, promptText: string | null) {
+  const builderState = msg.parsedResponse?.builder_state
+  if (!props.showBuilderState || !builderState || Object.keys(builderState).length === 0) {
+    return null
+  }
+
+  return promptText ? null : builderState
+}
+
 /** Get displayable text from a message (strips XML tags from assistant replies) */
 function getDisplayContent(msg: ChatMessage): string {
   if (msg.parsedResponse?.message) return msg.parsedResponse.message
@@ -76,28 +136,43 @@ function openInlineViewer(msg: ChatMessage) {
   const prompt = msg.parsedResponse?.prompt ?? ''
   if (url) openInViewer(url, prompt)
 }
+
+function handleViewerKeydown(event: KeyboardEvent, openViewer: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+
+  event.preventDefault()
+  openViewer()
+}
+
+function handleSharedImageKeydown(event: KeyboardEvent, imageUrl: string) {
+  handleViewerKeydown(event, () => openInViewer(imageUrl))
+}
+
+function handleInlineImageKeydown(event: KeyboardEvent, msg: ChatMessage) {
+  handleViewerKeydown(event, () => openInlineViewer(msg))
+}
 </script>
 
 <template>
   <div class="space-y-6">
     <div
-      v-for="(msg, index) in messages.filter((m) => m.role !== 'system')"
+      v-for="(entry, index) in visibleMessages"
       :key="index"
       class="flex flex-col max-w-[90%] md:max-w-[80%]"
-      :class="msg.role === 'user' ? 'self-end items-end' : 'self-start items-start'"
+      :class="entry.message.role === 'user' ? 'self-end items-end' : 'self-start items-start'"
     >
       <!-- User message: handle multimodal content (text + image) -->
-      <template v-if="msg.role === 'user'">
+      <template v-if="entry.message.role === 'user'">
         <!-- Text portion -->
         <div
-          v-if="typeof msg.content === 'string' && msg.content.trim()"
+          v-if="entry.hasUserTextContent"
           class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-primary text-white rounded-tr-sm whitespace-pre-wrap"
         >
-          {{ msg.content }}
+          {{ entry.message.content }}
         </div>
         <!-- Multimodal: text part -->
-        <template v-else-if="Array.isArray(msg.content)">
-          <div v-for="(part, pi) in msg.content" :key="pi">
+        <template v-else-if="Array.isArray(entry.message.content)">
+          <div v-for="(part, pi) in entry.message.content" :key="pi">
             <div
               v-if="part.type === 'text'"
               class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-primary text-white rounded-tr-sm whitespace-pre-wrap mb-2"
@@ -107,7 +182,10 @@ function openInlineViewer(msg: ChatMessage) {
             <div
               v-else-if="part.type === 'image_url'"
               class="mt-1 rounded-xl overflow-hidden ring-2 ring-primary/30 max-w-xs cursor-zoom-in"
+              role="button"
+              tabindex="0"
               @click="openInViewer(part.image_url.url)"
+              @keydown="handleSharedImageKeydown($event, part.image_url.url)"
             >
               <img
                 :src="part.image_url.url"
@@ -121,21 +199,14 @@ function openInlineViewer(msg: ChatMessage) {
 
       <!-- Assistant Chat Bubble -->
       <div
-        v-else-if="
-          msg.parsedResponse?.message ||
-          (!msg.parsedResponse && msg.content) ||
-          (msg.role === 'assistant' && msg.content)
-        "
+        v-else-if="entry.hasAssistantBubbleContent"
         class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-elevated text-default border border-default rounded-tl-sm shadow-sm"
       >
-        <MarkdownRenderer :content="getDisplayContent(msg)" />
+        <MarkdownRenderer :content="getDisplayContent(entry.message)" />
       </div>
 
       <!-- Inline Generated Image -->
-      <div
-        v-if="msg.parsedResponse?.isInlineGeneration && msg.parsedResponse?.imageUrl"
-        class="mt-3 animate-fade-in-up"
-      >
+      <div v-if="entry.inlineImageUrl" class="mt-3 animate-fade-in-up">
         <div class="flex items-end gap-3">
           <!-- Thumbnail — click to open in gallery viewer -->
           <!-- eslint-disable-next-line vuejs-accessibility/click-events-have-key-events vuejs-accessibility/no-static-element-interactions -- image thumbnail acting as interactive button -->
@@ -143,11 +214,12 @@ function openInlineViewer(msg: ChatMessage) {
             class="shrink-0 rounded-xl overflow-hidden ring-1 ring-primary/20 hover:ring-primary/50 transition-all hover:scale-[1.02] shadow-card cursor-zoom-in"
             role="button"
             tabindex="0"
-            @click="openInlineViewer(msg)"
+            @click="openInlineViewer(entry.message)"
+            @keydown="handleInlineImageKeydown($event, entry.message)"
           >
             <img
-              :src="msg.parsedResponse.imageUrl"
-              :alt="msg.parsedResponse.prompt || 'Generated image'"
+              :src="entry.inlineImageUrl"
+              :alt="entry.inlineImagePrompt || 'Generated image'"
               class="h-40 w-auto max-w-[180px] object-cover pointer-events-none"
             />
           </div>
@@ -159,7 +231,7 @@ function openInlineViewer(msg: ChatMessage) {
               variant="soft"
               icon="i-lucide-share-2"
               size="xs"
-              @click="handleShareImage(msg.parsedResponse!.imageUrl!)"
+              @click="handleShareImage(entry.inlineImageUrl)"
             >
               Share with Agent
             </UButton>
@@ -168,7 +240,7 @@ function openInlineViewer(msg: ChatMessage) {
               variant="ghost"
               icon="i-lucide-images"
               size="xs"
-              @click="openInlineViewer(msg)"
+              @click="openInlineViewer(entry.message)"
             >
               Open Viewer
             </UButton>
@@ -177,16 +249,13 @@ function openInlineViewer(msg: ChatMessage) {
       </div>
 
       <!-- Generated Prompt Card -->
-      <div
-        v-if="msg.parsedResponse?.prompt && !msg.parsedResponse?.isInlineGeneration"
-        class="mt-3 w-full animate-fade-in-up"
-      >
+      <div v-if="entry.promptText" class="mt-3 w-full animate-fade-in-up">
         <UCard class="ring-1 ring-primary/20 bg-primary/5">
           <div class="p-4 sm:p-5 flex items-start gap-3">
             <UIcon name="i-lucide-sparkles" class="size-5 text-primary shrink-0 mt-0.5" />
             <div class="flex-1 space-y-3">
               <p class="text-sm font-medium text-default leading-relaxed font-mono select-all">
-                {{ msg.parsedResponse.prompt }}
+                {{ entry.promptText }}
               </p>
               <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-primary/10">
                 <UButton
@@ -194,7 +263,7 @@ function openInlineViewer(msg: ChatMessage) {
                   variant="solid"
                   icon="i-lucide-wand-2"
                   size="sm"
-                  @click="handleUsePrompt(msg.parsedResponse.prompt!)"
+                  @click="handleUsePrompt(entry.promptText)"
                 >
                   Use This Prompt
                 </UButton>
@@ -203,7 +272,7 @@ function openInlineViewer(msg: ChatMessage) {
                   variant="soft"
                   icon="i-lucide-image"
                   size="sm"
-                  @click="handleGenerateInline(msg.parsedResponse.prompt!)"
+                  @click="handleGenerateInline(entry.promptText)"
                 >
                   Generate Here
                 </UButton>
@@ -212,11 +281,11 @@ function openInlineViewer(msg: ChatMessage) {
                   variant="soft"
                   icon="i-lucide-bookmark-plus"
                   size="sm"
-                  @click="handleSavePrompt(msg.parsedResponse.prompt!)"
+                  @click="handleSavePrompt(entry.promptText)"
                 >
                   Save to Presets
                 </UButton>
-                <CopyButton :text="msg.parsedResponse.prompt" />
+                <CopyButton :text="entry.promptText" />
               </div>
             </div>
           </div>
@@ -224,15 +293,7 @@ function openInlineViewer(msg: ChatMessage) {
       </div>
 
       <!-- Inline Builder State Card (only when showBuilderState is true) -->
-      <div
-        v-if="
-          showBuilderState &&
-          msg.parsedResponse?.builder_state &&
-          Object.keys(msg.parsedResponse.builder_state).length > 0 &&
-          !msg.parsedResponse?.prompt
-        "
-        class="mt-3 w-full animate-fade-in-up"
-      >
+      <div v-if="entry.builderState" class="mt-3 w-full animate-fade-in-up">
         <UCard class="ring-1 ring-primary/20 bg-primary/5">
           <div class="p-3 sm:p-4">
             <div class="flex items-center gap-2 mb-2">
@@ -247,7 +308,7 @@ function openInlineViewer(msg: ChatMessage) {
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-1">
               <div
-                v-for="(val, key) in msg.parsedResponse.builder_state"
+                v-for="(val, key) in entry.builderState"
                 :key="key"
                 class="text-[10px] px-1.5 py-0.5 rounded"
                 :class="val ? 'bg-elevated text-default' : 'text-dimmed'"

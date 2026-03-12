@@ -17,6 +17,7 @@ const {
 } = useGenerate()
 const toast = useToast()
 const galleryViewer = useGalleryViewer()
+const { handleCompare } = useGalleryActions({ galleryViewer })
 
 const generation = ref<Generation | null>(null)
 const sourceGeneration = ref<Generation | null>(null)
@@ -130,6 +131,11 @@ const metadataItems = computed(() => {
     { label: 'Mode', value: GENERATION_MODE_LABELS[generation.value.mode] },
     { label: 'Created', value: formattedCreatedAt.value },
   ]
+  if (generation.value.type === 'image') {
+    items.push({ label: 'Compare Score', value: String(generation.value.comparisonScore) })
+    items.push({ label: 'Wins', value: String(generation.value.comparisonWins) })
+    items.push({ label: 'Losses', value: String(generation.value.comparisonLosses) })
+  }
   if (generation.value.duration)
     items.push({ label: 'Duration', value: `${generation.value.duration}s` })
   if (generation.value.aspectRatio)
@@ -340,6 +346,20 @@ const parsedPresets = computed(() => {
                   :to="{ path: '/generate', query: { source: generation.id, mode: 'i2i' } }"
                 >
                   Edit this Image
+                </UButton>
+              </UTooltip>
+              <UTooltip
+                v-if="generation.type === 'image' && generation.status === 'done'"
+                text="Compare this image against another completed image"
+              >
+                <UButton
+                  icon="i-lucide-scale"
+                  variant="outline"
+                  class="rounded-xl justify-center w-full"
+                  block
+                  @click="handleCompare(generation, 'gallery-detail')"
+                >
+                  Compare this Image
                 </UButton>
               </UTooltip>
               <UTooltip

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { Generation } from '~/types/generation'
+import type { Generation, GenerationQueryFilters } from '~/types/generation'
 
 /**
  * useGenerationsStore — singleton state for the user's generation list.
@@ -31,7 +31,7 @@ export const useGenerationsStore = defineStore('generations', () => {
 
   // ── Load (initial / filter-change) ───────────────────────────
 
-  async function load(limit = 24, search?: string, filters?: { type?: string; mode?: string }) {
+  async function load(limit = 24, search?: string, filters?: GenerationQueryFilters) {
     loading.value = true
     isFinished.value = false
     try {
@@ -41,6 +41,8 @@ export const useGenerationsStore = defineStore('generations', () => {
           search: search || undefined,
           type: filters?.type || undefined,
           mode: filters?.mode || undefined,
+          status: filters?.status || undefined,
+          sort: filters?.sort || undefined,
         },
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       })
@@ -54,7 +56,7 @@ export const useGenerationsStore = defineStore('generations', () => {
 
   // ── Load more (infinite scroll) ───────────────────────────────
 
-  async function loadMore(limit = 24, search?: string, filters?: { type?: string; mode?: string }) {
+  async function loadMore(limit = 24, search?: string, filters?: GenerationQueryFilters) {
     if (loadingMore.value || isFinished.value) return
     loadingMore.value = true
     try {
@@ -65,6 +67,8 @@ export const useGenerationsStore = defineStore('generations', () => {
           search: search || undefined,
           type: filters?.type || undefined,
           mode: filters?.mode || undefined,
+          status: filters?.status || undefined,
+          sort: filters?.sort || undefined,
         },
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       })

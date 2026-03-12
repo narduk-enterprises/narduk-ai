@@ -1,5 +1,7 @@
 import { z } from 'zod'
-import { generations } from '../../database/schema'
+import { generations } from '#server/database/schema'
+import { useAppDatabase } from '#server/utils/database'
+import { createGenerationComparisonDefaults } from '#server/utils/imageComparisons'
 
 const bodySchema = z.object({
   imageBase64: z.string().min(1),
@@ -61,7 +63,7 @@ export default defineEventHandler(async (event) => {
 
     // 3. Create generation record
     const now = new Date().toISOString()
-    const db = useDatabase(event)
+    const db = useAppDatabase(event)
 
     const record = {
       id,
@@ -73,6 +75,7 @@ export default defineEventHandler(async (event) => {
       r2Key,
       mediaUrl: `/api/media/${r2Key}`,
       thumbnailUrl: null,
+      ...createGenerationComparisonDefaults(),
       createdAt: now,
       updatedAt: now,
     }
