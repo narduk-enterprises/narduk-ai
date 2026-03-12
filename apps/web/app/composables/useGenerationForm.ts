@@ -3,7 +3,6 @@ import type { PromptElement } from './usePromptElements'
 
 // ─── Image / Video model catalogs ───────────────────────────────────────────
 export const IMAGE_MODELS: { value: string; label: string }[] = [
-  { value: 'grok-2-image', label: 'Grok 2 Image' },
   { value: 'grok-imagine-image', label: 'Grok Imagine' },
 ]
 
