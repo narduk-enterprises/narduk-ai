@@ -8,13 +8,14 @@ import {
   normalizePresetElementState,
   resolveAttributesInputForUpdate,
 } from '#server/utils/promptElementData'
+import { MAX_PROMPT_ELEMENT_CONTENT_LENGTH } from '~/utils/promptLimits'
 
 const bodySchema = z.object({
   type: z.enum(['person', 'scene', 'framing', 'action', 'style', 'prompt']).optional(),
   name: z.string().min(1).max(100).optional(),
-  content: z.string().min(1).max(100_000).optional(),
-  attributes: z.string().max(100_000).nullish(),
-  metadata: z.string().max(100_000).nullish(),
+  content: z.string().min(1).max(MAX_PROMPT_ELEMENT_CONTENT_LENGTH).optional(),
+  attributes: z.string().max(MAX_PROMPT_ELEMENT_CONTENT_LENGTH).nullish(),
+  metadata: z.string().max(MAX_PROMPT_ELEMENT_CONTENT_LENGTH).nullish(),
   chatHistory: z.string().max(500_000).nullish(),
 })
 

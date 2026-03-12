@@ -8,18 +8,19 @@ import {
   MAX_ITERATION_PASS_COUNT,
   trimIterationContextSteps,
 } from '~/utils/iterationConfig'
+import { MAX_GENERATION_PROMPT_LENGTH } from '~/utils/promptLimits'
 
 const priorStepSchema = z.object({
   iteration: z.number().int().min(1).max(MAX_ITERATION_PASS_COUNT),
-  prompt: z.string().min(1).max(20_000),
+  prompt: z.string().min(1).max(MAX_GENERATION_PROMPT_LENGTH),
   changeSummary: z.string().min(1).max(2_000),
   message: z.string().max(2_000).nullish(),
-  renderedPrompt: z.string().max(20_000).nullish(),
+  renderedPrompt: z.string().max(MAX_GENERATION_PROMPT_LENGTH).nullish(),
   imageAnalysis: z.string().max(4_000).nullish(),
 })
 
 const bodySchema = z.object({
-  prompt: z.string().min(1).max(20_000),
+  prompt: z.string().min(1).max(MAX_GENERATION_PROMPT_LENGTH),
   goal: z.string().min(1).max(4_000),
   iteration: z.number().int().min(1).max(MAX_ITERATION_PASS_COUNT),
   totalIterations: z.number().int().min(1).max(MAX_ITERATION_PASS_COUNT),

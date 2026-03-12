@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { userPrompts } from '../../database/schema'
+import { MAX_SAVED_PROMPT_LENGTH } from '~/utils/promptLimits'
 
 const bodySchema = z.object({
   title: z.string().min(1).max(200),
-  prompt: z.string().min(1).max(3000),
+  prompt: z.string().min(1).max(MAX_SAVED_PROMPT_LENGTH),
   initialPresets: z.string().max(500_000).nullish(),
   chatHistory: z.string().max(500_000).nullish(),
 })

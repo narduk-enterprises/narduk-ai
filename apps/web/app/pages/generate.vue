@@ -634,14 +634,14 @@ function editResult(gen: Generation) {
                     characterBatchRequestCount === 1 ? '' : 's'
                   }}
                   prepared from the imported character schema. The prompt field is a preview only.
-                  Generate will fan these out as standard xAI image requests.
+                  Generate will use xAI's recommended pattern for repeated vs. distinct prompts.
                 </p>
                 <p v-if="!isCharacterBatchReady" class="text-xs text-warning">
                   Switch back to Text to Image to submit this imported batch.
                 </p>
                 <p class="text-xs text-dimmed">
-                  xAI Batch API does not currently support image generation, so this test flow stays
-                  on xAI and submits the prompts individually.
+                  xAI Batch API does not currently support image generation, so this test flow uses
+                  `n` for repeated prompts and bounded concurrency for different prompts.
                 </p>
               </div>
               <div class="flex items-center gap-2 shrink-0">

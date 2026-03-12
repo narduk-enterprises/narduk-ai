@@ -15,19 +15,6 @@ export function useGenerate() {
   const error = ref<string | null>(null)
   const pollingIntervals = ref<Map<string, ReturnType<typeof setInterval>>>(new Map())
 
-  async function sleep(ms: number) {
-    await new Promise((resolve) => setTimeout(resolve, ms))
-  }
-
-  function getErrorMessage(err: unknown, fallback: string): string {
-    return err instanceof Error ? err.message : fallback
-  }
-
-  function isConcurrentLimitError(err: unknown): boolean {
-    const message = getErrorMessage(err, '').toLowerCase()
-    return message.includes('too many concurrent requests')
-  }
-
   /**
    * Generate an image from text (T2I).
    */
@@ -70,6 +57,11 @@ export function useGenerate() {
     requests: Array<{
       prompt: string
       model?: string | null
+      promptElements?: string[]
+      presets?: Record<string, string>
+      userPromptId?: string
+      lineage?: string
+      count?: number
     }>,
     options?: {
       aspectRatio?: string
@@ -78,51 +70,34 @@ export function useGenerate() {
     generating.value = true
     error.value = null
     try {
-      const successes: Generation[] = []
-      let failures = 0
-
-      for (const [index, request] of requests.entries()) {
-        const attemptGeneration = async () =>
-          await $fetch<Generation>('/api/generate/image', {
-            method: 'POST',
-            body: {
+      const result = await $fetch<{ results: Generation[]; failures: number }>(
+        '/api/generate/image-batch',
+        {
+          method: 'POST',
+          body: {
+            requests: requests.map((request) => ({
               prompt: request.prompt,
               aspectRatio: options?.aspectRatio,
               model: request.model || undefined,
-            },
-          })
+              promptElements: request.promptElements,
+              presets: request.presets,
+              userPromptId: request.userPromptId,
+              lineage: request.lineage,
+              count: request.count || 1,
+            })),
+          },
+        },
+      )
 
-        try {
-          const result = await attemptGeneration()
-          successes.push(result)
-        } catch (err) {
-          if (isConcurrentLimitError(err)) {
-            await sleep(1500)
-            try {
-              const retryResult = await attemptGeneration()
-              successes.push(retryResult)
-            } catch {
-              failures++
-            }
-          } else {
-            failures++
-          }
-        }
-
-        if (index < requests.length - 1) {
-          await sleep(350)
-        }
-      }
-
-      if (successes.length === 0) {
+      if (result.results.length === 0) {
         error.value = 'All imported image generations failed. Please try again.'
-      } else if (failures > 0) {
-        error.value = `${failures} imported image request${failures === 1 ? '' : 's'} failed.`
+      } else if (result.failures > 0) {
+        error.value = `${result.failures} imported image request${result.failures === 1 ? '' : 's'} failed.`
       }
 
-      return { successes, failures }
+      return { successes: result.results, failures: result.failures }
     } catch (err: unknown) {
-      error.value = getErrorMessage(err, 'Failed to generate imported images')
+      error.value = err instanceof Error ? err.message : 'Failed to generate imported images'
       return { successes: [], failures: requests.length }
     } finally {
       generating.value = false

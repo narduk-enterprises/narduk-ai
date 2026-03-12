@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { appSettings, quickModifiers } from '../../database/schema'
+import { MAX_GENERATION_PROMPT_LENGTH } from '~/utils/promptLimits'
 
 const bodySchema = z.object({
-  prompt: z.string().min(1).max(10000),
+  prompt: z.string().min(1).max(MAX_GENERATION_PROMPT_LENGTH),
 })
 
 /**

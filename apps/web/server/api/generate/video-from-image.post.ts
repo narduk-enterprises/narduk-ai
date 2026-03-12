@@ -3,9 +3,10 @@ import { eq, and } from 'drizzle-orm'
 import { generations, appSettings } from '#server/database/schema'
 import { useAppDatabase } from '#server/utils/database'
 import { createGenerationComparisonDefaults } from '#server/utils/imageComparisons'
+import { MAX_GENERATION_PROMPT_LENGTH } from '~/utils/promptLimits'
 
 const bodySchema = z.object({
-  prompt: z.string().min(1).max(20_000),
+  prompt: z.string().min(1).max(MAX_GENERATION_PROMPT_LENGTH),
   sourceGenerationId: z.string().min(1),
   model: z.string().optional(),
   duration: z.number().int().min(1).max(15).optional().default(6),

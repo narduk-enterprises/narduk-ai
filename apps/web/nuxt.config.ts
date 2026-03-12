@@ -36,6 +36,9 @@ export default defineNuxtConfig({
     xaiApiKey: process.env.GROK_API_KEY || '',
     xaiManagementKey: process.env.XAI_MANAGEMENT_KEY || '',
     xaiTeamId: process.env.XAI_TEAM_ID || '',
+    xaiImportedImageMaxConcurrent: Number(process.env.XAI_IMPORTED_IMAGE_MAX_CONCURRENT || 10),
+    xaiImportedImageMaxRetries: Number(process.env.XAI_IMPORTED_IMAGE_MAX_RETRIES || 3),
+    xaiImportedImageRetryDelayMs: Number(process.env.XAI_IMPORTED_IMAGE_RETRY_DELAY_MS || 1500),
     public: {
       appUrl: process.env.SITE_URL || 'https://narduk-ai.nard.uk',
       appName: process.env.APP_NAME || 'Narduk AI',

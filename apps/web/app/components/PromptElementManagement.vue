@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '#ui/types'
+import { MAX_PROMPT_ELEMENT_CONTENT_LENGTH } from '~/utils/promptLimits'
 
 const { elements, loading, error, fetchElements, createElement, updateElement, deleteElement } =
   usePromptElements()
@@ -13,7 +14,7 @@ const submitting = ref(false)
 const schema = z.object({
   type: z.enum(['person', 'scene', 'framing', 'action', 'style']),
   name: z.string().min(1, 'Name is required').max(100),
-  content: z.string().min(1, 'Content is required').max(2000),
+  content: z.string().min(1, 'Content is required').max(MAX_PROMPT_ELEMENT_CONTENT_LENGTH),
 })
 
 type Schema = z.infer<typeof schema>

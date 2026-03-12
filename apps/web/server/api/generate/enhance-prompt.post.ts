@@ -4,10 +4,11 @@ import { appSettings } from '../../database/schema'
 import { grokEnhancePrompt, grokEnhancePromptStream, grokListModels } from '../../utils/grok'
 import { getSystemPrompt } from '../../utils/systemPrompts'
 import { sendStream } from 'h3'
+import { MAX_GENERATION_PROMPT_LENGTH } from '~/utils/promptLimits'
 import { buildXaiModelCatalog } from '~/utils/xaiModels'
 
 const bodySchema = z.object({
-  prompt: z.string().min(1).max(20_000),
+  prompt: z.string().min(1).max(MAX_GENERATION_PROMPT_LENGTH),
 
   instructions: z.string().max(500_000).optional(),
   imageBase64: z.string().optional(),

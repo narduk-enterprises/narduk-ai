@@ -45,6 +45,7 @@ export function useGenerationDispatch(deps: {
     generating,
     error,
     generateImage,
+    generateImageBatch,
     generateVideo,
     generateVideoFromImage,
     editImage,
@@ -116,14 +117,22 @@ export function useGenerationDispatch(deps: {
           store.upsert(result)
         }
       } else {
-        const settled = await Promise.allSettled(
-          Array.from({ length: count }, () => generateImage(compiled, opts)),
+        const { successes } = await generateImageBatch(
+          [
+            {
+              prompt: compiled,
+              model: opts.model,
+              promptElements: opts.promptElements,
+              presets: opts.presets,
+              userPromptId: opts.userPromptId,
+              lineage: opts.lineage,
+              count,
+            },
+          ],
+          {
+            aspectRatio: opts.aspectRatio,
+          },
         )
-
-        const successes = settled
-          .filter((r): r is PromiseFulfilledResult<Generation | null> => r.status === 'fulfilled')
-          .map((r) => r.value)
-          .filter((v): v is Generation => v !== null)
 
         if (successes.length > 0) {
           latestResult.value = successes[0]!

@@ -3,9 +3,10 @@ import { eq, and } from 'drizzle-orm'
 import { generations, appSettings } from '#server/database/schema'
 import { useAppDatabase } from '#server/utils/database'
 import { createGenerationComparisonDefaults } from '#server/utils/imageComparisons'
+import { MAX_GENERATION_PROMPT_LENGTH } from '~/utils/promptLimits'
 
 const bodySchema = z.object({
-  prompt: z.string().min(1).max(20_000),
+  prompt: z.string().min(1).max(MAX_GENERATION_PROMPT_LENGTH),
   sourceGenerationId: z.string().min(1),
   model: z.string().optional(),
   promptElements: z.array(z.string()).optional(),
@@ -21,7 +22,7 @@ const bodySchema = z.object({
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Generate')
   const user = await requireAuth(event)
-  await enforceRateLimit(event, 'generate-image', 10, 60_000)
+  await enforceRateLimit(event, 'generate-image', 60, 60_000)
   const body = await readValidatedBody(event, bodySchema.parse)
   const config = useRuntimeConfig(event)
 
