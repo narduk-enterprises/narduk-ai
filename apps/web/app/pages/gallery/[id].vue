@@ -301,6 +301,26 @@ const parsedPresets = computed(() => {
                 </UButton>
               </UTooltip>
               <UTooltip
+                v-if="generation.status === 'done'"
+                text="Load this prompt back into text mode"
+              >
+                <UButton
+                  icon="i-lucide-file-text"
+                  variant="outline"
+                  class="rounded-xl justify-center w-full"
+                  block
+                  :to="{
+                    path: '/generate',
+                    query: {
+                      prompt: generation.prompt,
+                      mode: generation.type === 'video' ? 't2v' : 't2i',
+                    },
+                  }"
+                >
+                  Use this Prompt
+                </UButton>
+              </UTooltip>
+              <UTooltip
                 v-if="generation.type === 'image' && generation.status === 'done'"
                 text="Create a video from this image"
               >

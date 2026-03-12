@@ -15,6 +15,7 @@ const emit = defineEmits<{
   animate: [gen: Generation]
   edit: [gen: Generation]
   upscale: [id: string]
+  'use-prompt': [gen: Generation]
   'animate-latest': []
   'edit-latest': []
   retry: []
@@ -128,6 +129,17 @@ const isBatchDone = computed(
         />
       </div>
       <div class="flex flex-wrap gap-2">
+        <UTooltip text="Load this prompt back into text mode" class="flex-1 sm:flex-initial">
+          <UButton
+            variant="outline"
+            icon="i-lucide-file-text"
+            size="sm"
+            class="rounded-full min-h-11 w-full"
+            @click="emit('use-prompt', latestResult)"
+          >
+            Use Prompt
+          </UButton>
+        </UTooltip>
         <UTooltip text="View all past generations" class="flex-1 sm:flex-initial">
           <UButton
             variant="outline"
@@ -174,6 +186,17 @@ const isBatchDone = computed(
         />
       </div>
       <div class="flex flex-wrap gap-2">
+        <UTooltip text="Load this prompt back into text mode" class="flex-1 sm:flex-initial">
+          <UButton
+            variant="outline"
+            icon="i-lucide-file-text"
+            size="sm"
+            class="rounded-full min-h-11 w-full"
+            @click="emit('use-prompt', latestResult)"
+          >
+            Use Prompt
+          </UButton>
+        </UTooltip>
         <UTooltip
           v-if="latestResult.type === 'image'"
           text="Create a video from this image"

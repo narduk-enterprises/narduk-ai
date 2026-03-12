@@ -9,7 +9,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'click' | 'use-as-source' | 'upscale', gen: Generation): void
+  (e: 'click' | 'use-as-source' | 'use-prompt' | 'upscale', gen: Generation): void
   (e: 'load-more'): void
 }>()
 
@@ -145,6 +145,15 @@ onUnmounted(() => {
           <div
             class="absolute bottom-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           >
+            <UButton
+              v-if="item.status === 'done'"
+              size="xs"
+              variant="solid"
+              color="neutral"
+              icon="i-lucide-file-text"
+              class="rounded-full backdrop-blur-sm bg-black/40 hover:bg-black/60 border-0"
+              @click.stop="emit('use-prompt', item)"
+            />
             <UButton
               v-if="item.type === 'image' && item.status === 'done'"
               size="xs"

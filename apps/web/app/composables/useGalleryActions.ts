@@ -39,6 +39,14 @@ export function useGalleryActions(options?: {
     navigateTo({ path: '/generate', query: { source: gen.id, mode: 'i2i' } })
   }
 
+  function handleUsePrompt(gen: Generation) {
+    galleryViewer.close()
+    navigateTo({
+      path: '/generate',
+      query: { prompt: gen.prompt, mode: gen.type === 'video' ? 't2v' : 't2i' },
+    })
+  }
+
   function handleRetry(gen: Generation) {
     galleryViewer.close()
     navigateTo({ path: '/generate', query: { prompt: gen.prompt, mode: gen.mode } })
@@ -117,6 +125,7 @@ export function useGalleryActions(options?: {
     handleDelete,
     handleUseAsSource,
     handleEditImage,
+    handleUsePrompt,
     handleRetry,
     openViewer,
     handleUpscale,

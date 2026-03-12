@@ -9,6 +9,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   click: []
   'use-as-source': [generation: Generation]
+  'use-prompt': [generation: Generation]
   upscale: [generation: Generation]
   delete: [generation: Generation]
   retry: [generation: Generation]
@@ -66,6 +67,10 @@ const parsedPresets = computed(() => {
 
 function handleUseAsSource() {
   emit('use-as-source', props.generation)
+}
+
+function handleUsePrompt() {
+  emit('use-prompt', props.generation)
 }
 
 function handleRetry() {
@@ -254,6 +259,16 @@ function handleRemix() {
               icon="i-lucide-wand-2"
               class="touch-target"
               @click.stop.prevent="handleUseAsSource"
+            />
+          </UTooltip>
+          <UTooltip v-if="generation.status === 'done'" text="Use prompt">
+            <UButton
+              size="sm"
+              variant="ghost"
+              color="primary"
+              icon="i-lucide-file-text"
+              class="touch-target"
+              @click.stop.prevent="handleUsePrompt"
             />
           </UTooltip>
           <UTooltip v-if="generation.status === 'done'" text="Remix">

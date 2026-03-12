@@ -16,6 +16,7 @@ const {
   remixingId,
   handleDelete,
   handleUseAsSource,
+  handleUsePrompt,
   handleRetry,
   openViewer,
   handleUpscale,
@@ -188,6 +189,7 @@ const filters = [
           :remixing="remixingId === gen.id"
           @click="openViewer(gen, filteredGenerations, loadMore)"
           @use-as-source="handleUseAsSource"
+          @use-prompt="handleUsePrompt"
           @upscale="handleUpscale"
           @delete="handleDelete"
           @retry="handleRetry"

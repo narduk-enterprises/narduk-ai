@@ -22,6 +22,7 @@ const { deleteGeneration, remixing: remixingRef } = useGenerate()
 const {
   handleUseAsSource: _handleUseAsSource,
   handleEditImage: _handleEditImage,
+  handleUsePrompt: _handleUsePrompt,
   handleUpscale: _handleUpscale,
   handleRemix: _handleRemix,
 } = useGalleryActions()
@@ -192,6 +193,10 @@ function handleEditImage() {
   if (currentItem.value) _handleEditImage(currentItem.value)
 }
 
+function handleUsePrompt() {
+  if (currentItem.value) _handleUsePrompt(currentItem.value)
+}
+
 async function handleUpscale() {
   if (currentItem.value) await _handleUpscale(currentItem.value)
 }
@@ -248,6 +253,7 @@ function handlePresetClick(presetName: string) {
           @info="handleInfo"
           @use-as-source="handleUseAsSource"
           @edit-image="handleEditImage"
+          @use-prompt="handleUsePrompt"
           @remix="handleRemix"
           @upscale="handleUpscale"
           @delete="handleDelete"

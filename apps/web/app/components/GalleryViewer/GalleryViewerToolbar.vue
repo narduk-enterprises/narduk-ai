@@ -21,6 +21,7 @@ defineEmits<{
   info: []
   useAsSource: []
   editImage: []
+  usePrompt: []
   remix: []
   upscale: []
   delete: []
@@ -139,6 +140,16 @@ const isDone = computed(() => props.item?.status === 'done')
           size="sm"
           class="text-white hover:bg-white/10 rounded-full"
           @click="$emit('editImage')"
+        />
+      </UTooltip>
+      <UTooltip v-if="isDone" text="Use prompt">
+        <UButton
+          icon="i-lucide-file-text"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="text-white hover:bg-white/10 rounded-full"
+          @click="$emit('usePrompt')"
         />
       </UTooltip>
       <UTooltip v-if="isDone" text="Remix">

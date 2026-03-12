@@ -20,6 +20,8 @@ const {
   resolution,
   sourceGenerationId,
   activePresets,
+  activePresetIds,
+  compiledPrompt,
   latestResult,
   latestResults,
   recentGenerations,
@@ -47,6 +49,7 @@ const {
   upscaling,
   uploadingSource,
   sourceGeneration,
+  useCompiledPromptAsDraft,
   i2iInstructions,
   generatingI2IPrompt,
   generateI2IPrompt,
@@ -184,6 +187,32 @@ function handleUseBuilderPrompt(newPrompt: string) {
   prompt.value = newPrompt
 }
 
+function handleUseGenerationPrompt(gen: Generation) {
+  navigateTo({
+    path: '/generate',
+    query: { prompt: gen.prompt, mode: gen.type === 'video' ? 't2v' : 't2i' },
+  })
+}
+
+const showFinalPromptPanel = computed(() => {
+  const finalPrompt = compiledPrompt.value.trim()
+  if (!finalPrompt) return false
+
+  return (
+    finalPrompt !== prompt.value.trim() ||
+    activePresetIds.value.length > 0 ||
+    selectedTagsList.value.length > 0
+  )
+})
+
+const promptFieldLabel = computed(() => {
+  if (activeTab.value === 'i2i' || activeTab.value === 'i2v') {
+    return 'Final Prompt'
+  }
+
+  return showFinalPromptPanel.value ? 'Prompt Draft' : 'Prompt'
+})
+
 const remixing = ref(false)
 
 async function handleRemix() {
@@ -203,11 +232,6 @@ onMounted(() => {
   fetchElements()
   ensureTagsLoaded()
   loadMoreGenerations(20)
-  // Pre-fill prompt from query param (navigated from /compose "Use in Generate")
-  const routePrompt = useRoute().query.prompt
-  if (routePrompt && typeof routePrompt === 'string') {
-    prompt.value = decodeURIComponent(routePrompt)
-  }
 })
 
 function handlePromptKeydown(e: KeyboardEvent) {
@@ -455,9 +479,7 @@ function editResult(gen: Generation) {
           <UFormField required>
             <template #label>
               <div class="flex items-center gap-1.5">
-                <span>{{
-                  activeTab === 'i2i' || activeTab === 'i2v' ? 'Final Prompt' : 'Prompt'
-                }}</span>
+                <span>{{ promptFieldLabel }}</span>
                 <UTooltip
                   v-if="activeTab === 'i2i' || activeTab === 'i2v'"
                   text="When using a source image, describe the entire desired output, not just the changes."
@@ -566,6 +588,42 @@ function editResult(gen: Generation) {
               </div>
             </template>
           </UFormField>
+
+          <div
+            v-if="showFinalPromptPanel"
+            class="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-3"
+          >
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="space-y-1">
+                <p class="text-sm font-medium text-default">Final Prompt</p>
+                <p class="text-xs text-muted">
+                  This is the exact prompt that will be sent after presets and modifiers are merged.
+                </p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <CopyButton :text="compiledPrompt" />
+                <UButton
+                  size="sm"
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-file-pen-line"
+                  @click="useCompiledPromptAsDraft"
+                >
+                  Edit Final Prompt
+                </UButton>
+              </div>
+            </div>
+
+            <UTextarea
+              :model-value="compiledPrompt"
+              :rows="4"
+              :maxrows="12"
+              autoresize
+              readonly
+              class="w-full"
+              :ui="{ base: 'bg-default/80' }"
+            />
+          </div>
 
           <!-- Options Row -->
           <div class="flex flex-wrap items-end gap-4">
@@ -700,6 +758,7 @@ function editResult(gen: Generation) {
           :is-finished="isGenerationsFinished"
           @click="openRecentViewer"
           @use-as-source="useGenerationAsSource"
+          @use-prompt="handleUseGenerationPrompt"
           @upscale="(gen) => upscaleGeneration(gen.id)"
           @load-more="loadMoreGenerations(20)"
         />
@@ -719,6 +778,7 @@ function editResult(gen: Generation) {
           @animate="animateResult"
           @edit="editResult"
           @upscale="(id: string) => upscaleGeneration(id)"
+          @use-prompt="handleUseGenerationPrompt"
           @animate-latest="animateLatestImage"
           @edit-latest="editLatestImage"
           @retry="handleRetry"

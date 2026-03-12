@@ -11,15 +11,26 @@ import type { PromptElement } from './usePromptElements'
  */
 export function useGenerationForm() {
   const route = useRoute()
+  const toast = useToast()
   const { defaultAspectRatio, defaultDuration, defaultResolution } = useSettings()
   const generationStore = useGenerationsStore()
   const { fetchGeneration } = useGenerate()
   const supportedModes = new Set(['t2i', 't2v', 'i2v', 'i2i'])
 
+  function parseQueryPrompt(value: unknown): string {
+    if (typeof value !== 'string') return ''
+
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+
   // ─── Form State ─────────────────────────────────────────────
 
   const activeTab = ref((route.query.mode as string) || 't2i')
-  const prompt = ref((route.query.prompt as string) || '')
+  const prompt = ref(parseQueryPrompt(route.query.prompt))
   const aspectRatio = ref(defaultAspectRatio.value)
   const duration = ref(defaultDuration.value)
   const resolution = ref(defaultResolution.value)
@@ -40,6 +51,16 @@ export function useGenerationForm() {
       const nextSource = typeof source === 'string' ? source : ''
       if (nextSource !== sourceGenerationId.value) {
         sourceGenerationId.value = nextSource
+      }
+    },
+  )
+
+  watch(
+    () => route.query.prompt,
+    (queryPrompt) => {
+      const nextPrompt = parseQueryPrompt(queryPrompt)
+      if (nextPrompt !== prompt.value) {
+        prompt.value = nextPrompt
       }
     },
   )
@@ -301,6 +322,31 @@ export function useGenerationForm() {
     sourceGenerationId.value = gen.id
   }
 
+  function useCompiledPromptAsDraft() {
+    const nextPrompt = compiledPrompt.value.trim()
+    const hadStructuredInputs =
+      activePresetIds.value.length > 0 || tags.selectedTagsList.value.length > 0
+
+    if (!nextPrompt) return
+
+    prompt.value = nextPrompt
+    activePresetIds.value = []
+    activePresets.value = {}
+    activeUserPromptId.value = null
+    attachedPerson.value = null
+    attachedPresets.value = {}
+    tags.clearTags()
+
+    if (hadStructuredInputs) {
+      toast.add({
+        title: 'Final Prompt Loaded',
+        description: 'Presets and modifiers were flattened into the prompt draft for editing.',
+        color: 'success',
+        icon: 'i-lucide-file-pen-line',
+      })
+    }
+  }
+
   // ─── Computed ───────────────────────────────────────────────
 
   const charCount = computed(() => compiledPrompt.value.length)
@@ -412,6 +458,7 @@ export function useGenerationForm() {
     animateLatestImage,
     editLatestImage,
     useGenerationAsSource,
+    useCompiledPromptAsDraft,
     upscaleGeneration,
     handleImageUpload,
     removeEnhanceImage,
