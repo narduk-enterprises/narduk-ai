@@ -3,9 +3,12 @@ import type { Generation } from '~/types/generation'
 /**
  * useGalleryActions — centralized UI actions for generation items (delete, upscale, remix, navigate).
  */
-export function useGalleryActions() {
-  const store = useGenerationsStore()
-  const galleryViewer = useGalleryViewer()
+export function useGalleryActions(options?: {
+  store?: ReturnType<typeof useGenerationsStore>
+  galleryViewer?: ReturnType<typeof useGalleryViewer>
+}) {
+  const store = options?.store ?? useGenerationsStore()
+  const galleryViewer = options?.galleryViewer ?? useGalleryViewer()
   const {
     deleteGeneration,
     upscaleGeneration,

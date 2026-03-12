@@ -11,6 +11,14 @@ defineProps<{
 const emit = defineEmits<{
   next: []
   prev: []
+  zoomStateChange: [
+    state: {
+      isZoomed: boolean
+      zoomLevel: number
+      maxZoom: number
+      isSelectZoomMode: boolean
+    },
+  ]
 }>()
 
 const isVideo = computed(() => false)
@@ -18,13 +26,18 @@ const isVideo = computed(() => false)
 const {
   zoomLevel,
   isZoomed,
+  isSelectZoomMode,
+  isSelectingArea,
   isDragging,
+  selectionRect,
   imageContainerRef,
   imageTransform,
   MAX_ZOOM,
   resetZoom,
   zoomIn,
   zoomOut,
+  cancelSelectZoomMode,
+  toggleSelectZoomMode,
   handleWheelZoom,
   handleMouseDown,
   handleDblClick,
@@ -37,14 +50,26 @@ const {
   prev: () => emit('prev'),
 })
 
+watch(
+  [isZoomed, zoomLevel, isSelectZoomMode],
+  () => {
+    emit('zoomStateChange', {
+      isZoomed: isZoomed.value,
+      zoomLevel: zoomLevel.value,
+      maxZoom: MAX_ZOOM,
+      isSelectZoomMode: isSelectZoomMode.value,
+    })
+  },
+  { immediate: true },
+)
+
 // Expose zoom controls to parent toolbar
 defineExpose({
-  zoomLevel,
-  isZoomed,
-  MAX_ZOOM,
   resetZoom,
   zoomIn,
   zoomOut,
+  cancelSelectZoomMode,
+  toggleSelectZoomMode,
 })
 </script>
 
@@ -58,7 +83,7 @@ defineExpose({
   >
     <!-- Prev Button (Desktop) -->
     <UButton
-      v-if="hasPrev && !isZoomed"
+      v-if="hasPrev && !isZoomed && !isSelectZoomMode"
       icon="i-lucide-chevron-left"
       color="neutral"
       variant="ghost"
@@ -70,8 +95,17 @@ defineExpose({
     <!-- Image -->
     <div
       ref="imageContainerRef"
-      class="flex items-center justify-center w-full h-full"
-      :style="{ cursor: isZoomed ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in' }"
+      class="relative flex items-center justify-center w-full h-full"
+      :style="{
+        cursor:
+          isSelectZoomMode || isSelectingArea
+            ? 'crosshair'
+            : isZoomed
+              ? isDragging
+                ? 'grabbing'
+                : 'grab'
+              : 'zoom-in',
+      }"
       @mousedown="handleMouseDown"
       @dblclick="handleDblClick"
     >
@@ -85,11 +119,22 @@ defineExpose({
           transformOrigin: 'center center',
         }"
       />
+
+      <div
+        v-if="selectionRect"
+        class="pointer-events-none absolute border-2 border-primary/90 bg-primary/10 shadow-overlay"
+        :style="{
+          left: `${selectionRect.left}px`,
+          top: `${selectionRect.top}px`,
+          width: `${selectionRect.width}px`,
+          height: `${selectionRect.height}px`,
+        }"
+      />
     </div>
 
     <!-- Next Button (Desktop) -->
     <UButton
-      v-if="hasNext && !isZoomed"
+      v-if="hasNext && !isZoomed && !isSelectZoomMode"
       icon="i-lucide-chevron-right"
       color="neutral"
       variant="ghost"
@@ -98,24 +143,20 @@ defineExpose({
       @click="$emit('next')"
     />
 
-    <!-- Zoom hint (when zoomed) -->
-    <Transition
-      enter-active-class="transition-opacity duration-300"
-      enter-from-class="opacity-0"
-      leave-active-class="transition-opacity duration-300"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div
-        v-if="isZoomed"
-        class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none"
+    <!-- Interaction hint -->
+    <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+      <span
+        class="text-xs text-white/50 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full whitespace-nowrap"
       >
-        <span
-          class="text-xs text-white/50 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full whitespace-nowrap"
-        >
+        <template v-if="isSelectZoomMode">
+          Drag a rectangle to zoom into it &middot; Press Esc to cancel
+        </template>
+        <template v-else-if="isSelectingArea"> Release to zoom into the selection </template>
+        <template v-else-if="isZoomed">
           Drag to pan &middot; Double-click or press 0 to reset
-        </span>
-      </div>
-    </Transition>
+        </template>
+        <template v-else> Hold Shift and drag for a quick zoom </template>
+      </span>
+    </div>
   </div>
 </template>

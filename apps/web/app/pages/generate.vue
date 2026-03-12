@@ -78,14 +78,25 @@ const { elements, fetchElements, remixPrompt } = usePromptElements()
 const isModifierSlideoverOpen = ref(false)
 const isLibraryModalOpen = ref(false)
 
-// Model selection stubs (full wiring to dispatch is a follow-up task)
-const IMAGE_MODELS = [
-  { label: 'Aurora', value: 'aurora' },
-  { label: 'Grok Imagine', value: 'grok-2-aurora' },
-]
-const VIDEO_MODELS = [{ label: 'Wan 2.2', value: 'wan-2.2' }]
-const selectedImageModel = ref('aurora')
-const selectedVideoModel = ref('wan-2.2')
+const { imageModels, videoModels, pending: modelsPending, error: modelsError } = useXaiModels()
+
+const selectedImageModel = ref(imageModels.value?.[0] || '')
+const selectedVideoModel = ref(videoModels.value?.[0] || '')
+
+watchEffect(() => {
+  if (
+    imageModels.value?.length &&
+    (!selectedImageModel.value || !imageModels.value.includes(selectedImageModel.value))
+  ) {
+    selectedImageModel.value = imageModels.value[0]!
+  }
+  if (
+    videoModels.value?.length &&
+    (!selectedVideoModel.value || !videoModels.value.includes(selectedVideoModel.value))
+  ) {
+    selectedVideoModel.value = videoModels.value[0]!
+  }
+})
 
 // Preset type configuration for UI rendering
 const PRESET_TYPE_CONFIG: Record<string, { label: string; icon: string; order: number }> = {
@@ -601,16 +612,30 @@ function editResult(gen: Generation) {
               v-if="activeTab === 't2i' || activeTab === 'i2i'"
               label="Model"
               class="w-auto"
+              :error="modelsError ? 'Load failed' : false"
             >
-              <USelect v-model="selectedImageModel" :items="IMAGE_MODELS" class="w-44" />
+              <USelect
+                v-model="selectedImageModel"
+                :items="imageModels"
+                :loading="modelsPending"
+                :disabled="modelsPending || !!modelsError"
+                class="min-w-56 w-auto"
+              />
             </UFormField>
             <!-- Video Model Picker (T2V / I2V) -->
             <UFormField
               v-if="activeTab === 't2v' || activeTab === 'i2v'"
               label="Model"
               class="w-auto"
+              :error="modelsError ? 'Load failed' : false"
             >
-              <USelect v-model="selectedVideoModel" :items="VIDEO_MODELS" class="w-48" />
+              <USelect
+                v-model="selectedVideoModel"
+                :items="videoModels"
+                :loading="modelsPending"
+                :disabled="modelsPending || !!modelsError"
+                class="min-w-56 w-auto"
+              />
             </UFormField>
           </div>
 

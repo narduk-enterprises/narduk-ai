@@ -10,8 +10,15 @@ import type { Generation } from '~/types/generation'
  *
  * The store handles all merging via `applyDelta`.
  */
-export function useGalleryPoller(intervalMs = 15_000) {
-  const store = useGenerationsStore()
+export function useGalleryPoller(
+  storeOrInterval?: ReturnType<typeof useGenerationsStore> | number,
+  maybeIntervalMs = 15_000,
+) {
+  const store =
+    typeof storeOrInterval === 'number' || !storeOrInterval
+      ? useGenerationsStore()
+      : storeOrInterval
+  const intervalMs = typeof storeOrInterval === 'number' ? storeOrInterval : maybeIntervalMs
   let timer: ReturnType<typeof setTimeout> | null = null
   let running = false
 

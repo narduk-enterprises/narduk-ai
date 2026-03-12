@@ -8,6 +8,7 @@ const props = defineProps<{
   isZoomed: boolean
   zoomLevel: number
   maxZoom: number
+  isSelectZoomMode: boolean
   remixing: boolean
 }>()
 
@@ -16,6 +17,7 @@ defineEmits<{
   zoomIn: []
   zoomOut: []
   resetZoom: []
+  toggleSelectZoomMode: []
   info: []
   useAsSource: []
   editImage: []
@@ -84,6 +86,25 @@ const isDone = computed(() => props.item?.status === 'done')
             :disabled="zoomLevel >= maxZoom"
             class="text-white hover:bg-white/10 rounded-full"
             @click="$emit('zoomIn')"
+          />
+        </UTooltip>
+        <UTooltip
+          :text="
+            isSelectZoomMode ? 'Cancel area zoom (Esc)' : 'Select area to zoom (or Shift-drag)'
+          "
+        >
+          <UButton
+            icon="i-lucide-crop"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            class="rounded-full"
+            :class="
+              isSelectZoomMode
+                ? 'text-white bg-primary/20 hover:bg-primary/30'
+                : 'text-white hover:bg-white/10'
+            "
+            @click="$emit('toggleSelectZoomMode')"
           />
         </UTooltip>
         <div class="w-px h-5 bg-white/20 mx-0.5" />

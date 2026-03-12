@@ -93,7 +93,7 @@ async function handleShareImage(imageUrl: string) {
   await shareImageWithAgent(imageUrl)
 }
 
-const { chatModels } = useXaiModels()
+const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels()
 </script>
 
 <template>
@@ -108,17 +108,22 @@ const { chatModels } = useXaiModels()
       </div>
       <div class="flex items-center gap-2">
         <!-- Model picker -->
-        <USelectMenu
-          v-model="selectedModel"
-          :items="chatModels.length ? chatModels : ['grok-3-mini']"
-          size="sm"
-          class="w-36 hidden sm:flex"
-          :ui="{ base: 'rounded-lg' }"
-        >
-          <template #leading>
-            <UIcon name="i-lucide-cpu" class="size-3.5 text-muted" />
-          </template>
-        </USelectMenu>
+        <UTooltip :text="modelsError ? 'Failed to load' : ''" :prevent="!modelsError">
+          <USelectMenu
+            v-model="selectedModel"
+            :items="chatModels"
+            :loading="modelsPending"
+            :disabled="modelsPending || !!modelsError"
+            size="sm"
+            class="min-w-40 w-auto hidden sm:flex"
+            :ui="{ base: 'rounded-lg' }"
+          >
+            <template #leading>
+              <UIcon v-if="modelsError" name="i-lucide-alert-circle" class="size-3.5 text-error" />
+              <UIcon v-else name="i-lucide-cpu" class="size-3.5 text-muted" />
+            </template>
+          </USelectMenu>
+        </UTooltip>
 
         <!-- New Chat -->
         <UButton

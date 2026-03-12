@@ -1,5 +1,5 @@
 /**
- * GET /api/admin/xai-models — Live xAI model catalog (admin-only).
+ * GET /api/models — Live xAI model catalog.
  *
  * Fetches the model list from xAI's /v1/models endpoint and splits
  * into image / video / chat buckets by ID prefix convention.
@@ -19,7 +19,7 @@ const TTL_MS = 60 * 60 * 1000 // 1 hour
 let cachedResult: ModelCache | null = null
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
+  await requireUserSession(event)
 
   const config = useRuntimeConfig(event)
   if (!config.xaiApiKey) {

@@ -31,9 +31,8 @@ const imageViewerRef = ref<{
   resetZoom: () => void
   zoomIn: () => void
   zoomOut: () => void
-  isZoomed: boolean
-  zoomLevel: number
-  MAX_ZOOM: number
+  cancelSelectZoomMode: () => void
+  toggleSelectZoomMode: () => void
 } | null>(null)
 
 const videoViewerRef = ref<{
@@ -45,14 +44,35 @@ const videoViewerRef = ref<{
 // ── Media Type Helpers ─────────────────────────────────────
 const isVideo = computed(() => currentItem.value?.type === 'video')
 const mediaUrl = computed(() => currentItem.value?.mediaUrl ?? '')
-const isZoomed = computed(() => imageViewerRef.value?.isZoomed ?? false)
-const zoomLevel = computed(() => imageViewerRef.value?.zoomLevel ?? 1)
-const maxZoom = computed(() => imageViewerRef.value?.MAX_ZOOM ?? 8)
+const isZoomed = ref(false)
+const zoomLevel = ref(1)
+const maxZoom = ref(8)
+const isSelectZoomMode = ref(false)
+
+function resetZoomState() {
+  isZoomed.value = false
+  zoomLevel.value = 1
+  maxZoom.value = 8
+  isSelectZoomMode.value = false
+}
+
+function handleZoomStateChange(state: {
+  isZoomed: boolean
+  zoomLevel: number
+  maxZoom: number
+  isSelectZoomMode: boolean
+}) {
+  isZoomed.value = state.isZoomed
+  zoomLevel.value = state.zoomLevel
+  maxZoom.value = state.maxZoom
+  isSelectZoomMode.value = state.isSelectZoomMode
+}
 
 // ── Toolbar Actions (Delegated to specific functions below) ───
 
 // ── Reset state when switching items ───────────────────────
 watch(currentIndex, () => {
+  resetZoomState()
   if (imageViewerRef.value) {
     imageViewerRef.value.resetZoom()
   }
@@ -80,6 +100,10 @@ watch(isOpen, (open) => {
   if (import.meta.client) {
     document.body.style.overflow = open ? 'hidden' : ''
   }
+
+  if (!open) {
+    resetZoomState()
+  }
 })
 
 // ── Keyboard Navigation ───────────────────────────────────
@@ -88,6 +112,10 @@ function handleKeydown(e: KeyboardEvent) {
 
   if (e.key === 'Escape') {
     e.preventDefault()
+    if (isSelectZoomMode.value && imageViewerRef.value) {
+      imageViewerRef.value.cancelSelectZoomMode()
+      return
+    }
     if (isZoomed.value && imageViewerRef.value) {
       imageViewerRef.value.resetZoom()
     } else {
@@ -181,6 +209,10 @@ async function handleDelete() {
   }
 }
 
+function handleToggleSelectZoomMode() {
+  imageViewerRef.value?.toggleSelectZoomMode()
+}
+
 function handlePresetClick(presetName: string) {
   close()
   navigateTo({ path: '/gallery', query: { search: presetName } })
@@ -206,11 +238,13 @@ function handlePresetClick(presetName: string) {
           :is-zoomed="isZoomed"
           :zoom-level="zoomLevel"
           :max-zoom="maxZoom"
+          :is-select-zoom-mode="isSelectZoomMode"
           :remixing="remixingRef"
           @close="close"
           @zoom-in="imageViewerRef?.zoomIn()"
           @zoom-out="imageViewerRef?.zoomOut()"
           @reset-zoom="imageViewerRef?.resetZoom()"
+          @toggle-select-zoom-mode="handleToggleSelectZoomMode"
           @info="handleInfo"
           @use-as-source="handleUseAsSource"
           @edit-image="handleEditImage"
@@ -227,6 +261,7 @@ function handlePresetClick(presetName: string) {
           :media-url="mediaUrl"
           :has-next="hasNext"
           :has-prev="hasPrev"
+          @zoom-state-change="handleZoomStateChange"
           @next="next"
           @prev="prev"
         />

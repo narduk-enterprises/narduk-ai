@@ -33,6 +33,7 @@ const {
   videoModels,
   chatModels,
   pending: modelsPending,
+  error: modelsError,
   refresh: refreshModels,
 } = useXaiModels()
 
@@ -120,11 +121,13 @@ async function onSubmit(event: FormSubmitEvent<SettingsFields>) {
           name="videoModel"
           label="Video Generation Model"
           description="The model used for all T2V and I2V tasks."
+          :error="modelsError ? 'Failed to load models' : false"
         >
           <USelectMenu
             v-model="state.videoModel"
-            :items="videoModels.length ? videoModels : ['grok-imagine-video']"
+            :items="videoModels"
             :loading="modelsPending"
+            :disabled="!!modelsError"
             style="width: 100%"
           />
         </UFormField>
@@ -134,11 +137,13 @@ async function onSubmit(event: FormSubmitEvent<SettingsFields>) {
           name="imageModel"
           label="Image Generation Model"
           description="The model used for T2I generation natively."
+          :error="modelsError ? 'Failed to load models' : false"
         >
           <USelectMenu
             v-model="state.imageModel"
-            :items="imageModels.length ? imageModels : ['grok-imagine-image']"
+            :items="imageModels"
             :loading="modelsPending"
+            :disabled="!!modelsError"
             style="width: 100%"
           />
         </UFormField>
@@ -148,11 +153,13 @@ async function onSubmit(event: FormSubmitEvent<SettingsFields>) {
           name="promptEnhanceModel"
           label="Prompt Enhance Model"
           description="The text model to use for the 'Enhance Prompt' rewriting feature."
+          :error="modelsError ? 'Failed to load models' : false"
         >
           <USelectMenu
             v-model="state.promptEnhanceModel"
-            :items="chatModels.length ? chatModels : ['grok-3-mini']"
+            :items="chatModels"
             :loading="modelsPending"
+            :disabled="!!modelsError"
             style="width: 100%"
           />
         </UFormField>

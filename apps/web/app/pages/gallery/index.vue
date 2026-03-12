@@ -11,6 +11,7 @@ useWebPageSchema({
 })
 
 const store = useGenerationsStore()
+const galleryViewer = useGalleryViewer()
 const {
   remixingId,
   handleDelete,
@@ -19,7 +20,7 @@ const {
   openViewer,
   handleUpscale,
   handleRemix,
-} = useGalleryActions()
+} = useGalleryActions({ store, galleryViewer })
 
 const route = useRoute()
 const activeFilter = computed(() => (route.query.filter as string) || 'all')
@@ -56,7 +57,7 @@ async function loadMore() {
 }
 
 // ── Live polling — always on, visibility-aware, never auto-stops ──
-useGalleryPoller()
+useGalleryPoller(store)
 
 // ── Infinite scroll ───────────────────────────────────────────────
 const loadMoreTarget = ref<HTMLElement | null>(null)
@@ -90,7 +91,6 @@ const filteredGenerations = computed(() =>
 )
 
 // ── Sync viewer when list changes ─────────────────────────────────
-const galleryViewer = useGalleryViewer()
 watch(filteredGenerations, (newList) => {
   if (galleryViewer.isOpen.value) galleryViewer.updateItems(newList)
 })

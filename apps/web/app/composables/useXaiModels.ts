@@ -14,9 +14,14 @@ interface XaiModelCatalog {
 }
 
 export function useXaiModels() {
-  const { data, pending, refresh, error } = useAsyncData<XaiModelCatalog>('xai-models', () =>
-    $fetch<XaiModelCatalog>('/api/admin/xai-models'),
-  )
+  const { data, pending, refresh, error } = useAsyncData<XaiModelCatalog>('xai-models', () => {
+    const headers = import.meta.server
+      ? (useRequestHeaders(['cookie']) as Record<string, string>)
+      : undefined
+    return $fetch<XaiModelCatalog>('/api/models', {
+      ...(headers && { headers }),
+    })
+  })
 
   const imageModels = computed(() => data.value?.imageModels ?? [])
   const videoModels = computed(() => data.value?.videoModels ?? [])
