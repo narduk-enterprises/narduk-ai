@@ -57,14 +57,20 @@ export default defineEventHandler(async (event) => {
   })
 
   // Step 1: Generate person variations via Grok Chat
-  const variationsPrompt = `Generate exactly ${body.count} unique, diverse person descriptions for AI image generation. Each person should be a 20-30 year old white woman with a COMPLETELY DIFFERENT look — vary hair color, hair style, body type, facial features, clothing, accessories, freckles, skin tone variation, eye color, and overall vibe.
+  // Use the basePrompt to derive what kind of subject variations to create
+  const variationsPrompt = `You are generating ${body.count} unique visual variations for AI image generation.
 
-Be concise — each description should be 1-2 sentences max, written as comma-separated visual descriptors ready to prepend to a generation prompt. NO names, NO backstories.
+The user's base prompt is: "${body.basePrompt}"
 
-Examples of good descriptions:
-- "Petite woman with wavy auburn hair, light freckles, green eyes, wearing a cropped white tee and high-waisted jeans, delicate gold necklace"
-- "Tall athletic woman with straight platinum blonde hair in a low ponytail, blue eyes, tanned skin, wearing a fitted black tank top and denim shorts"
-- "Curvy woman with shoulder-length dark brown hair, hazel eyes, rosy cheeks, wearing an oversized knit sweater and leggings, silver hoop earrings"
+Analyze the base prompt to understand the subject (person, object, scene, etc.) and generate ${body.count} COMPLETELY DIFFERENT variations of that subject. Each variation should change the visual attributes dramatically while keeping the same general category.
+
+For people: vary hair color/style, body type, facial features, clothing, accessories, skin tone, eye color, overall vibe.
+For objects/scenes: vary materials, colors, lighting, style, composition, mood.
+
+Rules:
+- Each description should be 1-2 sentences max, written as comma-separated visual descriptors
+- The descriptors will be PREPENDED to the base prompt, so don't repeat what's already in the base prompt (like pose or framing)
+- NO names, NO backstories — visual descriptors only
 
 Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description": "the visual descriptors" }, ...] }`
 
