@@ -9,6 +9,7 @@ export interface GenerationQueryFilters {
   mode?: string
   status?: GenerationStatus
   sort?: GenerationSort
+  batchId?: string
 }
 
 export interface Generation {

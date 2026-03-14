@@ -302,6 +302,7 @@ export function useGenerate() {
         mode: filters?.mode || undefined,
         status: filters?.status || undefined,
         sort: filters?.sort || undefined,
+        batchId: filters?.batchId || undefined,
       },
     })
   }

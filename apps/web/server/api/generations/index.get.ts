@@ -14,6 +14,8 @@ const querySchema = z.object({
   sort: z.enum(['recent', 'rank']).optional().default('recent'),
   /** ISO timestamp — return only rows created after this value (for live polling). */
   since: z.string().datetime({ offset: true }).optional(),
+  /** Filter by batchId in metadata (for arena / seed batch features). */
+  batchId: z.string().optional(),
 })
 
 /**
@@ -24,7 +26,7 @@ const querySchema = z.object({
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Generations')
   const user = await requireAuth(event)
-  const { limit, offset, search, type, status, mode, sort, since } = querySchema.parse(
+  const { limit, offset, search, type, status, mode, sort, since, batchId } = querySchema.parse(
     getQuery(event),
   )
 
@@ -53,6 +55,9 @@ export default defineEventHandler(async (event) => {
   }
   if (since) {
     filters.push(gt(generations.updatedAt, since))
+  }
+  if (batchId) {
+    filters.push(like(generations.metadata, `%"batchId":"${batchId}"%`))
   }
 
   // Find and refresh all pending video generations for this user regardless of the query limit/since
