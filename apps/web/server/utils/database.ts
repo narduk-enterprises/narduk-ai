@@ -1,28 +1,7 @@
-/// <reference types="@cloudflare/workers-types" />
-import type { H3Event } from 'h3'
-import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
 import * as schema from '#server/database/schema'
 
 /**
- * Return a Drizzle ORM instance for the app schema.
- *
- * Uses a separate memoization slot from the layer helper so app-specific tables
- * stay typed and queryable without mutating the shared layer implementation.
+ * App-level Drizzle instance with full app schema.
+ * Uses the layer's createAppDatabase factory for consistent D1 binding.
  */
-export function useAppDatabase(event: H3Event): DrizzleD1Database<typeof schema> {
-  if (event.context._appDb) {
-    return event.context._appDb
-  }
-
-  const d1 = (event.context.cloudflare?.env as { DB?: D1Database })?.DB
-  if (!d1) {
-    throw createError({
-      statusCode: 500,
-      message: 'D1 database binding not available. Ensure DB is configured in wrangler.json.',
-    })
-  }
-
-  const db = drizzle(d1, { schema })
-  event.context._appDb = db
-  return db
-}
+export const useAppDatabase = createAppDatabase(schema)

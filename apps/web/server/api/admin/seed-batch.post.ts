@@ -16,6 +16,8 @@ const bodySchema = z.object({
   aspectRatio: z.string().optional(),
   /** Optional label for the batch */
   label: z.string().max(200).optional(),
+  /** Optional client-provided batchId for progress polling */
+  batchId: z.string().uuid().optional(),
 })
 
 interface PersonVariation {
@@ -44,7 +46,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, bodySchema.parse)
-  const batchId = crypto.randomUUID()
+  const batchId = body.batchId || crypto.randomUUID()
   const now = new Date().toISOString()
 
   log.info('AUDIT: Seed batch started', {

@@ -54,6 +54,7 @@ const {
   exitArena,
   generating,
   generatingStatus,
+  generationProgress,
   generateBatch,
 } = useArena()
 
@@ -257,14 +258,55 @@ onUnmounted(() => {
         </div>
 
         <!-- Arena Loading -->
-        <div
-          v-if="arenaLoading"
-          class="glass-card flex flex-col items-center gap-5 py-20 text-center"
-        >
+        <div v-if="arenaLoading" class="glass-card flex flex-col items-center gap-5 py-20 text-center">
           <div class="flex size-16 items-center justify-center rounded-3xl bg-primary/10">
             <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-primary" />
           </div>
           <p class="text-sm text-muted">Loading arena pairs...</p>
+        </div>
+
+        <!-- Generation Progress -->
+        <div
+          v-else-if="generating"
+          class="glass-card flex flex-col gap-5 p-6"
+        >
+          <div class="flex items-center gap-3">
+            <div class="flex size-10 items-center justify-center rounded-2xl bg-primary/10">
+              <UIcon name="i-lucide-sparkles" class="size-5 animate-pulse text-primary" />
+            </div>
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-default">{{ generatingStatus }}</p>
+              <p class="text-xs text-muted">
+                ~{{ Math.max(1, (generationProgress.targetCount - generationProgress.completedCount) * 2) }}s remaining
+              </p>
+            </div>
+            <span class="text-lg font-bold text-primary">
+              {{ generationProgress.completedCount }} / {{ generationProgress.targetCount }}
+            </span>
+          </div>
+
+          <UProgress
+            :model-value="generationProgress.completedCount"
+            :max="generationProgress.targetCount"
+            color="primary"
+            size="md"
+          />
+
+          <!-- Live Preview Thumbnails -->
+          <div v-if="generationProgress.previews.length > 0" class="flex flex-wrap gap-2">
+            <div
+              v-for="preview in generationProgress.previews"
+              :key="preview.id"
+              class="size-16 overflow-hidden rounded-lg bg-elevated shadow-sm transition-all duration-300"
+              :class="generationProgress.previews.indexOf(preview) === generationProgress.previews.length - 1 ? 'ring-2 ring-primary/50' : ''"
+            >
+              <img
+                :src="preview.url"
+                alt="Generated preview"
+                class="size-full object-cover"
+              >
+            </div>
+          </div>
         </div>
 
         <!-- Arena Complete -->
@@ -301,7 +343,11 @@ onUnmounted(() => {
         <!-- Arena Pair Display -->
         <div v-else-if="currentPair" class="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <!-- Image A -->
-          <div class="glass-card group relative flex flex-col gap-4 overflow-hidden p-4">
+          <div
+            class="glass-card group relative flex cursor-pointer flex-col gap-4 overflow-hidden p-4 transition-all duration-150 hover:ring-2 hover:ring-primary/40"
+            :class="{ 'pointer-events-none opacity-60': arenaVoting }"
+            @click="submitArenaVote(currentPair.left.id)"
+          >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary"
@@ -309,22 +355,13 @@ onUnmounted(() => {
                 >
                 <UKbd>A</UKbd>
               </div>
-              <UButton
-                color="primary"
-                icon="i-lucide-trophy"
-                class="rounded-full"
-                :loading="arenaVoting"
-                :disabled="arenaVoting"
-                @click="submitArenaVote(currentPair.left.id)"
-              >
-                Pick A
-              </UButton>
+              <span class="text-xs text-muted">Click or press A</span>
             </div>
             <div class="relative aspect-3/4 w-full overflow-hidden rounded-xl bg-elevated">
               <img
                 :src="currentPair.left.mediaUrl || ''"
                 :alt="currentPair.left.prompt"
-                class="size-full object-cover"
+                class="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
               />
             </div>
             <p class="line-clamp-2 text-xs text-muted">{{ currentPair.left.prompt }}</p>
@@ -336,7 +373,11 @@ onUnmounted(() => {
           </div>
 
           <!-- Image B -->
-          <div class="glass-card group relative flex flex-col gap-4 overflow-hidden p-4">
+          <div
+            class="glass-card group relative flex cursor-pointer flex-col gap-4 overflow-hidden p-4 transition-all duration-150 hover:ring-2 hover:ring-primary/40"
+            :class="{ 'pointer-events-none opacity-60': arenaVoting }"
+            @click="submitArenaVote(currentPair.right.id)"
+          >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary"
@@ -344,22 +385,13 @@ onUnmounted(() => {
                 >
                 <UKbd>B</UKbd>
               </div>
-              <UButton
-                color="primary"
-                icon="i-lucide-trophy"
-                class="rounded-full"
-                :loading="arenaVoting"
-                :disabled="arenaVoting"
-                @click="submitArenaVote(currentPair.right.id)"
-              >
-                Pick B
-              </UButton>
+              <span class="text-xs text-muted">Click or press B</span>
             </div>
             <div class="relative aspect-3/4 w-full overflow-hidden rounded-xl bg-elevated">
               <img
                 :src="currentPair.right.mediaUrl || ''"
                 :alt="currentPair.right.prompt"
-                class="size-full object-cover"
+                class="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
               />
             </div>
             <p class="line-clamp-2 text-xs text-muted">{{ currentPair.right.prompt }}</p>

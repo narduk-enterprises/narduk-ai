@@ -270,6 +270,11 @@ export function useArena() {
   // ─── Batch Generation ─────────────────────────────────────
   const generating = ref(false)
   const generatingStatus = ref('')
+  const generationProgress = ref<{
+    targetCount: number
+    completedCount: number
+    previews: Array<{ id: string; url: string }>
+  }>({ targetCount: 0, completedCount: 0, previews: [] })
 
   interface SeedBatchResponse {
     batchId: string
@@ -280,11 +285,56 @@ export function useArena() {
   }
 
   /**
+   * Poll for completed images in a batch during generation.
+   */
+  function startProgressPolling(targetBatchId: string, targetCount: number): () => void {
+    let stopped = false
+
+    const poll = async () => {
+      while (!stopped) {
+        try {
+          const images = await fetchGenerations(100, 0, undefined, {
+            type: 'image',
+            status: 'done',
+            batchId: targetBatchId,
+          })
+
+          generationProgress.value = {
+            targetCount,
+            completedCount: images.length,
+            previews: images.map((img) => ({ id: img.id, url: img.mediaUrl || '' })),
+          }
+
+          generatingStatus.value = `${images.length} / ${targetCount} images generated...`
+        }
+        catch {
+          // Polling failures are non-critical
+        }
+
+        if (stopped) break
+        await new Promise<void>((resolve) => setTimeout(resolve, 2000))
+      }
+    }
+
+    poll()
+
+    return () => {
+      stopped = true
+    }
+  }
+
+  /**
    * Generate a new seed batch via the admin endpoint, then auto-start arena.
+   * Generates batchId client-side so progress can be polled during generation.
    */
   async function generateBatch(count = 10, label?: string, basePrompt?: string) {
     generating.value = true
-    generatingStatus.value = `Generating ${count} person variations...`
+    const clientBatchId = crypto.randomUUID()
+    generationProgress.value = { targetCount: count, completedCount: 0, previews: [] }
+    generatingStatus.value = 'Creating person variations...'
+
+    // Start polling for completed images
+    const stopPolling = startProgressPolling(clientBatchId, count)
 
     try {
       const result = await $fetch<SeedBatchResponse>('/api/admin/seed-batch', {
@@ -292,12 +342,18 @@ export function useArena() {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: {
           count,
+          batchId: clientBatchId,
           label: label || `Person Tuning — ${new Date().toLocaleDateString()}`,
           ...(basePrompt && { basePrompt }),
         },
       })
 
+      stopPolling()
       generatingStatus.value = `Done! ${result.generated} images generated.`
+      generationProgress.value = {
+        ...generationProgress.value,
+        completedCount: result.generated,
+      }
 
       toast.add({
         title: 'Batch generated! 🎉',
@@ -310,7 +366,9 @@ export function useArena() {
       await startArena(result.batchId)
 
       return result
-    } catch (err) {
+    }
+    catch (err) {
+      stopPolling()
       generatingStatus.value = ''
       toast.add({
         title: 'Batch generation failed',
@@ -319,7 +377,8 @@ export function useArena() {
         icon: 'i-lucide-alert-triangle',
       })
       return null
-    } finally {
+    }
+    finally {
       generating.value = false
       generatingStatus.value = ''
     }
@@ -344,6 +403,7 @@ export function useArena() {
     exitArena,
     generating,
     generatingStatus,
+    generationProgress,
     generateBatch,
   }
 }
