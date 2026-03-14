@@ -1,4 +1,4 @@
-import { eq, like } from 'drizzle-orm'
+import { like } from 'drizzle-orm'
 import { generations } from '#server/database/schema'
 import { useAppDatabase } from '#server/utils/database'
 

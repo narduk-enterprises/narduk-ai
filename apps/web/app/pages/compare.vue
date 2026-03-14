@@ -60,6 +60,11 @@ const {
 const batchCount = ref(10)
 const batchPrompt = ref('Full body, standing, hands on hips, 20-30 years old, white woman')
 
+function startBatchGeneration() {
+  showBatchPicker.value = false
+  generateBatch(batchCount.value, undefined, batchPrompt.value)
+}
+
 const showBatchPicker = ref(false)
 
 async function openBatchPicker() {
@@ -614,7 +619,7 @@ onUnmounted(() => {
               Creates person variations with the same pose and framing, then auto-starts arena.
             </p>
             <div class="flex flex-col gap-1">
-              <label class="text-xs font-medium text-muted">Base Prompt:</label>
+              <span class="text-xs font-medium text-muted">Base Prompt:</span>
               <UTextarea
                 v-model="batchPrompt"
                 :rows="2"
@@ -623,7 +628,7 @@ onUnmounted(() => {
               />
             </div>
             <div class="flex items-center gap-3">
-              <label class="text-xs font-medium text-muted">Count:</label>
+              <span class="text-xs font-medium text-muted">Count:</span>
               <UInput
                 v-model.number="batchCount"
                 type="number"
@@ -641,7 +646,7 @@ onUnmounted(() => {
               block
               :loading="generating"
               :disabled="generating || !batchPrompt.trim()"
-              @click="showBatchPicker = false; generateBatch(batchCount, undefined, batchPrompt)"
+              @click="startBatchGeneration"
             >
               {{ generating ? generatingStatus : `Generate ${batchCount} Images & Start Arena` }}
             </UButton>

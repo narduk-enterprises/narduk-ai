@@ -34,9 +34,10 @@ function acquireXaiImageSlot(): Promise<void> {
     const now = Date.now()
     const elapsed = now - xaiImageLastRequestMs
     if (elapsed < XAI_IMAGE_MIN_INTERVAL_MS) {
-      await new Promise((resolve) => setTimeout(resolve, XAI_IMAGE_MIN_INTERVAL_MS - elapsed))
+      await new Promise<void>((resolve) => setTimeout(resolve, XAI_IMAGE_MIN_INTERVAL_MS - elapsed))
     }
     xaiImageLastRequestMs = Date.now()
+    return undefined
   })
   return xaiImageQueuePromise
 }
