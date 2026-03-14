@@ -155,8 +155,7 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
         }
 
         return null
-      }
-      catch (err) {
+      } catch (err) {
         if (attempt >= maxRetries) {
           log.warn('Seed batch image failed', {
             batchId,
@@ -173,9 +172,7 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
     return null
   }
 
-  const results = await Promise.all(
-    variations.map((variation) => generateOne(variation)),
-  )
+  const results = await Promise.all(variations.map((variation) => generateOne(variation)))
   const failures = results.filter((r) => r === null).length
 
   const successful = results.filter((r): r is NonNullable<typeof r> => r !== null)
