@@ -306,8 +306,7 @@ export function useArena() {
           }
 
           generatingStatus.value = `${images.length} / ${targetCount} images generated...`
-        }
-        catch {
+        } catch {
           // Polling failures are non-critical
         }
 
@@ -366,8 +365,7 @@ export function useArena() {
       await startArena(result.batchId)
 
       return result
-    }
-    catch (err) {
+    } catch (err) {
       stopPolling()
       generatingStatus.value = ''
       toast.add({
@@ -377,8 +375,7 @@ export function useArena() {
         icon: 'i-lucide-alert-triangle',
       })
       return null
-    }
-    finally {
+    } finally {
       generating.value = false
       generatingStatus.value = ''
     }

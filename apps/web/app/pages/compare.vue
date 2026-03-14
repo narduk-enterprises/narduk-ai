@@ -258,7 +258,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Arena Loading -->
-        <div v-if="arenaLoading" class="glass-card flex flex-col items-center gap-5 py-20 text-center">
+        <div
+          v-if="arenaLoading"
+          class="glass-card flex flex-col items-center gap-5 py-20 text-center"
+        >
           <div class="flex size-16 items-center justify-center rounded-3xl bg-primary/10">
             <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-primary" />
           </div>
@@ -266,10 +269,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Generation Progress -->
-        <div
-          v-else-if="generating"
-          class="glass-card flex flex-col gap-5 p-6"
-        >
+        <div v-else-if="generating" class="glass-card flex flex-col gap-5 p-6">
           <div class="flex items-center gap-3">
             <div class="flex size-10 items-center justify-center rounded-2xl bg-primary/10">
               <UIcon name="i-lucide-sparkles" class="size-5 animate-pulse text-primary" />
@@ -277,7 +277,12 @@ onUnmounted(() => {
             <div class="flex-1">
               <p class="text-sm font-semibold text-default">{{ generatingStatus }}</p>
               <p class="text-xs text-muted">
-                ~{{ Math.max(1, (generationProgress.targetCount - generationProgress.completedCount) * 2) }}s remaining
+                ~{{
+                  Math.max(
+                    1,
+                    (generationProgress.targetCount - generationProgress.completedCount) * 2,
+                  )
+                }}s remaining
               </p>
             </div>
             <span class="text-lg font-bold text-primary">
@@ -298,13 +303,14 @@ onUnmounted(() => {
               v-for="preview in generationProgress.previews"
               :key="preview.id"
               class="size-16 overflow-hidden rounded-lg bg-elevated shadow-sm transition-all duration-300"
-              :class="generationProgress.previews.indexOf(preview) === generationProgress.previews.length - 1 ? 'ring-2 ring-primary/50' : ''"
+              :class="
+                generationProgress.previews.indexOf(preview) ===
+                generationProgress.previews.length - 1
+                  ? 'ring-2 ring-primary/50'
+                  : ''
+              "
             >
-              <img
-                :src="preview.url"
-                alt="Generated preview"
-                class="size-full object-cover"
-              >
+              <img :src="preview.url" alt="Generated preview" class="size-full object-cover" />
             </div>
           </div>
         </div>
