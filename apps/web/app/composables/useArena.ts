@@ -277,6 +277,65 @@ export function useArena() {
     batchId.value = null
   }
 
+  // ─── Batch Generation ─────────────────────────────────────
+  const generating = ref(false)
+  const generatingStatus = ref('')
+
+  interface SeedBatchResponse {
+    batchId: string
+    label: string | null
+    dimension: string
+    generated: number
+    failures: number
+  }
+
+  /**
+   * Generate a new seed batch via the admin endpoint, then auto-start arena.
+   */
+  async function generateBatch(count = 10, label?: string) {
+    generating.value = true
+    generatingStatus.value = `Generating ${count} person variations...`
+
+    try {
+      const result = await $fetch<SeedBatchResponse>('/api/admin/seed-batch', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: {
+          count,
+          label: label || `Person Tuning — ${new Date().toLocaleDateString()}`,
+        },
+      })
+
+      generatingStatus.value = `Done! ${result.generated} images generated.`
+
+      toast.add({
+        title: 'Batch generated! 🎉',
+        description: `${result.generated} images created${result.failures ? ` (${result.failures} failed)` : ''}. Starting arena...`,
+        color: 'success',
+        icon: 'i-lucide-sparkles',
+      })
+
+      // Auto-start arena with the new batch
+      await startArena(result.batchId)
+
+      return result
+    }
+    catch (err) {
+      generatingStatus.value = ''
+      toast.add({
+        title: 'Batch generation failed',
+        description: err instanceof Error ? err.message : 'Could not generate batch.',
+        color: 'error',
+        icon: 'i-lucide-alert-triangle',
+      })
+      return null
+    }
+    finally {
+      generating.value = false
+      generatingStatus.value = ''
+    }
+  }
+
   return {
     arenaActive,
     arenaImages,
@@ -294,5 +353,9 @@ export function useArena() {
     submitArenaVote,
     skipPair,
     exitArena,
+    generating,
+    generatingStatus,
+    generateBatch,
   }
 }
+

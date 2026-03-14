@@ -52,7 +52,12 @@ const {
   submitArenaVote,
   skipPair,
   exitArena,
+  generating,
+  generatingStatus,
+  generateBatch,
 } = useArena()
+
+const batchCount = ref(10)
 
 const showBatchPicker = ref(false)
 
@@ -594,27 +599,63 @@ onUnmounted(() => {
           <div>
             <h2 class="font-display text-xl font-semibold">Start Arena</h2>
             <p class="mt-1 text-sm text-muted">
-              Choose a seed batch to compare, or start with all images.
+              Generate a new batch or choose an existing one.
             </p>
           </div>
 
+          <!-- Generate New Batch -->
+          <div class="glass-card flex flex-col gap-4 border-primary/20 bg-primary/5 p-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-sparkles" class="size-5 text-primary" />
+              <span class="text-sm font-semibold text-default">Generate New Batch</span>
+            </div>
+            <p class="text-xs text-muted">
+              Creates person variations with the same pose and framing, then auto-starts arena.
+            </p>
+            <div class="flex items-center gap-3">
+              <label class="text-xs font-medium text-muted">Count:</label>
+              <UInput
+                v-model.number="batchCount"
+                type="number"
+                :min="2"
+                :max="100"
+                class="w-20"
+                size="sm"
+                :disabled="generating"
+              />
+            </div>
+            <UButton
+              color="primary"
+              icon="i-lucide-zap"
+              class="rounded-full"
+              block
+              :loading="generating"
+              :disabled="generating"
+              @click="showBatchPicker = false; generateBatch(batchCount)"
+            >
+              {{ generating ? generatingStatus : `Generate ${batchCount} Images & Start Arena` }}
+            </UButton>
+          </div>
+
+          <USeparator label="Or use existing" />
+
           <UButton
-            color="primary"
+            color="neutral"
             variant="soft"
             icon="i-lucide-images"
             class="rounded-full"
             block
+            :disabled="generating"
             @click="startAllArena"
           >
             All Images (latest 100)
           </UButton>
 
-          <div v-if="loadingBatches" class="flex items-center justify-center py-8">
+          <div v-if="loadingBatches" class="flex items-center justify-center py-4">
             <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-muted" />
           </div>
 
           <div v-else-if="batches.length > 0" class="flex flex-col gap-2">
-            <USeparator label="Or choose a batch" />
             <div
               v-for="batch in batches"
               :key="batch.batchId"
@@ -647,10 +688,6 @@ onUnmounted(() => {
               </div>
               <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
             </div>
-          </div>
-
-          <div v-else class="py-4 text-center text-sm text-muted">
-            No seed batches found. Generate one from the admin panel first.
           </div>
         </div>
       </template>
