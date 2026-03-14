@@ -1,8 +1,5 @@
 import type { Generation } from '~/types/generation'
-import type {
-  CompareSourceContext,
-  ImageComparisonVoteResponse,
-} from '~/types/imageComparison'
+import type { CompareSourceContext, ImageComparisonVoteResponse } from '~/types/imageComparison'
 
 interface ArenaPair {
   left: Generation
@@ -54,8 +51,8 @@ export function useArena() {
     skipped: skippedCount.value,
   }))
 
-  const arenaComplete = computed(() =>
-    arenaActive.value && arenaPairs.value.length > 0 && currentPair.value === null,
+  const arenaComplete = computed(
+    () => arenaActive.value && arenaPairs.value.length > 0 && currentPair.value === null,
   )
 
   const progressPercent = computed(() => {
@@ -75,8 +72,7 @@ export function useArena() {
         // Randomly assign left/right so there's no positional bias
         if (Math.random() < 0.5) {
           pairs.push({ left, right })
-        }
-        else {
+        } else {
           pairs.push({ left: right, right: left })
         }
       }
@@ -127,11 +123,9 @@ export function useArena() {
     loadingBatches.value = true
     try {
       batches.value = await $fetch<SeedBatch[]>('/api/admin/seed-batches')
-    }
-    catch {
+    } catch {
       batches.value = []
-    }
-    finally {
+    } finally {
       loadingBatches.value = false
     }
   }
@@ -196,8 +190,7 @@ export function useArena() {
         color: 'success',
         icon: 'i-lucide-swords',
       })
-    }
-    catch (err) {
+    } catch (err) {
       toast.add({
         title: 'Arena failed',
         description: err instanceof Error ? err.message : 'Could not start arena mode.',
@@ -205,8 +198,7 @@ export function useArena() {
         icon: 'i-lucide-alert-triangle',
       })
       arenaActive.value = false
-    }
-    finally {
+    } finally {
       loading.value = false
     }
   }
@@ -242,16 +234,14 @@ export function useArena() {
           icon: 'i-lucide-trophy',
         })
       }
-    }
-    catch (err) {
+    } catch (err) {
       toast.add({
         title: 'Vote failed',
         description: err instanceof Error ? err.message : 'Could not save vote.',
         color: 'error',
         icon: 'i-lucide-alert-triangle',
       })
-    }
-    finally {
+    } finally {
       voting.value = false
     }
   }
@@ -320,8 +310,7 @@ export function useArena() {
       await startArena(result.batchId)
 
       return result
-    }
-    catch (err) {
+    } catch (err) {
       generatingStatus.value = ''
       toast.add({
         title: 'Batch generation failed',
@@ -330,8 +319,7 @@ export function useArena() {
         icon: 'i-lucide-alert-triangle',
       })
       return null
-    }
-    finally {
+    } finally {
       generating.value = false
       generatingStatus.value = ''
     }
@@ -359,4 +347,3 @@ export function useArena() {
     generateBatch,
   }
 }
-

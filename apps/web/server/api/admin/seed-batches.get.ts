@@ -25,14 +25,17 @@ export default defineEventHandler(async (event) => {
     .all()
 
   // Group by batchId
-  const batchMap = new Map<string, {
-    batchId: string
-    label: string | null
-    dimension: string
-    count: number
-    createdAt: string
-    previewUrl: string | null
-  }>()
+  const batchMap = new Map<
+    string,
+    {
+      batchId: string
+      label: string | null
+      dimension: string
+      count: number
+      createdAt: string
+      previewUrl: string | null
+    }
+  >()
 
   for (const row of rows) {
     if (!row.metadata) continue
@@ -45,8 +48,7 @@ export default defineEventHandler(async (event) => {
       const existing = batchMap.get(batchId)
       if (existing) {
         existing.count++
-      }
-      else {
+      } else {
         batchMap.set(batchId, {
           batchId,
           label: (meta.batchLabel as string) || null,
@@ -56,8 +58,7 @@ export default defineEventHandler(async (event) => {
           previewUrl: row.mediaUrl,
         })
       }
-    }
-    catch {
+    } catch {
       // skip invalid metadata
     }
   }

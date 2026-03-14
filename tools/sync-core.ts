@@ -325,8 +325,7 @@ function patchRootPackage(
       }
 
       if (
-        JSON.stringify(pkg.pnpm.peerDependencyRules) !==
-        JSON.stringify(templatePeerDependencyRules)
+        JSON.stringify(pkg.pnpm.peerDependencyRules) !== JSON.stringify(templatePeerDependencyRules)
       ) {
         pkg.pnpm.peerDependencyRules = templatePeerDependencyRules
         changed = true

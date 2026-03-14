@@ -3,9 +3,13 @@ import { generateStoredImages } from '#server/utils/imageGeneration'
 
 const bodySchema = z.object({
   /** Base prompt template — person description will be prepended */
-  basePrompt: z.string().min(1).max(2000).default(
-    'standing naturally, hands on hips, full body shot, white studio background, soft natural lighting, photorealistic, shot on Sony A7IV, 35mm',
-  ),
+  basePrompt: z
+    .string()
+    .min(1)
+    .max(2000)
+    .default(
+      'standing naturally, hands on hips, full body shot, white studio background, soft natural lighting, photorealistic, shot on Sony A7IV, 35mm',
+    ),
   /** Number of person variations to generate */
   count: z.coerce.number().min(1).max(100).default(10),
   /** Aspect ratio for all generated images */
@@ -22,8 +26,6 @@ interface PersonVariation {
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
-
-
 
 /**
  * POST /api/admin/seed-batch — Generate a batch of images varying person descriptions.
@@ -70,7 +72,11 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
     const chatResult = await grokChat(
       config.xaiApiKey,
       [
-        { role: 'system', content: 'You are a creative character designer for AI image generation. Return valid JSON only.' },
+        {
+          role: 'system',
+          content:
+            'You are a creative character designer for AI image generation. Return valid JSON only.',
+        },
         { role: 'user', content: variationsPrompt },
       ],
       'grok-3-mini',
@@ -85,16 +91,20 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
     }
 
     log.info('Generated person variations', { count: variations.length, batchId })
-  }
-  catch (err) {
+  } catch (err) {
     log.error('Failed to generate person variations', { err, batchId })
-    throw createError({ statusCode: 502, message: 'Failed to generate person variations via Grok Chat' })
+    throw createError({
+      statusCode: 502,
+      message: 'Failed to generate person variations via Grok Chat',
+    })
   }
 
   // Step 2: Generate images sequentially (rate limiter in grok.ts handles pacing at 1 req/sec)
   const maxRetries = 3
 
-  const results: Array<{ variationName: string; generationId: string } | null> = new Array(variations.length).fill(null)
+  const results: Array<{ variationName: string; generationId: string } | null> = new Array(
+    variations.length,
+  ).fill(null)
   let failures = 0
 
   for (let i = 0; i < variations.length; i++) {
@@ -147,8 +157,7 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
         }
 
         completed = true
-      }
-      catch (err) {
+      } catch (err) {
         if (attempt >= maxRetries) {
           failures++
           completed = true
@@ -158,8 +167,7 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
             attempt,
             err: err instanceof Error ? err.message : String(err),
           })
-        }
-        else {
+        } else {
           // Brief pause before retry (the rate limiter handles the main pacing)
           await sleep(1000 * attempt)
         }

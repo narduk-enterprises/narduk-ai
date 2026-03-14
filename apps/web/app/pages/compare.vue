@@ -257,7 +257,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Arena Loading -->
-        <div v-if="arenaLoading" class="glass-card flex flex-col items-center gap-5 py-20 text-center">
+        <div
+          v-if="arenaLoading"
+          class="glass-card flex flex-col items-center gap-5 py-20 text-center"
+        >
           <div class="flex size-16 items-center justify-center rounded-3xl bg-primary/10">
             <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-primary" />
           </div>
@@ -275,8 +278,8 @@ onUnmounted(() => {
           <div class="max-w-md">
             <h2 class="font-display text-2xl font-semibold">Arena Complete! 🏆</h2>
             <p class="mt-2 text-sm leading-relaxed text-muted">
-              All {{ arenaStats.totalPairs }} pairs have been compared. Check the ranked gallery
-              to see the winners.
+              All {{ arenaStats.totalPairs }} pairs have been compared. Check the ranked gallery to
+              see the winners.
             </p>
           </div>
           <div class="flex gap-2">
@@ -289,12 +292,7 @@ onUnmounted(() => {
             >
               View Rankings
             </UButton>
-            <UButton
-              color="primary"
-              icon="i-lucide-x"
-              class="rounded-full"
-              @click="exitArena"
-            >
+            <UButton color="primary" icon="i-lucide-x" class="rounded-full" @click="exitArena">
               Exit Arena
             </UButton>
           </div>
@@ -306,7 +304,9 @@ onUnmounted(() => {
           <div class="glass-card group relative flex flex-col gap-4 overflow-hidden p-4">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">A</span>
+                <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary"
+                  >A</span
+                >
                 <UKbd>A</UKbd>
               </div>
               <UButton
@@ -325,12 +325,13 @@ onUnmounted(() => {
                 :src="currentPair.left.mediaUrl || ''"
                 :alt="currentPair.left.prompt"
                 class="size-full object-cover"
-              >
+              />
             </div>
             <p class="line-clamp-2 text-xs text-muted">{{ currentPair.left.prompt }}</p>
             <p class="text-xs text-dimmed">
-              Score: {{ formatComparisonScore(currentPair.left.comparisonScore) }}
-              ({{ currentPair.left.comparisonWins }}W / {{ currentPair.left.comparisonLosses }}L)
+              Score: {{ formatComparisonScore(currentPair.left.comparisonScore) }} ({{
+                currentPair.left.comparisonWins
+              }}W / {{ currentPair.left.comparisonLosses }}L)
             </p>
           </div>
 
@@ -338,7 +339,9 @@ onUnmounted(() => {
           <div class="glass-card group relative flex flex-col gap-4 overflow-hidden p-4">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">B</span>
+                <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary"
+                  >B</span
+                >
                 <UKbd>B</UKbd>
               </div>
               <UButton
@@ -357,12 +360,13 @@ onUnmounted(() => {
                 :src="currentPair.right.mediaUrl || ''"
                 :alt="currentPair.right.prompt"
                 class="size-full object-cover"
-              >
+              />
             </div>
             <p class="line-clamp-2 text-xs text-muted">{{ currentPair.right.prompt }}</p>
             <p class="text-xs text-dimmed">
-              Score: {{ formatComparisonScore(currentPair.right.comparisonScore) }}
-              ({{ currentPair.right.comparisonWins }}W / {{ currentPair.right.comparisonLosses }}L)
+              Score: {{ formatComparisonScore(currentPair.right.comparisonScore) }} ({{
+                currentPair.right.comparisonWins
+              }}W / {{ currentPair.right.comparisonLosses }}L)
             </p>
           </div>
         </div>
@@ -426,7 +430,9 @@ onUnmounted(() => {
             <p class="mt-1 text-sm text-default">
               {{ pairWinner.prompt }} already beats {{ pairLoser.prompt }} for this pair.
             </p>
-            <p class="mt-1 text-xs text-muted">Choose another challenger to keep ranking Image A.</p>
+            <p class="mt-1 text-xs text-muted">
+              Choose another challenger to keep ranking Image A.
+            </p>
           </div>
           <UButton
             color="warning"
@@ -604,9 +610,7 @@ onUnmounted(() => {
         <div class="flex flex-col gap-6 p-6">
           <div>
             <h2 class="font-display text-xl font-semibold">Start Arena</h2>
-            <p class="mt-1 text-sm text-muted">
-              Generate a new batch or choose an existing one.
-            </p>
+            <p class="mt-1 text-sm text-muted">Generate a new batch or choose an existing one.</p>
           </div>
 
           <!-- Generate New Batch -->
@@ -681,11 +685,7 @@ onUnmounted(() => {
                 v-if="batch.previewUrl"
                 class="size-12 shrink-0 overflow-hidden rounded-lg bg-elevated"
               >
-                <img
-                  :src="batch.previewUrl"
-                  alt="Batch preview"
-                  class="size-full object-cover"
-                >
+                <img :src="batch.previewUrl" alt="Batch preview" class="size-full object-cover" />
               </div>
               <div
                 v-else
