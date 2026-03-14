@@ -10,6 +10,37 @@
 
 import type OpenAI from 'openai'
 
+// ─── Outbound xAI Image Rate Limiter ────────────────────────
+// xAI enforces 1 req/sec + 30 req/min for image models.
+// This per-isolate queue serializes all outbound image requests
+// with a minimum spacing of 1100ms between requests.
+//
+// NOTE: This is per-isolate (Cloudflare Workers V8 isolates do
+// not share memory). It prevents a single isolate from exceeding
+// the xAI rate limit, but cannot enforce global limits across
+// multiple concurrent isolates. For global enforcement, use
+// Cloudflare Rate Limiting Rules in the dashboard.
+
+const XAI_IMAGE_MIN_INTERVAL_MS = 1100 // 1 req/sec with 100ms margin
+let xaiImageLastRequestMs = 0
+let xaiImageQueuePromise: Promise<void> = Promise.resolve()
+
+/**
+ * Acquire a rate-limit slot for an outbound xAI image API call.
+ * Queues requests sequentially so at most one fires per interval.
+ */
+function acquireXaiImageSlot(): Promise<void> {
+  xaiImageQueuePromise = xaiImageQueuePromise.then(async () => {
+    const now = Date.now()
+    const elapsed = now - xaiImageLastRequestMs
+    if (elapsed < XAI_IMAGE_MIN_INTERVAL_MS) {
+      await new Promise((resolve) => setTimeout(resolve, XAI_IMAGE_MIN_INTERVAL_MS - elapsed))
+    }
+    xaiImageLastRequestMs = Date.now()
+  })
+  return xaiImageQueuePromise
+}
+
 const SYSTEM_PROMPT_COMPAT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bmulti[- ]agent\b/gi, 'multi-step'],
   [/\banother agent\b/gi, 'a later continuation'],
@@ -307,6 +338,8 @@ export async function grokGenerateImage(
   params: GrokImageParams,
 ): Promise<OpenAI.Images.ImagesResponse> {
   // Use direct REST call instead of OpenAI SDK to support xAI-specific aspect_ratio param
+  // Acquire rate-limit slot before making the request
+  await acquireXaiImageSlot()
   const res = await fetch('https://api.x.ai/v1/images/generations', {
     method: 'POST',
     headers: {
@@ -344,6 +377,8 @@ export async function grokEditImage(
   apiKey: string,
   params: GrokImageEditParams,
 ): Promise<OpenAI.Images.ImagesResponse> {
+  // Acquire rate-limit slot before making the request
+  await acquireXaiImageSlot()
   const res = await fetch('https://api.x.ai/v1/images/edits', {
     method: 'POST',
     headers: {

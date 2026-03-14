@@ -292,7 +292,7 @@ export function useArena() {
   /**
    * Generate a new seed batch via the admin endpoint, then auto-start arena.
    */
-  async function generateBatch(count = 10, label?: string) {
+  async function generateBatch(count = 10, label?: string, basePrompt?: string) {
     generating.value = true
     generatingStatus.value = `Generating ${count} person variations...`
 
@@ -303,6 +303,7 @@ export function useArena() {
         body: {
           count,
           label: label || `Person Tuning — ${new Date().toLocaleDateString()}`,
+          ...(basePrompt && { basePrompt }),
         },
       })
 

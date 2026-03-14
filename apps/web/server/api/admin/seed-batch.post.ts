@@ -23,10 +23,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function isConcurrentLimitError(err: unknown) {
-  if (!(err instanceof Error)) return false
-  return err.message.toLowerCase().includes('too many concurrent requests')
-}
+
 
 /**
  * POST /api/admin/seed-batch — Generate a batch of images varying person descriptions.
@@ -94,94 +91,81 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
     throw createError({ statusCode: 502, message: 'Failed to generate person variations via Grok Chat' })
   }
 
-  // Step 2: Generate images for each variation using bounded concurrency
-  const maxConcurrent = Math.max(
-    1,
-    Math.min(20, Number(config.xaiImportedImageMaxConcurrent || 10)),
-  )
-  const maxRetries = Math.max(1, Math.min(5, Number(config.xaiImportedImageMaxRetries || 3)))
-  const retryDelayMs = Math.max(250, Number(config.xaiImportedImageRetryDelayMs || 1500))
+  // Step 2: Generate images sequentially (rate limiter in grok.ts handles pacing at 1 req/sec)
+  const maxRetries = 3
 
   const results: Array<{ variationName: string; generationId: string } | null> = new Array(variations.length).fill(null)
   let failures = 0
-  let nextIndex = 0
 
-  const worker = async () => {
-    while (nextIndex < variations.length) {
-      const currentIndex = nextIndex
-      nextIndex++
-      const variation = variations[currentIndex]
-      if (!variation) continue
+  for (let i = 0; i < variations.length; i++) {
+    const variation = variations[i]
+    if (!variation) continue
 
-      const prompt = `${variation.description}, ${body.basePrompt}`
-      let attempt = 0
-      let completed = false
+    const prompt = `${variation.description}, ${body.basePrompt}`
+    let attempt = 0
+    let completed = false
 
-      while (attempt < maxRetries && !completed) {
-        attempt++
-        try {
-          const stored = await generateStoredImages(
-            event,
-            {
-              userId: user.id,
-              prompt,
-              aspectRatio: body.aspectRatio,
-              n: 1,
-            },
-            log,
-          )
+    while (attempt < maxRetries && !completed) {
+      attempt++
+      try {
+        const stored = await generateStoredImages(
+          event,
+          {
+            userId: user.id,
+            prompt,
+            aspectRatio: body.aspectRatio,
+            n: 1,
+          },
+          log,
+        )
 
-          const record = stored[0]
-          if (record) {
-            // Tag the generation with batch metadata
-            const db = useDatabase(event)
-            const existingMeta = record.metadata ? JSON.parse(record.metadata) : {}
-            const updatedMeta = JSON.stringify({
-              ...existingMeta,
-              batchId,
-              batchDimension: 'person',
-              batchLabel: body.label || null,
-              variationName: variation.name,
-              variationDescription: variation.description,
-            })
+        const record = stored[0]
+        if (record) {
+          // Tag the generation with batch metadata
+          const db = useDatabase(event)
+          const existingMeta = record.metadata ? JSON.parse(record.metadata) : {}
+          const updatedMeta = JSON.stringify({
+            ...existingMeta,
+            batchId,
+            batchDimension: 'person',
+            batchLabel: body.label || null,
+            variationName: variation.name,
+            variationDescription: variation.description,
+          })
 
-            const { generations } = await import('#server/database/schema')
-            const { eq } = await import('drizzle-orm')
-            await db
-              .update(generations)
-              .set({ metadata: updatedMeta, updatedAt: now })
-              .where(eq(generations.id, record.id))
+          const { generations } = await import('#server/database/schema')
+          const { eq } = await import('drizzle-orm')
+          await db
+            .update(generations)
+            .set({ metadata: updatedMeta, updatedAt: now })
+            .where(eq(generations.id, record.id))
 
-            results[currentIndex] = {
-              variationName: variation.name,
-              generationId: record.id,
-            }
+          results[i] = {
+            variationName: variation.name,
+            generationId: record.id,
           }
-
-          completed = true
         }
-        catch (err) {
-          if (!isConcurrentLimitError(err) || attempt >= maxRetries) {
-            failures++
-            completed = true
-            log.warn('Seed batch image failed', {
-              batchId,
-              variation: variation.name,
-              attempt,
-              err: err instanceof Error ? err.message : String(err),
-            })
-            continue
-          }
 
-          await sleep(retryDelayMs * attempt)
+        completed = true
+      }
+      catch (err) {
+        if (attempt >= maxRetries) {
+          failures++
+          completed = true
+          log.warn('Seed batch image failed', {
+            batchId,
+            variation: variation.name,
+            attempt,
+            err: err instanceof Error ? err.message : String(err),
+          })
+        }
+        else {
+          // Brief pause before retry (the rate limiter handles the main pacing)
+          await sleep(1000 * attempt)
         }
       }
     }
   }
-
-  await Promise.all(
-    Array.from({ length: Math.min(maxConcurrent, variations.length) }, () => worker()),
-  )
 
   const successful = results.filter((r): r is NonNullable<typeof r> => r !== null)
 

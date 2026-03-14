@@ -58,6 +58,7 @@ const {
 } = useArena()
 
 const batchCount = ref(10)
+const batchPrompt = ref('Full body, standing, hands on hips, 20-30 years old, white woman')
 
 const showBatchPicker = ref(false)
 
@@ -247,7 +248,7 @@ onUnmounted(() => {
             </div>
             <span class="text-sm font-medium text-primary">{{ progressPercent }}%</span>
           </div>
-          <UProgress :value="progressPercent" color="primary" size="sm" />
+          <UProgress :model-value="progressPercent" color="primary" size="sm" />
         </div>
 
         <!-- Arena Loading -->
@@ -612,6 +613,15 @@ onUnmounted(() => {
             <p class="text-xs text-muted">
               Creates person variations with the same pose and framing, then auto-starts arena.
             </p>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-muted">Base Prompt:</label>
+              <UTextarea
+                v-model="batchPrompt"
+                :rows="2"
+                placeholder="Describe the pose, framing, and subject..."
+                :disabled="generating"
+              />
+            </div>
             <div class="flex items-center gap-3">
               <label class="text-xs font-medium text-muted">Count:</label>
               <UInput
@@ -630,8 +640,8 @@ onUnmounted(() => {
               class="rounded-full"
               block
               :loading="generating"
-              :disabled="generating"
-              @click="showBatchPicker = false; generateBatch(batchCount)"
+              :disabled="generating || !batchPrompt.trim()"
+              @click="showBatchPicker = false; generateBatch(batchCount, undefined, batchPrompt)"
             >
               {{ generating ? generatingStatus : `Generate ${batchCount} Images & Start Arena` }}
             </UButton>
