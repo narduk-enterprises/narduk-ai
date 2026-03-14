@@ -347,7 +347,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Arena Pair Display -->
-        <div v-else-if="currentPair" class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div v-else-if="currentPair" class="grid grid-cols-2 gap-3 sm:gap-6">
           <!-- Image A -->
           <div
             class="glass-card group relative flex cursor-pointer flex-col gap-4 overflow-hidden p-4 transition-all duration-150 hover:ring-2 hover:ring-primary/40"
@@ -507,7 +507,7 @@ onUnmounted(() => {
           </UButton>
         </div>
 
-        <div v-else class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div v-else class="grid grid-cols-2 gap-3 sm:gap-6">
           <CompareImageCard
             label="Image A"
             :generation="leftImage"

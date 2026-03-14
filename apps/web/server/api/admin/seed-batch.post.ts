@@ -107,23 +107,16 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
     })
   }
 
-  // Step 2: Generate images sequentially (rate limiter in grok.ts handles pacing at 1 req/sec)
+  // Step 2: Generate images in parallel
+  // The rate limiter in grok.ts gates API call starts at 1.1s intervals,
+  // but actual image generation (5-10s) overlaps — much faster than sequential.
   const maxRetries = 3
 
-  const results: Array<{ variationName: string; generationId: string } | null> = new Array(
-    variations.length,
-  ).fill(null)
-  let failures = 0
-
-  for (let i = 0; i < variations.length; i++) {
-    const variation = variations[i]
-    if (!variation) continue
-
+  async function generateOne(variation: PersonVariation) {
     const prompt = `${variation.description}, ${body.basePrompt}`
     let attempt = 0
-    let completed = false
 
-    while (attempt < maxRetries && !completed) {
+    while (attempt < maxRetries) {
       attempt++
       try {
         const stored = await generateStoredImages(
@@ -158,30 +151,32 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
             .set({ metadata: updatedMeta, updatedAt: now })
             .where(eq(generations.id, record.id))
 
-          results[i] = {
-            variationName: variation.name,
-            generationId: record.id,
-          }
+          return { variationName: variation.name, generationId: record.id }
         }
 
-        completed = true
-      } catch (err) {
+        return null
+      }
+      catch (err) {
         if (attempt >= maxRetries) {
-          failures++
-          completed = true
           log.warn('Seed batch image failed', {
             batchId,
             variation: variation.name,
             attempt,
             err: err instanceof Error ? err.message : String(err),
           })
-        } else {
-          // Brief pause before retry (the rate limiter handles the main pacing)
-          await sleep(1000 * attempt)
+          return null
         }
+        // Brief pause before retry (the rate limiter handles the main pacing)
+        await sleep(1000 * attempt)
       }
     }
+    return null
   }
+
+  const results = await Promise.all(
+    variations.map((variation) => generateOne(variation)),
+  )
+  const failures = results.filter((r) => r === null).length
 
   const successful = results.filter((r): r is NonNullable<typeof r> => r !== null)
 
