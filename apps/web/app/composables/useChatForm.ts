@@ -45,6 +45,7 @@ function createParsedResponse(overrides: Partial<ChatParsedResponse> = {}): Chat
     message: '',
     prompt: null,
     suggested_name: null,
+    preset_type: null,
     continuation_summary: null,
     builder_state: null,
     imageUrl: null,
@@ -473,11 +474,13 @@ export function useChatForm(options: UseChatFormOptions = {}) {
           /<continuation_summary>([\s\S]*?)(?:<\/continuation_summary>|$)/i,
         )
         const stateMatch = fullContent.match(/<builder_state>([\s\S]*?)(?:<\/builder_state>|$)/i)
+        const typeMatch = fullContent.match(/<preset_type>([\s\S]*?)(?:<\/preset_type>|$)/i)
 
         if (messageMatch?.[1]) parsed.message = messageMatch[1].trim()
         if (promptMatch?.[1]) parsed.prompt = promptMatch[1].trim()
         if (titleMatch?.[1]) parsed.suggested_name = titleMatch[1].trim()
         if (summaryMatch?.[1]) parsed.continuation_summary = summaryMatch[1].trim()
+        if (typeMatch?.[1]) parsed.preset_type = typeMatch[1].trim().toLowerCase()
         if (stateMatch?.[1]) {
           try {
             parsed.builder_state = JSON.parse(stateMatch[1].trim())
@@ -505,6 +508,8 @@ export function useChatForm(options: UseChatFormOptions = {}) {
             parsed.suggested_name = jsonObj.suggested_title
           if (typeof jsonObj.suggested_name === 'string')
             parsed.suggested_name = jsonObj.suggested_name
+          if (typeof jsonObj.preset_type === 'string')
+            parsed.preset_type = jsonObj.preset_type.toLowerCase()
           if (typeof jsonObj.continuation_summary === 'string')
             parsed.continuation_summary = jsonObj.continuation_summary
           if (jsonObj.builder_state && typeof jsonObj.builder_state === 'object')

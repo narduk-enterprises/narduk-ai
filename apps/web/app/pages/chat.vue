@@ -145,9 +145,16 @@ async function savePromptToLibrary(promptText: string) {
   const lastAssistant = [...chatMessages.value].reverse().find((m) => m.role === 'assistant')
   const name = lastAssistant?.parsedResponse?.suggested_name || 'Brainstormed prompt'
 
+  // Use agent-provided preset type, validated against known types, defaulting to 'scene'
+  const VALID_TYPES = ['person', 'scene', 'framing', 'action', 'style', 'clothing'] as const
+  const agentType = lastAssistant?.parsedResponse?.preset_type?.toLowerCase()
+  const presetType = VALID_TYPES.includes(agentType as typeof VALID_TYPES[number])
+    ? (agentType as typeof VALID_TYPES[number])
+    : 'scene'
+
   savingPrompt.value = true
   try {
-    await createElement('scene', name, promptText)
+    await createElement(presetType, name, promptText)
     toast.add({
       title: 'Saved to Presets',
       description: `"${name}" has been added to your presets.`,

@@ -32,6 +32,7 @@ export interface ChatParsedResponse {
   message: string
   prompt: string | null
   suggested_name?: string | null
+  preset_type?: string | null
   continuation_summary?: string | null
   builder_state?: Record<string, string | null> | null
   imageUrl?: string | null
