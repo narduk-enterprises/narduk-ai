@@ -185,6 +185,11 @@ function handleNewChat() {
   clearFormState()
   startNewChat()
 }
+
+function handleQuickStart(text: string) {
+  chatInput.value = text
+  sendChatMessage()
+}
 </script>
 
 <template>
@@ -260,11 +265,13 @@ function handleNewChat() {
         :is-chatting="isChatting"
         :generating-inline="generatingInline"
         :iteration-pass-count="iterationPassCount"
+        :saving-prompt="savingPrompt"
         @use-prompt="useGeneratedPrompt"
         @save-prompt="savePromptToLibrary"
         @generate-inline="handleGenerateInline"
         @share-image="handleShareImage"
         @continue-iteration="handleContinueIteration"
+        @quick-start="handleQuickStart"
       />
     </div>
 

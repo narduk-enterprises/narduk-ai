@@ -9,6 +9,7 @@ const props = defineProps<{
   iterationPassCount?: number
   headshotUrl?: string | null
   showBuilderState?: boolean
+  savingPrompt?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   'generate-inline': [prompt: string]
   'share-image': [imageUrl: string]
   'continue-iteration': [run: IterationRun]
+  'quick-start': [text: string]
 }>()
 
 const galleryViewer = useGalleryViewer()
@@ -116,6 +118,25 @@ function handleContinueIteration(run: IterationRun) {
   emit('continue-iteration', run)
 }
 
+// Track recently-saved prompts for visual feedback
+const recentlySaved = ref(new Set<string>())
+
+function handleSaveAndTrack(promptText: string) {
+  handleSavePrompt(promptText)
+  // Mark as saved for visual feedback — clear after 3s
+  const key = promptText.slice(0, 50)
+  recentlySaved.value = new Set([...recentlySaved.value, key])
+  setTimeout(() => {
+    const next = new Set(recentlySaved.value)
+    next.delete(key)
+    recentlySaved.value = next
+  }, 3000)
+}
+
+function isSaved(promptText: string) {
+  return recentlySaved.value.has(promptText.slice(0, 50))
+}
+
 function formatKey(key: string | number) {
   return String(key).replaceAll('_', ' ')
 }
@@ -176,6 +197,50 @@ function handleOpenImage(url: string, prompt: string, generationId?: string | nu
 
 <template>
   <div class="space-y-6">
+    <!-- Empty State -->
+    <div
+      v-if="visibleMessages.length === 0 && !isChatting"
+      class="flex flex-col items-center justify-center py-12 md:py-20 text-center"
+    >
+      <div class="flex items-center justify-center size-14 rounded-2xl bg-primary/10 mb-4">
+        <UIcon name="i-lucide-sparkles" class="size-7 text-primary" />
+      </div>
+      <h2 class="font-display font-semibold text-lg text-default mb-1">Start Brainstorming</h2>
+      <p class="text-sm text-muted max-w-md leading-relaxed">
+        Describe what you want to create and Grok will craft a detailed prompt.
+        Switch to Iterate mode to refine with visual feedback.
+      </p>
+      <div class="flex flex-wrap items-center justify-center gap-2 mt-5">
+        <UButton
+          variant="soft"
+          color="primary"
+          size="sm"
+          icon="i-lucide-image"
+          @click="emit('quick-start', 'Create a cinematic portrait with dramatic lighting')"
+        >
+          Portrait
+        </UButton>
+        <UButton
+          variant="soft"
+          color="primary"
+          size="sm"
+          icon="i-lucide-mountain"
+          @click="emit('quick-start', 'Design a vast sci-fi landscape at golden hour')"
+        >
+          Landscape
+        </UButton>
+        <UButton
+          variant="soft"
+          color="primary"
+          size="sm"
+          icon="i-lucide-palette"
+          @click="emit('quick-start', 'Create an abstract art piece with vibrant colors')"
+        >
+          Abstract
+        </UButton>
+      </div>
+    </div>
+
     <div
       v-for="(entry, index) in visibleMessages"
       :key="index"
@@ -307,11 +372,13 @@ function handleOpenImage(url: string, prompt: string, generationId?: string | nu
                 <UButton
                   color="neutral"
                   variant="soft"
-                  icon="i-lucide-bookmark-plus"
+                  :icon="isSaved(entry.promptText) ? 'i-lucide-check-circle' : 'i-lucide-bookmark-plus'"
                   size="sm"
-                  @click="handleSavePrompt(entry.promptText)"
+                  :loading="savingPrompt && !isSaved(entry.promptText)"
+                  :disabled="isSaved(entry.promptText)"
+                  @click="handleSaveAndTrack(entry.promptText)"
                 >
-                  Save to Presets
+                  {{ isSaved(entry.promptText) ? 'Saved' : 'Save to Presets' }}
                 </UButton>
                 <CopyButton :text="entry.promptText" />
               </div>
