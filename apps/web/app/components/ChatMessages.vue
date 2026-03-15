@@ -59,7 +59,7 @@ const visibleMessages = computed<VisibleMessage[]>(() =>
         iterationRun: run,
         iterationImageSteps: run?.steps.filter((s) => s.imageUrl) ?? [],
         iterationSavePromptText: run?.currentPrompt || run?.initialPrompt || '',
-        canContinueIteration: ['completed', 'stopped'].includes(run?.status ?? ''),
+        canContinueIteration: ['completed', 'stopped', 'failed'].includes(run?.status ?? ''),
         builderState: resolveBuilderState(message, promptText),
         hasAssistantBubbleContent: hasAssistantBubbleContent(message),
         hasUserTextContent: hasUserTextContent(message),
@@ -550,6 +550,23 @@ function getIterationStatusLabel(run: IterationRun) {
                   </div>
                 </div>
               </div>
+
+              <!-- Failed indicator as timeline step -->
+              <div v-if="entry.iterationRun.status === 'failed'" class="iteration-step">
+                <div class="iteration-step-dot" style="background: var(--ui-color-error); color: white;">
+                  <UIcon name="i-lucide-x" class="size-3" />
+                </div>
+                <div
+                  class="rounded-xl border border-dashed border-error/30 bg-error/5 px-4 py-3 flex items-center gap-3"
+                >
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-sm font-medium text-error">Failed</span>
+                    <span class="text-xs text-muted">
+                      Something went wrong on round {{ (entry.iterationRun.completedIterations || 0) + 1 }}. You can retry or continue from the last successful point.
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -559,24 +576,29 @@ function getIterationStatusLabel(run: IterationRun) {
             class="px-4 py-3 sm:px-5 border-t border-default/50 bg-elevated/50 flex flex-wrap items-center justify-between gap-3"
           >
             <p class="text-xs text-muted">
-              Keep refining for
-              {{ props.iterationPassCount ?? entry.iterationRun.totalIterations }}
-              more
-              {{
-                (props.iterationPassCount ?? entry.iterationRun.totalIterations) === 1
-                  ? 'round'
-                  : 'rounds'
-              }}?
+              <template v-if="entry.iterationRun.status === 'failed'">
+                Retry from the last successful prompt.
+              </template>
+              <template v-else>
+                Keep refining for
+                {{ props.iterationPassCount ?? entry.iterationRun.totalIterations }}
+                more
+                {{
+                  (props.iterationPassCount ?? entry.iterationRun.totalIterations) === 1
+                    ? 'round'
+                    : 'rounds'
+                }}?
+              </template>
             </p>
             <div class="flex items-center gap-2">
               <UButton
                 color="primary"
-                variant="soft"
-                icon="i-lucide-rotate-cw"
+                :variant="entry.iterationRun.status === 'failed' ? 'solid' : 'soft'"
+                :icon="entry.iterationRun.status === 'failed' ? 'i-lucide-refresh-cw' : 'i-lucide-rotate-cw'"
                 size="sm"
                 @click="handleContinueIteration(entry.iterationRun)"
               >
-                Continue
+                {{ entry.iterationRun.status === 'failed' ? 'Retry' : 'Continue' }}
               </UButton>
               <UButton
                 color="neutral"
