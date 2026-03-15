@@ -68,7 +68,7 @@ watch(() => activeIterationRun.value?.completedIterations ?? 0, scrollToBottom)
 const lastMessageContentLength = computed(() => {
   const msgs = chatMessages.value
   if (!msgs.length) return 0
-  const last = msgs[msgs.length - 1]!
+  const last = msgs.at(-1)!
   const content = typeof last.content === 'string' ? last.content : ''
   return content.length + (last.parsedResponse?.message?.length ?? 0)
 })
