@@ -63,35 +63,10 @@ const {
   sendChatMessage,
 } = useChatForm({ persistence: 'memory' })
 
-const chatScrollContainer = ref<HTMLElement | null>(null)
-
-function scrollToBottom() {
-  nextTick(() => {
-    if (chatScrollContainer.value) {
-      chatScrollContainer.value.scrollTop = chatScrollContainer.value.scrollHeight
-    }
-  })
-}
-
-watch(() => chatMessages.value.length, scrollToBottom)
-watch(isChatting, scrollToBottom)
-
-// Auto-scroll during streaming: track last message content length
-const lastMessageContentLength = computed(() => {
-  const msgs = chatMessages.value
-  if (!msgs.length) return 0
-  const last = msgs.at(-1)!
-  const content = typeof last.content === 'string' ? last.content : ''
-  return content.length + (last.parsedResponse?.message?.length ?? 0)
+const { chatScrollContainer, scrollToBottom } = useChatScroll({
+  chatMessages,
+  isChatting,
 })
-watch(lastMessageContentLength, scrollToBottom)
-
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    sendChatMessage()
-  }
-}
 
 // ── Initialize When Preset Loads ─────────────────────────
 const presetInitialized = ref(false)
@@ -538,34 +513,16 @@ function presetThumb(metadata: string | null | undefined) {
 
       <!-- Chat Input -->
       <div class="px-3 py-3 border-t border-default/50 shrink-0">
-        <UForm
-          :state="{ input: chatInput }"
-          class="flex items-end gap-2"
-          @submit.prevent="() => sendChatMessage()"
-        >
-          <UTextarea
-            v-model="chatInput"
-            placeholder="Ask Grok to help..."
-            class="flex-1"
-            size="sm"
-            autoresize
-            :rows="2"
-            :maxrows="4"
-            :disabled="isChatting"
-            :ui="{ base: 'rounded-xl' }"
-            @keydown="handleKeydown"
-          />
-          <UButton
-            type="submit"
-            color="primary"
-            variant="solid"
-            icon="i-lucide-send"
-            :loading="isChatting"
-            :disabled="!chatInput.trim() || isChatting"
-            class="rounded-xl shrink-0"
-            size="sm"
-          />
-        </UForm>
+        <ChatInputArea
+          v-model="chatInput"
+          placeholder="Ask Grok to help..."
+          size="sm"
+          :rows="2"
+          :maxrows="4"
+          :disabled="isChatting"
+          :loading="isChatting"
+          @submit="sendChatMessage()"
+        />
       </div>
 
       <!-- Preset List (always open, searchable) -->
