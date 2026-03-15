@@ -159,29 +159,20 @@ const otherPresetTypes = computed(() => {
 
 // ── Preset select items (USelectMenu format) ─────────────────────
 const personSelectItems = computed(() =>
-  personElements.value.map((p) => {
-    const src = getPresetPreviewUrl(p)
-    return {
-      label: p.name,
-      value: p.id,
-      ...(src ? { avatar: { src, size: 'xs' as const } } : {}),
-    }
-  }),
+  personElements.value.map((p) => ({
+    label: p.name,
+    value: p.id,
+  })),
 )
 
 const typeSelectItemsMap = computed(() => {
-  const map: Record<
-    string,
-    Array<{ label: string; value: string; avatar?: { src: string; size: 'xs' } }>
-  > = {}
+  const map: Record<string, Array<{ label: string; value: string }>> = {}
   for (const el of elements.value) {
     if (el.type === 'person') continue // handled by personSelectItems
     if (!map[el.type]) map[el.type] = []
-    const src = getPresetPreviewUrl(el)
     map[el.type]!.push({
       label: el.name,
       value: el.id,
-      ...(src ? { avatar: { src, size: 'xs' as const } } : {}),
     })
   }
   return map
@@ -475,13 +466,12 @@ function editResult(gen: Generation) {
                 v-if="attachedPerson"
                 class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary"
               >
-                <NuxtImg
+                <UAvatar
                   v-if="getPresetPreviewUrl(attachedPerson)"
                   :src="getPresetPreviewUrl(attachedPerson)!"
-                  class="size-5 rounded-full object-cover ring-1 ring-primary/30"
-                  width="20"
-                  height="20"
-                  loading="lazy"
+                  :alt="attachedPerson.name"
+                  size="2xs"
+                  class="ring-1 ring-primary/30"
                 />
                 <UIcon v-else name="i-lucide-user" class="size-3.5" />
                 <span>{{ attachedPerson.name }}</span>
