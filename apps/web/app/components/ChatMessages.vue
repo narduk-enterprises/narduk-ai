@@ -172,8 +172,6 @@ function handleInlineImageKeydown(event: KeyboardEvent, msg: ChatMessage) {
 function handleOpenImage(url: string, prompt: string, generationId?: string | null) {
   openInViewer(url, prompt, generationId)
 }
-
-
 </script>
 
 <template>

@@ -18,8 +18,8 @@ const emit = defineEmits<{
   'update:iterationContext': [value: string]
   'update:iterationPassCount': [value: string | number | null | undefined]
   'update:isFormCollapsed': [value: boolean]
-  'submit': []
-  'stop': []
+  submit: []
+  stop: []
 }>()
 
 const promptModel = computed({
@@ -35,19 +35,13 @@ const contextModel = computed({
   set: (v: string) => emit('update:iterationContext', v),
 })
 
-const allDisabled = computed(
-  () => props.isIterating || props.isChatting || props.generatingInline,
-)
+const allDisabled = computed(() => props.isIterating || props.isChatting || props.generatingInline)
 
 const submitLabel = computed(() =>
-  props.iterationPassCount === 1
-    ? 'Run 1 Round'
-    : `Run ${props.iterationPassCount} Rounds`,
+  props.iterationPassCount === 1 ? 'Run 1 Round' : `Run ${props.iterationPassCount} Rounds`,
 )
 
-const hasContent = computed(
-  () => !!props.iterationGoal.trim() || !!props.iterationPrompt.trim(),
-)
+const hasContent = computed(() => !!props.iterationGoal.trim() || !!props.iterationPrompt.trim())
 const showCollapsed = computed(
   () => props.isFormCollapsed && (props.isIterating || hasContent.value),
 )
@@ -93,10 +87,7 @@ const showCollapsed = computed(
     </div>
 
     <!-- Full form -->
-    <div
-      class="px-4 py-4 sm:px-5 sm:py-5 space-y-4"
-      :class="{ 'hidden md:block': showCollapsed }"
-    >
+    <div class="px-4 py-4 sm:px-5 sm:py-5 space-y-4" :class="{ 'hidden md:block': showCollapsed }">
       <!-- Card header -->
       <div class="flex items-center justify-between gap-2.5">
         <div class="flex items-center gap-2.5">

@@ -10,7 +10,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'continue': [run: IterationRun]
+  continue: [run: IterationRun]
   'save-prompt': [text: string]
   'open-image': [url: string, prompt: string, generationId?: string | null]
 }>()
@@ -75,7 +75,9 @@ function togglePrompt(iteration: number) {
 
     <!-- Goal pill -->
     <div class="px-4 pt-3 sm:px-5">
-      <div class="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/10 px-3 py-2">
+      <div
+        class="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/10 px-3 py-2"
+      >
         <UIcon name="i-lucide-target" class="size-4 text-primary shrink-0 mt-0.5" />
         <p class="text-sm text-default leading-relaxed">{{ run.goal }}</p>
       </div>
@@ -185,7 +187,11 @@ function togglePrompt(iteration: number) {
                     @keydown.enter="togglePrompt(step.iteration)"
                   >
                     <UIcon
-                      :name="isPromptExpanded(step.iteration) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                      :name="
+                        isPromptExpanded(step.iteration)
+                          ? 'i-lucide-chevron-down'
+                          : 'i-lucide-chevron-right'
+                      "
                       class="size-3 text-dimmed transition-transform"
                     />
                     <UIcon name="i-lucide-file-text" class="size-3.5 text-dimmed" />
@@ -194,7 +200,10 @@ function togglePrompt(iteration: number) {
                     </span>
                   </div>
                   <p
-                    v-if="step.renderedPrompt.length <= PROMPT_COLLAPSE_THRESHOLD || isPromptExpanded(step.iteration)"
+                    v-if="
+                      step.renderedPrompt.length <= PROMPT_COLLAPSE_THRESHOLD ||
+                      isPromptExpanded(step.iteration)
+                    "
                     class="text-xs text-muted leading-relaxed font-mono wrap-break-word mt-1.5"
                   >
                     {{ step.renderedPrompt }}
@@ -267,9 +276,7 @@ function togglePrompt(iteration: number) {
       class="px-4 py-3 sm:px-5 border-t border-default/50 bg-elevated/50 flex flex-wrap items-center justify-between gap-3"
     >
       <p class="text-xs text-muted">
-        <template v-if="run.status === 'failed'">
-          Retry from the last successful prompt.
-        </template>
+        <template v-if="run.status === 'failed'"> Retry from the last successful prompt. </template>
         <template v-else>
           Keep refining for
           {{ iterationPassCount ?? run.totalIterations }}

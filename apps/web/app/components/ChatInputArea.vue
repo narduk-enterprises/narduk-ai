@@ -11,7 +11,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
-  'submit': []
+  submit: []
 }>()
 
 const inputValue = computed({
