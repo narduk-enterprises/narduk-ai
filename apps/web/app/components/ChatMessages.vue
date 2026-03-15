@@ -30,6 +30,8 @@ interface VisibleMessage {
   promptText: string | null
   continuationSummary: string | null
   iterationRun: IterationRun | null
+  iterationImageSteps: IterationStep[]
+  iterationSavePromptText: string
   canContinueIteration: boolean
   builderState: BuilderState | null
   hasAssistantBubbleContent: boolean
@@ -46,6 +48,7 @@ const visibleMessages = computed<VisibleMessage[]>(() =>
       const inlineImageUrl = message.parsedResponse?.isInlineGeneration
         ? (message.parsedResponse.imageUrl ?? null)
         : null
+      const run = message.parsedResponse?.iterationRun ?? null
 
       return {
         message,
@@ -53,10 +56,10 @@ const visibleMessages = computed<VisibleMessage[]>(() =>
         inlineImageUrl,
         promptText,
         continuationSummary: message.parsedResponse?.continuation_summary ?? null,
-        iterationRun: message.parsedResponse?.iterationRun ?? null,
-        canContinueIteration: ['completed', 'stopped'].includes(
-          message.parsedResponse?.iterationRun?.status ?? '',
-        ),
+        iterationRun: run,
+        iterationImageSteps: run?.steps.filter((s) => s.imageUrl) ?? [],
+        iterationSavePromptText: run?.currentPrompt || run?.initialPrompt || '',
+        canContinueIteration: ['completed', 'stopped'].includes(run?.status ?? ''),
         builderState: resolveBuilderState(message, promptText),
         hasAssistantBubbleContent: hasAssistantBubbleContent(message),
         hasUserTextContent: hasUserTextContent(message),
@@ -188,10 +191,6 @@ function getIterationStatusLabel(run: IterationRun) {
   if (run.status === 'stopped') return 'Stopped'
   if (run.status === 'failed') return 'Failed'
   return `Running ${run.completedIterations}/${run.totalIterations}`
-}
-
-function getLatestIterationReview(run: IterationRun) {
-  return [...run.steps].reverse().find((step) => step.imageAnalysis)?.imageAnalysis ?? null
 }
 </script>
 
@@ -407,7 +406,7 @@ function getLatestIterationReview(run: IterationRun) {
 
           <!-- Image comparison strip (when multiple passes have images) -->
           <div
-            v-if="entry.iterationRun.steps.filter((s: IterationStep) => s.imageUrl).length > 1"
+            v-if="entry.iterationImageSteps.length > 1"
             class="px-4 pt-4 sm:px-5"
           >
             <p class="text-[11px] font-semibold text-dimmed uppercase tracking-wider mb-2">
@@ -415,7 +414,7 @@ function getLatestIterationReview(run: IterationRun) {
             </p>
             <div class="image-strip">
               <div
-                v-for="(step, si) in entry.iterationRun.steps.filter((s: IterationStep) => s.imageUrl)"
+                v-for="(step, si) in entry.iterationImageSteps"
                 :key="`strip-${si}`"
                 class="relative rounded-xl overflow-hidden ring-1 ring-primary/20 hover:ring-primary/50 transition-all hover:scale-[1.02] shadow-card cursor-zoom-in"
                 role="button"
@@ -470,7 +469,7 @@ function getLatestIterationReview(run: IterationRun) {
                   >
                     <!-- Single image (only shown when strip isn't visible) -->
                     <div
-                      v-if="step.imageUrl && entry.iterationRun.steps.filter((s: IterationStep) => s.imageUrl).length <= 1"
+                      v-if="step.imageUrl && entry.iterationImageSteps.length <= 1"
                       class="w-fit rounded-xl overflow-hidden ring-1 ring-primary/20 hover:ring-primary/50 transition-all hover:scale-[1.01] shadow-card cursor-zoom-in"
                       role="button"
                       tabindex="0"
@@ -573,7 +572,7 @@ function getLatestIterationReview(run: IterationRun) {
                 variant="outline"
                 icon="i-lucide-bookmark-plus"
                 size="sm"
-                @click="handleSavePrompt(entry.iterationRun.currentPrompt || entry.iterationRun.initialPrompt)"
+                @click="handleSavePrompt(entry.iterationSavePromptText)"
               >
                 Save as Preset
               </UButton>
