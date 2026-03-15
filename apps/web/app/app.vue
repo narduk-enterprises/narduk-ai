@@ -21,10 +21,7 @@ const isFullHeightPage = computed(
       Skip to content
     </ULink>
 
-    <div
-      class="flex flex-col"
-      :class="isFullHeightPage ? 'h-dvh overflow-hidden' : 'min-h-screen'"
-    >
+    <div class="flex flex-col" :class="isFullHeightPage ? 'h-dvh overflow-hidden' : 'min-h-screen'">
       <AppHeader />
 
       <!-- eslint-disable-next-line narduk/no-native-layout -- app-level scaffold: semantic landmark element -->
