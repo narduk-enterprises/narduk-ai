@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { eq, and } from 'drizzle-orm'
 import { promptElements } from '../../database/schema'
 import {
   normalizeChatHistoryJson,
@@ -26,6 +27,27 @@ export default defineEventHandler(async (event) => {
 
   const body = await readValidatedBody(event, bodySchema.parse)
   const db = useDatabase(event)
+
+  // Check for duplicate name within the same type for this user
+  const existing = await db
+    .select({ id: promptElements.id })
+    .from(promptElements)
+    .where(
+      and(
+        eq(promptElements.userId, user.id),
+        eq(promptElements.type, body.type),
+        eq(promptElements.name, body.name),
+      ),
+    )
+    .limit(1)
+    .get()
+
+  if (existing) {
+    throw createError({
+      statusCode: 409,
+      message: `A ${body.type} preset named "${body.name}" already exists`,
+    })
+  }
 
   const now = new Date().toISOString()
   const id = crypto.randomUUID()

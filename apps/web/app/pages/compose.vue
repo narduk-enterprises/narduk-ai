@@ -12,7 +12,7 @@ useWebPageSchema({
 
 const route = useRoute()
 
-const { elements, groupedByType, fetchElements } = usePromptElements()
+const { elements, groupedByType, ensureLoaded: ensureElementsLoaded } = usePromptElements()
 const {
   prompts: savedPrompts,
   loading: libraryLoading,
@@ -318,7 +318,7 @@ watch(
 
 // ── Lifecycle ─────────────────────────────────────────────────────
 onMounted(() => {
-  if (elements.value.length === 0) fetchElements()
+  ensureElementsLoaded()
   if (savedPrompts.value.length === 0) fetchPrompts()
 })
 </script>

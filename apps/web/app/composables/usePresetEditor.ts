@@ -7,7 +7,7 @@ const MAX_CHAT_MESSAGES = 30
 
 // ─── Composable ────────────────────────────────────────────
 export function usePresetEditor() {
-  const { updateElement, fetchElements, createElement } = usePromptElements()
+  const { updateElement, createElement } = usePromptElements()
   const { generateImage, generating: generatingPreview } = useGenerate()
   const toast = useToast()
   type ParsedResponse = NonNullable<ChatMessage['parsedResponse']>
@@ -244,7 +244,6 @@ export function usePresetEditor() {
         icon: 'i-lucide-check-circle',
         color: 'success',
       })
-      await fetchElements()
     } catch {
       toast.add({
         title: 'Failed to Save',
@@ -341,7 +340,6 @@ export function usePresetEditor() {
           attributes: buildAttributesJson(state),
           metadata: buildMetadata(),
         })
-        await fetchElements()
       } catch {
         /* silent — auto-saves are best-effort */
       }

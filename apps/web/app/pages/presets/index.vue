@@ -12,10 +12,10 @@ useWebPageSchema({
   description: 'Browse and manage your prompt presets for AI generation.',
 })
 
-const { elements, groupedByType, loading, error, fetchElements, createElement, deleteElement } =
+const { elements, groupedByType, loading, error, ensureLoaded, createElement, deleteElement } =
   usePromptElements()
 
-onMounted(fetchElements)
+onMounted(ensureLoaded)
 
 // ── Filters ────────────────────────────────────────────────
 const activeFilter = ref('all')
