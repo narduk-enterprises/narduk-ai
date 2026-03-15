@@ -3,10 +3,7 @@ import { generateStoredImages } from '#server/utils/imageGeneration'
 
 const bodySchema = z.object({
   /** Base prompt template — person description will be prepended */
-  basePrompt: z
-    .string()
-    .min(1)
-    .max(2000),
+  basePrompt: z.string().min(1).max(2000),
   /** Number of person variations to generate */
   count: z.coerce.number().min(1).max(100).default(10),
   /** Aspect ratio for all generated images */

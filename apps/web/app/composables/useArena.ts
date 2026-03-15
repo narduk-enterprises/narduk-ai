@@ -341,7 +341,8 @@ export function useArena() {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: {
           count,
-          basePrompt: basePrompt || 'Full body, standing, hands on hips, 20-30 years old, white woman',
+          basePrompt:
+            basePrompt || 'Full body, standing, hands on hips, 20-30 years old, white woman',
           batchId: clientBatchId,
           label: label || `Person Tuning — ${new Date().toLocaleDateString()}`,
         },
