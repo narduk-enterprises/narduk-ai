@@ -64,6 +64,16 @@ watch(isIterating, scrollToBottom)
 watch(generatingInline, scrollToBottom)
 watch(() => activeIterationRun.value?.completedIterations ?? 0, scrollToBottom)
 
+// Auto-scroll during streaming: track last message content length so every chunk scrolls
+const lastMessageContentLength = computed(() => {
+  const msgs = chatMessages.value
+  if (!msgs.length) return 0
+  const last = msgs[msgs.length - 1]!
+  const content = typeof last.content === 'string' ? last.content : ''
+  return content.length + (last.parsedResponse?.message?.length ?? 0)
+})
+watch(lastMessageContentLength, scrollToBottom)
+
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
@@ -252,8 +262,8 @@ const iterationSubmitLabel = computed(() =>
             class="flex-1"
             size="lg"
             autoresize
-            :rows="1"
-            :maxrows="4"
+            :rows="2"
+            :maxrows="5"
             :disabled="isChatting || generatingInline || isIterating"
             :ui="{ base: 'rounded-2xl shadow-card' }"
             @keydown="handleKeydown"

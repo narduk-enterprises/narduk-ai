@@ -76,6 +76,16 @@ function scrollToBottom() {
 watch(() => chatMessages.value.length, scrollToBottom)
 watch(isChatting, scrollToBottom)
 
+// Auto-scroll during streaming: track last message content length
+const lastMessageContentLength = computed(() => {
+  const msgs = chatMessages.value
+  if (!msgs.length) return 0
+  const last = msgs[msgs.length - 1]!
+  const content = typeof last.content === 'string' ? last.content : ''
+  return content.length + (last.parsedResponse?.message?.length ?? 0)
+})
+watch(lastMessageContentLength, scrollToBottom)
+
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
@@ -448,6 +458,7 @@ const filteredGroupedElements = computed(() => {
   const groups: Record<string, typeof elements.value> = {
     person: [],
     scene: [],
+    clothing: [],
     framing: [],
     action: [],
     style: [],
@@ -538,8 +549,8 @@ function presetThumb(metadata: string | null | undefined) {
             class="flex-1"
             size="sm"
             autoresize
-            :rows="1"
-            :maxrows="3"
+            :rows="2"
+            :maxrows="4"
             :disabled="isChatting"
             :ui="{ base: 'rounded-xl' }"
             @keydown="handleKeydown"
