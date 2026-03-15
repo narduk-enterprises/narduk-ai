@@ -493,6 +493,33 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         }
       }
 
+      // ── JSON fallback: when XML parsing found nothing, try JSON ──
+      if (!parsed.message && !parsed.prompt) {
+        try {
+          const trimmed = fullContent.trim()
+          // Try parsing the whole response as JSON (some models ignore XML instructions)
+          const jsonObj = JSON.parse(trimmed) as Record<string, unknown>
+          if (typeof jsonObj.message === 'string') parsed.message = jsonObj.message
+          if (typeof jsonObj.prompt === 'string') parsed.prompt = jsonObj.prompt
+          if (typeof jsonObj.suggested_title === 'string')
+            parsed.suggested_name = jsonObj.suggested_title
+          if (typeof jsonObj.suggested_name === 'string')
+            parsed.suggested_name = jsonObj.suggested_name
+          if (typeof jsonObj.continuation_summary === 'string')
+            parsed.continuation_summary = jsonObj.continuation_summary
+          if (jsonObj.builder_state && typeof jsonObj.builder_state === 'object')
+            parsed.builder_state = jsonObj.builder_state as Record<string, string | null>
+
+          // Update the assistant message with the parsed JSON results
+          const assistantMsg = chatMessages.value[assistantIndex]
+          if (assistantMsg) {
+            assistantMsg.parsedResponse = { ...parsed }
+          }
+        } catch {
+          // Not valid JSON either — leave as-is (raw text)
+        }
+      }
+
       const assistantMessage = chatMessages.value[assistantIndex]
       const sessionId = sessions.activeSessionId.value
       const existingSession = sessionId

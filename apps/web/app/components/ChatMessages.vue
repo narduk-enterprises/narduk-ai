@@ -141,7 +141,33 @@ function resolveBuilderState(msg: ChatMessage, promptText: string | null) {
 function getDisplayContent(msg: ChatMessage): string {
   if (msg.parsedResponse?.message) return msg.parsedResponse.message
   const raw = typeof msg.content === 'string' ? msg.content : ''
+  // If the raw content looks like JSON, try to extract 'message' key
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const obj = JSON.parse(trimmed) as Record<string, unknown>
+      if (typeof obj.message === 'string') return obj.message
+    } catch {
+      // Not valid JSON — fall through
+    }
+  }
   return raw.replaceAll(/<[^>]+>/g, '')
+}
+
+/** Check if a response has raw JSON content that should be shown collapsed */
+function hasRawJsonContent(msg: ChatMessage): boolean {
+  if (!msg.content || typeof msg.content !== 'string') return false
+  const trimmed = msg.content.trim()
+  return trimmed.startsWith('{') && trimmed.endsWith('}') && trimmed.length > 100
+}
+
+/** Format JSON for display */
+function formatJson(content: string): string {
+  try {
+    return JSON.stringify(JSON.parse(content.trim()), null, 2)
+  } catch {
+    return content
+  }
 }
 
 function openInlineViewer(msg: ChatMessage) {
@@ -270,6 +296,21 @@ function handleOpenImage(url: string, prompt: string, generationId?: string | nu
           class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-elevated text-default border border-default rounded-tl-sm shadow-sm"
         >
           <MarkdownRenderer :content="getDisplayContent(entry.message)" />
+
+          <!-- Collapsible raw JSON (shown when model responds with JSON) -->
+          <div
+            v-if="hasRawJsonContent(entry.message)"
+            class="mt-3 pt-3 border-t border-default"
+          >
+            <UAccordion
+              :items="[{ label: 'Raw Response', icon: 'i-lucide-code-2', content: formatJson(entry.message.content as string) }]"
+              :default-value="[]"
+            >
+              <template #body="{ item }">
+                <pre class="text-xs font-mono text-muted whitespace-pre-wrap break-all max-h-40 overflow-y-auto bg-muted/30 rounded-lg p-3">{{ item.content }}</pre>
+              </template>
+            </UAccordion>
+          </div>
         </div>
       </template>
 
