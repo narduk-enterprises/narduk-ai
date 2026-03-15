@@ -248,7 +248,7 @@ function getIterationStatusLabel(run: IterationRun) {
         </div>
         <div
           class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-elevated text-default border border-default rounded-tl-sm shadow-sm"
-      >
+        >
           <MarkdownRenderer :content="getDisplayContent(entry.message)" />
         </div>
       </template>
@@ -381,16 +381,16 @@ function getIterationStatusLabel(run: IterationRun) {
               variant="subtle"
               size="sm"
             >
-              {{ entry.iterationRun.completedIterations }}/{{
-                entry.iterationRun.totalIterations
-              }}
+              {{ entry.iterationRun.completedIterations }}/{{ entry.iterationRun.totalIterations }}
               rounds
             </UBadge>
           </div>
 
           <!-- Goal pill -->
           <div class="px-4 pt-3 sm:px-5">
-            <div class="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/10 px-3 py-2">
+            <div
+              class="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/10 px-3 py-2"
+            >
               <UIcon name="i-lucide-target" class="size-4 text-primary shrink-0 mt-0.5" />
               <p class="text-sm text-default leading-relaxed">{{ entry.iterationRun.goal }}</p>
             </div>
@@ -398,17 +398,16 @@ function getIterationStatusLabel(run: IterationRun) {
 
           <!-- Context pill (only if present) -->
           <div v-if="entry.iterationRun.context" class="px-4 pt-2 sm:px-5">
-            <div class="flex items-start gap-2 rounded-lg bg-elevated border border-default/50 px-3 py-2">
+            <div
+              class="flex items-start gap-2 rounded-lg bg-elevated border border-default/50 px-3 py-2"
+            >
               <UIcon name="i-lucide-message-circle" class="size-4 text-muted shrink-0 mt-0.5" />
               <p class="text-sm text-muted leading-relaxed">{{ entry.iterationRun.context }}</p>
             </div>
           </div>
 
           <!-- Image comparison strip (when multiple passes have images) -->
-          <div
-            v-if="entry.iterationImageSteps.length > 1"
-            class="px-4 pt-4 sm:px-5"
-          >
+          <div v-if="entry.iterationImageSteps.length > 1" class="px-4 pt-4 sm:px-5">
             <p class="text-[11px] font-semibold text-dimmed uppercase tracking-wider mb-2">
               Visual Progression
             </p>
@@ -485,10 +484,16 @@ function getIterationStatusLabel(run: IterationRun) {
 
                     <div class="min-w-0 flex-1 space-y-2">
                       <!-- AI Feedback -->
-                      <div v-if="step.imageAnalysis" class="rounded-lg bg-elevated border border-default/50 px-3 py-2">
+                      <div
+                        v-if="step.imageAnalysis"
+                        class="rounded-lg bg-elevated border border-default/50 px-3 py-2"
+                      >
                         <div class="flex items-center gap-1.5 mb-1">
                           <UIcon name="i-lucide-scan-eye" class="size-3.5 text-muted" />
-                          <span class="text-[11px] font-semibold text-muted uppercase tracking-wider">AI Feedback</span>
+                          <span
+                            class="text-[11px] font-semibold text-muted uppercase tracking-wider"
+                            >AI Feedback</span
+                          >
                         </div>
                         <p class="text-xs text-default/90 leading-relaxed">
                           {{ step.imageAnalysis }}
@@ -496,10 +501,16 @@ function getIterationStatusLabel(run: IterationRun) {
                       </div>
 
                       <!-- Prompt used (collapsed by default feel) -->
-                      <div v-if="step.renderedPrompt" class="rounded-lg bg-elevated/50 border border-default/30 px-3 py-2">
+                      <div
+                        v-if="step.renderedPrompt"
+                        class="rounded-lg bg-elevated/50 border border-default/30 px-3 py-2"
+                      >
                         <div class="flex items-center gap-1.5 mb-1">
                           <UIcon name="i-lucide-file-text" class="size-3.5 text-dimmed" />
-                          <span class="text-[11px] font-semibold text-dimmed uppercase tracking-wider">Prompt Used</span>
+                          <span
+                            class="text-[11px] font-semibold text-dimmed uppercase tracking-wider"
+                            >Prompt Used</span
+                          >
                         </div>
                         <p class="text-xs text-muted leading-relaxed font-mono wrap-break-word">
                           {{ step.renderedPrompt }}
@@ -523,18 +534,18 @@ function getIterationStatusLabel(run: IterationRun) {
               </div>
 
               <!-- Running indicator as timeline step -->
-              <div
-                v-if="entry.iterationRun.status === 'running'"
-                class="iteration-step"
-              >
+              <div v-if="entry.iterationRun.status === 'running'" class="iteration-step">
                 <div class="iteration-step-dot iteration-step-dot--active">
                   <UIcon name="i-lucide-loader-2" class="size-3 animate-spin" />
                 </div>
-                <div class="rounded-xl border border-dashed border-primary/30 bg-primary/5 px-4 py-3 flex items-center gap-3">
+                <div
+                  class="rounded-xl border border-dashed border-primary/30 bg-primary/5 px-4 py-3 flex items-center gap-3"
+                >
                   <div class="flex flex-col gap-0.5">
                     <span class="text-sm font-medium text-primary">Working on it…</span>
                     <span class="text-xs text-muted">
-                      Analyzing your image and refining the prompt for round {{ (entry.iterationRun.completedIterations || 0) + 1 }}
+                      Analyzing your image and refining the prompt for round
+                      {{ (entry.iterationRun.completedIterations || 0) + 1 }}
                     </span>
                   </div>
                 </div>
@@ -612,16 +623,15 @@ function getIterationStatusLabel(run: IterationRun) {
     </div>
 
     <!-- Typing Indicator -->
-    <div
-      v-if="isChatting"
-      class="flex self-start items-start gap-3 max-w-[85%] animate-fade-in-up"
-    >
+    <div v-if="isChatting" class="flex self-start items-start gap-3 max-w-[85%] animate-fade-in-up">
       <div class="flex items-center justify-center size-5 rounded-full bg-primary/15 mt-4 shrink-0">
         <UIcon name="i-lucide-bot" class="size-3 text-primary" />
       </div>
       <div class="space-y-1">
         <span class="text-[11px] font-medium text-muted">Grok is thinking…</span>
-        <div class="flex items-center gap-1.5 p-3 rounded-2xl bg-elevated border border-default rounded-tl-sm">
+        <div
+          class="flex items-center gap-1.5 p-3 rounded-2xl bg-elevated border border-default rounded-tl-sm"
+        >
           <span class="size-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
           <span class="size-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
           <span class="size-2 rounded-full bg-primary animate-bounce" />

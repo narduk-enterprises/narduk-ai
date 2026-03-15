@@ -216,7 +216,9 @@ const iterationSubmitLabel = computed(() =>
     >
       <div class="max-w-5xl mx-auto space-y-3">
         <!-- Segmented Mode Toggle -->
-        <div class="inline-flex items-center rounded-full bg-elevated border border-default/50 p-0.5 relative">
+        <div
+          class="inline-flex items-center rounded-full bg-elevated border border-default/50 p-0.5 relative"
+        >
           <!-- Sliding highlight -->
           <div
             class="absolute h-[calc(100%-4px)] rounded-full bg-primary transition-all duration-200 ease-out"
