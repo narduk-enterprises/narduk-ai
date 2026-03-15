@@ -117,58 +117,18 @@ const primaryPickerLabel = computed(() =>
 )
 
 // ─── Keyboard Shortcuts ──────────────────────────────────────
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false
-
-  return target.closest('input, textarea, [contenteditable="true"], [role="textbox"]') !== null
-}
-
-function handleKeydown(event: KeyboardEvent) {
-  if (isEditableTarget(event.target)) return
-
-  const key = event.key.toLowerCase()
-
-  // Arena mode shortcuts
-  if (arenaActive.value && currentPair.value && !arenaVoting.value) {
-    if (key === 'a') {
-      event.preventDefault()
-      submitArenaVote(currentPair.value.left.id)
-    }
-    if (key === 'b') {
-      event.preventDefault()
-      submitArenaVote(currentPair.value.right.id)
-    }
-    if (key === 's') {
-      event.preventDefault()
-      skipPair()
-    }
-    return
-  }
-
-  // Manual mode shortcuts
-  if (!canVote.value || savingVote.value || isPickerOpen.value) return
-
-  if (key === 'a' && leftImage.value) {
-    event.preventDefault()
-    submitVote(leftImage.value.id)
-  }
-
-  if (key === 'b' && rightImage.value) {
-    event.preventDefault()
-    submitVote(rightImage.value.id)
-  }
-}
-
-onMounted(() => {
-  if (import.meta.client) {
-    window.addEventListener('keydown', handleKeydown)
-  }
-})
-
-onUnmounted(() => {
-  if (import.meta.client) {
-    window.removeEventListener('keydown', handleKeydown)
-  }
+useCompareKeyboard({
+  arenaActive,
+  currentPair,
+  arenaVoting,
+  canVote,
+  savingVote,
+  isPickerOpen,
+  leftImage,
+  rightImage,
+  submitArenaVote,
+  skipPair,
+  submitVote,
 })
 </script>
 
@@ -348,65 +308,20 @@ onUnmounted(() => {
 
         <!-- Arena Pair Display -->
         <div v-else-if="currentPair" class="grid grid-cols-2 gap-3 sm:gap-6">
-          <!-- Image A -->
-          <div
-            class="glass-card group relative flex cursor-pointer flex-col gap-4 overflow-hidden p-4 transition-all duration-150 hover:ring-2 hover:ring-primary/40"
-            :class="{ 'pointer-events-none opacity-60': arenaVoting }"
-            @click="submitArenaVote(currentPair.left.id)"
-          >
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary"
-                  >A</span
-                >
-                <UKbd>A</UKbd>
-              </div>
-              <span class="text-xs text-muted">Click or press A</span>
-            </div>
-            <div class="relative aspect-3/4 w-full overflow-hidden rounded-xl bg-elevated">
-              <img
-                :src="currentPair.left.mediaUrl || ''"
-                :alt="currentPair.left.prompt"
-                class="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-              />
-            </div>
-            <p class="line-clamp-2 text-xs text-muted">{{ currentPair.left.prompt }}</p>
-            <p class="text-xs text-dimmed">
-              Score: {{ formatComparisonScore(currentPair.left.comparisonScore) }} ({{
-                currentPair.left.comparisonWins
-              }}W / {{ currentPair.left.comparisonLosses }}L)
-            </p>
-          </div>
-
-          <!-- Image B -->
-          <div
-            class="glass-card group relative flex cursor-pointer flex-col gap-4 overflow-hidden p-4 transition-all duration-150 hover:ring-2 hover:ring-primary/40"
-            :class="{ 'pointer-events-none opacity-60': arenaVoting }"
-            @click="submitArenaVote(currentPair.right.id)"
-          >
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary"
-                  >B</span
-                >
-                <UKbd>B</UKbd>
-              </div>
-              <span class="text-xs text-muted">Click or press B</span>
-            </div>
-            <div class="relative aspect-3/4 w-full overflow-hidden rounded-xl bg-elevated">
-              <img
-                :src="currentPair.right.mediaUrl || ''"
-                :alt="currentPair.right.prompt"
-                class="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-              />
-            </div>
-            <p class="line-clamp-2 text-xs text-muted">{{ currentPair.right.prompt }}</p>
-            <p class="text-xs text-dimmed">
-              Score: {{ formatComparisonScore(currentPair.right.comparisonScore) }} ({{
-                currentPair.right.comparisonWins
-              }}W / {{ currentPair.right.comparisonLosses }}L)
-            </p>
-          </div>
+          <ArenaCard
+            label="A"
+            kbd="A"
+            :generation="currentPair.left"
+            :voting="arenaVoting"
+            @vote="submitArenaVote"
+          />
+          <ArenaCard
+            label="B"
+            kbd="B"
+            :generation="currentPair.right"
+            :voting="arenaVoting"
+            @vote="submitArenaVote"
+          />
         </div>
 
         <!-- Arena Shortcuts Bar -->

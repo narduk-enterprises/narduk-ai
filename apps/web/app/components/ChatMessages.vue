@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ChatMessage, IterationRun, IterationStep } from '~/types/chat'
-import type { Generation } from '~/types/generation'
+import { createSyntheticGeneration } from '~/utils/presetMetadata'
 
 const props = defineProps<{
   messages: ChatMessage[]
@@ -70,32 +70,7 @@ const visibleMessages = computed<VisibleMessage[]>(() =>
 )
 
 function openInViewer(imageUrl: string, prompt = '', generationId?: string | null) {
-  const synth: Generation = {
-    id: generationId || imageUrl,
-    userId: '',
-    type: 'image',
-    mode: 't2i',
-    prompt,
-    sourceGenerationId: null,
-    status: 'done',
-    xaiRequestId: null,
-    r2Key: null,
-    mediaUrl: imageUrl,
-    thumbnailUrl: imageUrl,
-    comparisonScore: 0,
-    comparisonWins: 0,
-    comparisonLosses: 0,
-    lastComparedAt: null,
-    duration: null,
-    generationTimeMs: null,
-    aspectRatio: null,
-    resolution: null,
-    metadata: null,
-    presets: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-  galleryViewer.open([synth], 0)
+  galleryViewer.open([createSyntheticGeneration(imageUrl, prompt, generationId)], 0)
 }
 
 function handleUsePrompt(prompt: string) {

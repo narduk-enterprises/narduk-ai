@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PromptElement } from '~/composables/usePromptElements'
-import type { Generation } from '~/types/generation'
+import { createSyntheticGeneration, getPresetThumbnail } from '~/utils/presetMetadata'
 import {
   PRESET_ATTRIBUTES,
   parseAttributesJson,
@@ -327,32 +327,7 @@ function openPresetViewer(item: Generation) {
 function openPreviewInViewer() {
   const url = headshotUrl.value || previewImageUrl.value
   if (!url) return
-  const syntheticItem: Generation = {
-    id: 'preview',
-    userId: '',
-    type: 'image',
-    mode: 't2i',
-    prompt: displayName.value + ' preview',
-    sourceGenerationId: null,
-    status: 'done',
-    xaiRequestId: null,
-    r2Key: null,
-    mediaUrl: url,
-    thumbnailUrl: null,
-    comparisonScore: 0,
-    comparisonWins: 0,
-    comparisonLosses: 0,
-    lastComparedAt: null,
-    duration: null,
-    generationTimeMs: null,
-    aspectRatio: null,
-    resolution: null,
-    metadata: null,
-    presets: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-  galleryViewer.open([syntheticItem], 0)
+  galleryViewer.open([createSyntheticGeneration(url, displayName.value + ' preview', 'preview')], 0)
 }
 
 async function handleGenerateImage() {
@@ -446,24 +421,7 @@ const filteredGroupedElements = computed(() => {
   return groups
 })
 
-function parseMeta(metadata: string | null | undefined) {
-  if (!metadata) return null
-  try {
-    return JSON.parse(metadata) as {
-      headshotUrl?: string
-      fullBodyUrl?: string
-      previewImageUrl?: string
-    }
-  } catch {
-    return null
-  }
-}
 
-function presetThumb(metadata: string | null | undefined) {
-  const meta = parseMeta(metadata)
-  if (!meta) return null
-  return meta.headshotUrl || meta.previewImageUrl || meta.fullBodyUrl || null
-}
 </script>
 
 <template>
@@ -556,8 +514,8 @@ function presetThumb(metadata: string | null | undefined) {
               >
                 <div class="flex items-center gap-2 flex-1 overflow-hidden">
                   <img
-                    v-if="presetThumb(el.metadata)"
-                    :src="presetThumb(el.metadata)!"
+                    v-if="getPresetThumbnail(el.metadata)"
+                    :src="getPresetThumbnail(el.metadata)!"
                     :alt="el.name"
                     class="size-6 rounded-full object-cover shrink-0 ring-1 ring-default"
                   />

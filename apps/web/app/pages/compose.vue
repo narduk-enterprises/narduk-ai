@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { getPresetThumbnail } from '~/utils/presetMetadata'
+
 definePageMeta({ middleware: ['auth'] })
 
 useSeo({
@@ -86,130 +88,33 @@ function handleComposeToggle(el: { type: string; name: string }) {
   composeSelection[el.type] = composeSelection[el.type] === el.name ? null : el.name
 }
 
-function getPreviewImageUrl(el: { metadata?: string | null }): string | null {
-  if (!el.metadata) return null
-  try {
-    const meta = JSON.parse(el.metadata) as { headshotUrl?: string; fullBodyUrl?: string }
-    return meta.headshotUrl || meta.fullBodyUrl || null
-  } catch {
-    return null
-  }
-}
 
 // ── Chat / Refine ──────────────────────────────────────────────────
-const chatMessages = ref<{ role: 'user' | 'assistant' | 'system'; content: string }[]>([])
-const chatLog = ref<{ role: 'user' | 'assistant'; text: string }[]>([])
-const currentPromptDraft = ref<string>('')
-const chatInput = ref('')
-const chatting = ref(false)
-const savedPromptId = ref<string | null>(null)
-const saveTitle = ref('')
+const {
+  chatLog,
+  currentPromptDraft,
+  chatInput,
+  chatting,
+  savedPromptId,
+  saveTitle,
+  composeDraft,
+  sendMessage: sendChatMessage,
+  handleChatKeydown,
+  reset: resetChatState,
+} = useComposeChat({
+  systemPrompts,
+  allModifiersList,
+  mediaType,
+  composeSelection,
+  elements,
+})
+
 const step = ref<'presets' | 'refine'>('presets')
 
-async function composeDraft() {
+function handleComposeDraft() {
   if (composeSelectionCount.value === 0) return
-
   step.value = 'refine'
-  chatting.value = true
-  currentPromptDraft.value = ''
-  chatLog.value = []
-  savedPromptId.value = null
-
-  const parts = Object.entries(composeSelection)
-    .filter(([_, val]) => val)
-    .map(([key, name]) => {
-      const el = elements.value.find((e) => e.type === key && e.name === name)
-      return `${key}: ${el?.content || name}`
-    })
-    .join('\n')
-
-  const isVideo = mediaType.value === 'video'
-  const sysContent = isVideo ? systemPrompts.value.compose_video : systemPrompts.value.compose_image
-  const modifiersContext = allModifiersList.value.length
-    ? `\n\nYou can also suggest enhancements using Quick Modifiers if applicable. When suggesting modifications, emit attribute-value pairs in your <builder_state> JSON response using attribute keys (e.g. {"hair_color": "blonde", "lighting": "golden hour"}). Available modifiers:\n` +
-      allModifiersList.value
-        .map((m) => `- ${m.attributeKey}: "${m.label}" → "${m.snippet}"`)
-        .join('\n')
-    : ''
-
-  chatMessages.value = [
-    { role: 'system' as const, content: (sysContent || '') + modifiersContext },
-    {
-      role: 'user' as const,
-      content: `Here are my starting components:\n\n${parts}\n\nPlease generate the first draft.`,
-    },
-  ]
-
-  chatLog.value.push({ role: 'assistant', text: '' })
-  const assistantIndex = chatLog.value.length - 1
-
-  try {
-    await usePromptBuilderStream(chatMessages.value, {
-      onMessage: (text) => {
-        chatLog.value[assistantIndex]!.text = text
-      },
-      onPrompt: (p) => {
-        currentPromptDraft.value = p
-      },
-      onTitle: (title) => {
-        if (!saveTitle.value) saveTitle.value = title
-      },
-    })
-    if (!chatLog.value[assistantIndex]!.text) chatLog.value[assistantIndex]!.text = 'Draft created.'
-    chatMessages.value.push({ role: 'assistant', content: currentPromptDraft.value })
-  } catch (e) {
-    console.error('Failed to generate draft', e)
-    chatLog.value[assistantIndex]!.text = 'Sorry, I encountered an error generating the draft.'
-  } finally {
-    chatting.value = false
-  }
-}
-
-async function sendChatMessage() {
-  if (!chatInput.value.trim() || chatting.value) return
-
-  const text = chatInput.value.trim()
-  chatInput.value = ''
-  chatLog.value.push({ role: 'user', text })
-  chatting.value = true
-
-  const stateContext = currentPromptDraft.value
-    ? `\n\nCURRENT PROMPT DRAFT:\n${currentPromptDraft.value}`
-    : ''
-  chatMessages.value.push({ role: 'user' as const, content: `${text}${stateContext}` })
-
-  chatLog.value.push({ role: 'assistant', text: '' })
-  const assistantIndex = chatLog.value.length - 1
-
-  try {
-    await usePromptBuilderStream(chatMessages.value, {
-      onMessage: (t) => {
-        chatLog.value[assistantIndex]!.text = t
-      },
-      onPrompt: (p) => {
-        currentPromptDraft.value = p
-      },
-      onTitle: (title) => {
-        if (!saveTitle.value) saveTitle.value = title
-      },
-    })
-    if (!chatLog.value[assistantIndex]!.text)
-      chatLog.value[assistantIndex]!.text = 'Updated the prompt.'
-    chatMessages.value.push({ role: 'assistant', content: currentPromptDraft.value })
-  } catch (e) {
-    console.error('Chat failed', e)
-    chatLog.value[assistantIndex]!.text = 'Error refining prompt.'
-    chatMessages.value.pop()
-  } finally {
-    chatting.value = false
-  }
-}
-
-function handleChatKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    sendChatMessage()
-  }
+  composeDraft()
 }
 
 async function handleSaveToLibrary() {
@@ -251,12 +156,7 @@ function resetCompose() {
   for (const key of Object.keys(composeSelection)) {
     composeSelection[key] = null
   }
-  chatMessages.value = []
-  chatLog.value = []
-  currentPromptDraft.value = ''
-  chatInput.value = ''
-  savedPromptId.value = null
-  saveTitle.value = ''
+  resetChatState()
 }
 
 // ── Library ───────────────────────────────────────────────────────
@@ -442,8 +342,8 @@ onMounted(() => {
             >
               <template #leading>
                 <NuxtImg
-                  v-if="getPreviewImageUrl(el)"
-                  :src="getPreviewImageUrl(el)!"
+                  v-if="getPresetThumbnail(el.metadata)"
+                  :src="getPresetThumbnail(el.metadata)!"
                   class="size-5 rounded-full object-cover ring-1 ring-default/20 -ml-0.5"
                   width="20"
                   height="20"
@@ -472,7 +372,7 @@ onMounted(() => {
               icon="i-lucide-sparkles"
               :disabled="composeSelectionCount === 0"
               :loading="chatting"
-              @click="composeDraft"
+              @click="handleComposeDraft"
             >
               Compose Draft
             </UButton>
