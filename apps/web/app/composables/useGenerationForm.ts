@@ -113,7 +113,7 @@ export function useGenerationForm() {
 
   // ─── Shared Composables ─────────────────────────────────────
 
-  const { elements: allElements, fetchElements } = usePromptElements()
+  const { elements: allElements, ensureLoaded: ensureElementsLoaded } = usePromptElements()
 
   // Prompt Tags (singleton catalog, local selection)
   const tags = usePromptTags()
@@ -461,7 +461,7 @@ export function useGenerationForm() {
   async function resolveAndActivatePresets(presets: Record<string, string>) {
     // Ensure elements are loaded before resolving names → IDs
     if (!allElements.value.length) {
-      await fetchElements()
+      await ensureElementsLoaded()
     }
 
     const ids: string[] = []

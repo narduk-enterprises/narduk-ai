@@ -108,6 +108,8 @@ onUnmounted(() => {
             <video
               v-else
               :src="item.mediaUrl"
+              :poster="item.thumbnailUrl || undefined"
+              preload="none"
               loop
               muted
               playsinline

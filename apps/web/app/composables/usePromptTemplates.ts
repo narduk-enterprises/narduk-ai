@@ -20,9 +20,15 @@ export interface PromptTemplate {
 }
 
 export function usePromptTemplates() {
-  const templates = ref<PromptTemplate[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const templates = useState<PromptTemplate[]>('prompt-templates', () => [])
+  const loading = useState<boolean>('prompt-templates-loading', () => false)
+  const loaded = useState<boolean>('prompt-templates-loaded', () => false)
+  const error = useState<string | null>('prompt-templates-error', () => null)
+
+  async function ensureLoaded() {
+    if (loaded.value) return
+    await fetchTemplates()
+  }
 
   async function fetchTemplates() {
     loading.value = true
@@ -30,6 +36,7 @@ export function usePromptTemplates() {
     try {
       const data = await $fetch<PromptTemplate[]>('/api/templates')
       templates.value = data
+      loaded.value = true
     } catch (e) {
       error.value = (e as { message?: string }).message || 'Failed to load templates'
     } finally {
@@ -114,6 +121,7 @@ export function usePromptTemplates() {
     loading,
     error,
     fetchTemplates,
+    ensureLoaded,
     createTemplate,
     deleteTemplate,
     compileTemplate,

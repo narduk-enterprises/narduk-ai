@@ -22,7 +22,13 @@ export function usePromptElements() {
   // Singleton state via useState — all consumers share the same fetched data
   const elements = useState<PromptElement[]>('prompt-elements', () => [])
   const loading = useState<boolean>('prompt-elements-loading', () => false)
+  const loaded = useState<boolean>('prompt-elements-loaded', () => false)
   const error = useState<string | null>('prompt-elements-error', () => null)
+
+  async function ensureLoaded() {
+    if (loaded.value) return
+    await fetchElements()
+  }
 
   async function fetchElements() {
     loading.value = true
@@ -30,6 +36,7 @@ export function usePromptElements() {
     try {
       const data = await $fetch<PromptElement[]>('/api/elements')
       elements.value = data
+      loaded.value = true
     } catch (e) {
       error.value = (e as { message?: string }).message || 'Failed to load elements'
     } finally {
@@ -348,6 +355,7 @@ export function usePromptElements() {
     loading,
     error,
     fetchElements,
+    ensureLoaded,
     createElement,
     updateElement,
     deleteElement,

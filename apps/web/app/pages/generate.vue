@@ -91,8 +91,8 @@ const {
 } = useGenerationForm()
 
 const { deleteGeneration } = useGenerate()
-const { elements, fetchElements, remixPrompt } = usePromptElements()
-const { templates, fetchTemplates } = usePromptTemplates()
+const { elements, ensureLoaded: ensureElementsLoaded, remixPrompt } = usePromptElements()
+const { templates, ensureLoaded: ensureTemplatesLoaded } = usePromptTemplates()
 
 const isModifierSlideoverOpen = ref(false)
 const isLibraryModalOpen = ref(false)
@@ -275,10 +275,10 @@ async function handleRemix() {
 }
 
 onMounted(() => {
-  fetchElements()
+  ensureElementsLoaded()
   ensureTagsLoaded()
-  fetchTemplates()
-  loadMoreGenerations(20)
+  ensureTemplatesLoaded()
+  if (!recentGenerations.value.length) loadMoreGenerations(20)
 })
 
 function handlePromptKeydown(e: KeyboardEvent) {
