@@ -70,14 +70,14 @@ AVAILABLE QUICK MODIFIERS:
 ${modifierList}
 
 INSTRUCTIONS:
-1. Determine which preset type best matches the prompt (person, scene, framing, action, style, or "mixed" if multiple)
+1. Determine which preset type best matches the prompt (person, scene, framing, action, style, clothing, or "mixed" if multiple)
 2. Extract attribute values that match the schema fields for that type
 3. Identify Quick Modifier IDs whose snippets or labels match aspects of the prompt
 4. Put any remaining text that doesn't fit into attributes into "remainingPrompt"
 
 Return ONLY valid JSON (no markdown, no code fences):
 {
-  "type": "person|scene|framing|action|style|mixed",
+  "type": "person|scene|framing|action|style|clothing|mixed",
   "attributes": { "key": "value" },
   "matchedModifierIds": ["id1", "id2"],
   "remainingPrompt": "text not captured by attributes"

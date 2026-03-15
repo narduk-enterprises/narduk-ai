@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
     .from(promptElements)
     .where(
       and(
-        inArray(promptElements.type, ['person', 'scene', 'framing', 'action', 'style']),
+        inArray(promptElements.type, ['person', 'scene', 'framing', 'action', 'style', 'clothing']),
         or(isNull(promptElements.attributes), sql`json_valid(${promptElements.attributes}) = 0`),
       ),
     )

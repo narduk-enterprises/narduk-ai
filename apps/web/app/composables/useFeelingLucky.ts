@@ -106,7 +106,9 @@ export function useFeelingLucky(deps: {
         pickedIds.push(person.id)
       }
 
-      const otherTypes = ['scene', 'framing', 'action', 'style'].filter((t) => byType[t]?.length)
+      const otherTypes = ['scene', 'clothing', 'framing', 'action', 'style'].filter(
+        (t) => byType[t]?.length,
+      )
       const shuffled = otherTypes.sort(() => Math.random() - 0.5)
       const pickCount = Math.min(shuffled.length, Math.random() < 0.5 ? 1 : 2)
       for (let i = 0; i < pickCount; i++) {

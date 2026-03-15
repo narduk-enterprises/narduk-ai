@@ -12,7 +12,7 @@ const isModalOpen = ref(false)
 const submitting = ref(false)
 
 const schema = z.object({
-  type: z.enum(['person', 'scene', 'framing', 'action', 'style']),
+  type: z.enum(['person', 'scene', 'framing', 'action', 'style', 'clothing']),
   name: z.string().min(1, 'Name is required').max(100),
   content: z.string().min(1, 'Content is required').max(MAX_PROMPT_ELEMENT_CONTENT_LENGTH),
 })

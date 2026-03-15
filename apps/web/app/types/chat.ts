@@ -1,4 +1,4 @@
-export type ChatMode = 'general' | 'person' | 'scene' | 'framing' | 'action' | 'style'
+export type ChatMode = 'general' | 'person' | 'scene' | 'framing' | 'action' | 'style' | 'clothing'
 
 export type ContentPart =
   | { type: 'text'; text: string }

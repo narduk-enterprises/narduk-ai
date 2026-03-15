@@ -102,7 +102,7 @@ function buildPresetBuilderState(el: PromptElement) {
 async function initPreset(el: PromptElement) {
   loadPreset(el)
 
-  chatMode.value = el.type as 'person' | 'scene' | 'framing' | 'action' | 'style'
+  chatMode.value = el.type as 'person' | 'scene' | 'framing' | 'action' | 'style' | 'clothing'
   await nextTick()
 
   // Try loading persisted chat history
@@ -255,7 +255,7 @@ async function handleSavePrompt(promptText: string) {
   const { createElement, fetchElements } = usePromptElements()
   try {
     await createElement(
-      elementType as 'person' | 'scene' | 'framing' | 'action' | 'style',
+      elementType as 'person' | 'scene' | 'framing' | 'action' | 'style' | 'clothing',
       name,
       promptText,
     )

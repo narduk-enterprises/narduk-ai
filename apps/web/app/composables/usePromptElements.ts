@@ -3,7 +3,7 @@ import { normalizeChatRequestMessages } from '~/utils/chatHistory'
 export interface PromptElement {
   id: string
   userId: string
-  type: 'person' | 'scene' | 'framing' | 'action' | 'style' | 'prompt'
+  type: 'person' | 'scene' | 'framing' | 'action' | 'style' | 'clothing' | 'prompt'
   name: string
   content: string
   attributes?: string | null
@@ -119,7 +119,7 @@ export function usePromptElements() {
     components: Record<string, string | null>,
     mediaType: 'image' | 'video' = 'image',
   ) {
-    const parts = ['person', 'scene', 'framing', 'action', 'style']
+    const parts = ['person', 'scene', 'clothing', 'framing', 'action', 'style']
       .map((t) => {
         const content = components[t]
         if (!content) return null

@@ -174,6 +174,27 @@ export function styleToProse(attrs: Record<string, string>): string {
   return parts
 }
 
+// ─── Clothing ─────────────────────────────────────────────────
+
+export function clothingToProse(attrs: Record<string, string>): string {
+  const a = filterAttrs(attrs)
+  if (!Object.keys(a).length) return ''
+
+  const parts = joinParts([
+    a.fit,
+    a.color,
+    a.pattern && a.pattern.toLowerCase() !== 'solid' ? a.pattern : null,
+    a.fabric,
+    a.garment,
+    a.details,
+    a.footwear ? `with ${a.footwear}` : null,
+    a.accessories,
+    a.vibe ? `${a.vibe} vibe` : null,
+  ])
+
+  return parts ? `wearing ${parts}` : ''
+}
+
 // ─── Dispatcher ───────────────────────────────────────────────
 
 const TYPE_TO_PROSE: Record<string, (attrs: Record<string, string>) => string> = {
@@ -182,6 +203,7 @@ const TYPE_TO_PROSE: Record<string, (attrs: Record<string, string>) => string> =
   framing: framingToProse,
   action: actionToProse,
   style: styleToProse,
+  clothing: clothingToProse,
 }
 
 /**

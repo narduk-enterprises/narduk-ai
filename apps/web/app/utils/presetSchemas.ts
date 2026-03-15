@@ -14,7 +14,7 @@ export interface AttributeField {
   group?: string
 }
 
-export type PresetType = 'person' | 'scene' | 'framing' | 'action' | 'style'
+export type PresetType = 'person' | 'scene' | 'framing' | 'action' | 'style' | 'clothing'
 
 // ─── Person Schema ─────────────────────────────────────────
 
@@ -280,6 +280,48 @@ export const STYLE_SCHEMA: AttributeField[] = [
   },
 ]
 
+// ─── Clothing Schema ───────────────────────────────────────
+
+export const CLOTHING_SCHEMA: AttributeField[] = [
+  { key: 'name', label: 'Name', description: 'Short outfit name', group: 'identity' },
+  {
+    key: 'description',
+    label: 'Description',
+    description: '3-word evocative label',
+    group: 'identity',
+  },
+  { key: 'garment', label: 'Garment', description: 'Main clothing item', group: 'outfit' },
+  { key: 'fabric', label: 'Fabric', description: 'Material and texture', group: 'outfit' },
+  { key: 'fit', label: 'Fit', description: 'Tight, loose, tailored, etc.', group: 'outfit' },
+  { key: 'color', label: 'Color', description: 'Primary color(s)', group: 'outfit' },
+  {
+    key: 'pattern',
+    label: 'Pattern',
+    description: 'Solid, striped, floral, etc.',
+    group: 'visual',
+  },
+  {
+    key: 'details',
+    label: 'Details',
+    description: 'Buttons, zippers, embroidery, etc.',
+    group: 'visual',
+  },
+  { key: 'footwear', label: 'Footwear', description: 'Shoes or boots', group: 'accessories' },
+  {
+    key: 'accessories',
+    label: 'Accessories',
+    description: 'Belt, hat, bag, jewelry',
+    group: 'accessories',
+  },
+  { key: 'vibe', label: 'Vibe', description: 'Casual, elegant, sporty, etc.', group: 'character' },
+  {
+    key: 'season',
+    label: 'Season',
+    description: 'Intended season or climate',
+    group: 'character',
+  },
+]
+
 // ─── Registry ──────────────────────────────────────────────
 
 export const PRESET_SCHEMAS: Record<string, AttributeField[]> = {
@@ -288,6 +330,7 @@ export const PRESET_SCHEMAS: Record<string, AttributeField[]> = {
   framing: FRAMING_SCHEMA,
   action: ACTION_SCHEMA,
   style: STYLE_SCHEMA,
+  clothing: CLOTHING_SCHEMA,
 }
 const FALLBACK_PROMPT_ATTRIBUTE_KEY = 'prompt'
 
@@ -313,6 +356,7 @@ export const SCENE_ATTRIBUTES = PRESET_ATTRIBUTES.scene!
 export const FRAMING_ATTRIBUTES = PRESET_ATTRIBUTES.framing!
 export const ACTION_ATTRIBUTES = PRESET_ATTRIBUTES.action!
 export const STYLE_ATTRIBUTES = PRESET_ATTRIBUTES.style!
+export const CLOTHING_ATTRIBUTES = PRESET_ATTRIBUTES.clothing!
 
 // Type alias for person attribute keys
 export type PersonAttribute = (typeof PERSON_ATTRIBUTES)[number]

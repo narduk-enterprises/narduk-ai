@@ -1,4 +1,4 @@
-const PRESET_ELEMENT_TYPES = ['person', 'scene', 'framing', 'action', 'style'] as const
+const PRESET_ELEMENT_TYPES = ['person', 'scene', 'framing', 'action', 'style', 'clothing'] as const
 const FALLBACK_PROMPT_ATTRIBUTE_KEY = 'prompt'
 
 type PresetElementType = (typeof PRESET_ELEMENT_TYPES)[number]

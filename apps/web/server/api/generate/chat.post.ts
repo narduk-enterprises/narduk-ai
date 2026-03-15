@@ -18,7 +18,7 @@ const messageSchema = z.object({
 
 const bodySchema = z.object({
   chatMode: z
-    .enum(['general', 'person', 'scene', 'framing', 'action', 'style'])
+    .enum(['general', 'person', 'scene', 'framing', 'action', 'style', 'clothing'])
     .optional()
     .default('general'),
   messages: z.array(messageSchema).max(500),

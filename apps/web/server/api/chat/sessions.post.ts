@@ -2,7 +2,9 @@ import { z } from 'zod'
 import { chatSessions } from '#server/database/schema'
 
 const bodySchema = z.object({
-  mode: z.enum(['general', 'person', 'scene', 'framing', 'action', 'style']).default('general'),
+  mode: z
+    .enum(['general', 'person', 'scene', 'framing', 'action', 'style', 'clothing'])
+    .default('general'),
   model: z.string().max(64).default('grok-3-mini'),
   title: z.string().max(200).optional(),
 })

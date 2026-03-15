@@ -9,7 +9,7 @@ import {
 import { MAX_PROMPT_ELEMENT_CONTENT_LENGTH } from '~/utils/promptLimits'
 
 const bodySchema = z.object({
-  type: z.enum(['person', 'scene', 'framing', 'action', 'style', 'prompt']),
+  type: z.enum(['person', 'scene', 'framing', 'action', 'style', 'clothing', 'prompt']),
   name: z.string().min(1).max(100),
   content: z.string().min(1).max(MAX_PROMPT_ELEMENT_CONTENT_LENGTH),
   attributes: z.string().max(MAX_PROMPT_ELEMENT_CONTENT_LENGTH).nullish(),

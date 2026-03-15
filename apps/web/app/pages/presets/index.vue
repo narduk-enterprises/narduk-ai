@@ -45,10 +45,11 @@ const filterCounts = computed(() => {
 
 // Build ordered category sections for the "All" view
 const categorySections = computed(() => {
-  const order = ['person', 'scene', 'framing', 'action', 'style', 'prompt']
+  const order = ['person', 'scene', 'clothing', 'framing', 'action', 'style', 'prompt']
   const labelMap: Record<string, string> = {
     person: 'Persons',
     scene: 'Scenes',
+    clothing: 'Clothing',
     framing: 'Framing',
     action: 'Actions',
     style: 'Styles',
@@ -57,6 +58,7 @@ const categorySections = computed(() => {
   const iconMap: Record<string, string> = {
     person: 'i-lucide-user',
     scene: 'i-lucide-image',
+    clothing: 'i-lucide-shirt',
     framing: 'i-lucide-camera',
     action: 'i-lucide-activity',
     style: 'i-lucide-palette',

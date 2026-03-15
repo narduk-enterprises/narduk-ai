@@ -234,7 +234,7 @@ export function usePresetEditor() {
         })
       } else {
         // Create new — include attributes JSON
-        const payloadType = mode as 'person' | 'scene' | 'framing' | 'action' | 'style'
+        const payloadType = mode as 'person' | 'scene' | 'framing' | 'action' | 'style' | 'clothing'
         const created = await createElement(payloadType, name, content, metadataStr, attributesJson)
         currentPresetId.value = created?.id ?? null
       }

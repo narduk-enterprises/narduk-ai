@@ -216,7 +216,7 @@ async function handleSaveToLibrary() {
   if (!currentPromptDraft.value || savingPrompt.value) return
   let title = saveTitle.value.trim()
   if (!title) {
-    const componentNames = ['person', 'scene', 'framing', 'action', 'style']
+    const componentNames = ['person', 'scene', 'clothing', 'framing', 'action', 'style']
       .filter((t) => composeSelection[t])
       .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
     title = componentNames.length > 0 ? `Composed: ${componentNames.join(' + ')}` : 'New Prompt'

@@ -137,15 +137,16 @@ const templateSelectItems = computed(() =>
 const PRESET_TYPE_CONFIG: Record<string, { label: string; icon: string; order: number }> = {
   person: { label: 'Person', icon: 'i-lucide-user', order: 0 },
   scene: { label: 'Scene', icon: 'i-lucide-mountain', order: 1 },
-  style: { label: 'Style', icon: 'i-lucide-palette', order: 2 },
-  framing: { label: 'Framing', icon: 'i-lucide-frame', order: 3 },
-  action: { label: 'Action', icon: 'i-lucide-zap', order: 4 },
+  clothing: { label: 'Clothing', icon: 'i-lucide-shirt', order: 2 },
+  style: { label: 'Style', icon: 'i-lucide-palette', order: 3 },
+  framing: { label: 'Framing', icon: 'i-lucide-frame', order: 4 },
+  action: { label: 'Action', icon: 'i-lucide-zap', order: 5 },
 }
 
 const personElements = computed(() => elements.value.filter((el) => el.type === 'person'))
 
 const otherPresetTypes = computed(() => {
-  const types = ['scene', 'style', 'framing', 'action']
+  const types = ['scene', 'clothing', 'style', 'framing', 'action']
   return types
     .filter((t) => elements.value.some((el) => el.type === t))
     .map((t) => ({
