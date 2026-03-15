@@ -5,6 +5,11 @@
  */
 const route = useRoute()
 const showFooter = computed(() => route.path !== '/chat' && !route.path.startsWith('/presets/'))
+
+// Full-height pages manage their own scroll — prevent outer container from scrolling
+const isFullHeightPage = computed(
+  () => route.path === '/chat' || route.path.startsWith('/presets/'),
+)
 </script>
 
 <template>
@@ -16,11 +21,18 @@ const showFooter = computed(() => route.path !== '/chat' && !route.path.startsWi
       Skip to content
     </ULink>
 
-    <div class="min-h-screen flex flex-col">
+    <div
+      class="flex flex-col"
+      :class="isFullHeightPage ? 'h-dvh overflow-hidden' : 'min-h-screen'"
+    >
       <AppHeader />
 
       <!-- eslint-disable-next-line narduk/no-native-layout -- app-level scaffold: semantic landmark element -->
-      <main id="main-content" class="flex-1">
+      <main
+        id="main-content"
+        class="flex-1"
+        :class="isFullHeightPage ? 'overflow-hidden min-h-0' : ''"
+      >
         <NuxtLayout>
           <NuxtPage />
         </NuxtLayout>

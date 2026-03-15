@@ -188,7 +188,7 @@ function handleNewChat() {
 </script>
 
 <template>
-  <div class="h-[calc(100dvh-4rem)] flex flex-col bg-default">
+  <div class="h-[calc(100dvh-4rem)] flex flex-col overflow-hidden bg-default">
     <!-- Header -->
     <div
       class="h-14 border-b border-default/50 px-4 md:px-6 flex items-center justify-between shrink-0 glass z-10"
@@ -246,7 +246,7 @@ function handleNewChat() {
     </div>
 
     <!-- Messages -->
-    <div ref="scrollRef" class="flex-1 overflow-y-auto p-4 md:p-6">
+    <div ref="scrollRef" class="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
       <UAlert
         v-if="error"
         color="error"
