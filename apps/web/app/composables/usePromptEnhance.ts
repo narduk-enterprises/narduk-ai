@@ -12,14 +12,7 @@ export function usePromptEnhance(deps: {
   sourceGeneration: ComputedRef<Generation | null>
   latestResult: Ref<Generation | null>
 }) {
-  const {
-    prompt,
-    error,
-    compilePrompt,
-    currentMediaType,
-    sourceGeneration,
-    latestResult,
-  } = deps
+  const { prompt, error, compilePrompt, currentMediaType, sourceGeneration, latestResult } = deps
 
   // ─── Enhance Modal ────────────────────────────────────────────
   const isEnhanceModalOpen = ref(false)

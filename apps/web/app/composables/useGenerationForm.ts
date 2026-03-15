@@ -323,7 +323,8 @@ export function useGenerationForm() {
 
       // Look up from store directly — avoid depending on doneImages computed
       const store = useGenerationsStore()
-      const existing = store.items.find((g: Generation) => g.id === sourceId && g.status === 'done') || null
+      const existing =
+        store.items.find((g: Generation) => g.id === sourceId && g.status === 'done') || null
       if (existing) {
         hydratedSourceGeneration.value = existing
         return
@@ -349,7 +350,9 @@ export function useGenerationForm() {
     if (!sourceGenerationId.value) return null
     const store = useGenerationsStore()
     return (
-      store.items.find((g: Generation) => g.id === sourceGenerationId.value && g.status === 'done') ||
+      store.items.find(
+        (g: Generation) => g.id === sourceGenerationId.value && g.status === 'done',
+      ) ||
       (hydratedSourceGeneration.value?.id === sourceGenerationId.value
         ? hydratedSourceGeneration.value
         : null)

@@ -169,7 +169,10 @@ const personSelectItems = computed(() =>
 )
 
 const typeSelectItemsMap = computed(() => {
-  const map: Record<string, Array<{ label: string; value: string; avatar?: { src: string; size: 'xs' } }>> = {}
+  const map: Record<
+    string,
+    Array<{ label: string; value: string; avatar?: { src: string; size: 'xs' } }>
+  > = {}
   for (const el of elements.value) {
     if (el.type === 'person') continue // handled by personSelectItems
     if (!map[el.type]) map[el.type] = []
