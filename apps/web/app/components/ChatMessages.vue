@@ -169,16 +169,6 @@ function handleInlineImageKeydown(event: KeyboardEvent, msg: ChatMessage) {
   handleViewerKeydown(event, () => openInlineViewer(msg))
 }
 
-function openIterationStepViewer(step: IterationStep) {
-  if (!step.imageUrl) return
-
-  openInViewer(step.imageUrl, step.renderedPrompt || step.prompt, step.generationId)
-}
-
-function handleIterationImageKeydown(event: KeyboardEvent, step: IterationStep) {
-  handleViewerKeydown(event, () => openIterationStepViewer(step))
-}
-
 function handleOpenImage(url: string, prompt: string, generationId?: string | null) {
   openInViewer(url, prompt, generationId)
 }

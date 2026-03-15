@@ -44,13 +44,20 @@ const submitLabel = computed(() =>
     ? 'Run 1 Round'
     : `Run ${props.iterationPassCount} Rounds`,
 )
+
+const hasContent = computed(
+  () => !!props.iterationGoal.trim() || !!props.iterationPrompt.trim(),
+)
+const showCollapsed = computed(
+  () => props.isFormCollapsed && (props.isIterating || hasContent.value),
+)
 </script>
 
 <template>
   <div class="glass-card overflow-hidden">
     <!-- Mobile collapsed summary bar -->
     <div
-      v-if="isFormCollapsed && isIterating"
+      v-if="showCollapsed"
       class="flex items-center justify-between gap-3 px-4 py-3 md:hidden cursor-pointer"
       role="button"
       tabindex="0"
@@ -59,10 +66,11 @@ const submitLabel = computed(() =>
       <div class="flex items-center gap-2 min-w-0">
         <UIcon
           name="i-lucide-wand-sparkles"
-          class="size-4 text-primary shrink-0 animate-spin"
+          class="size-4 text-primary shrink-0"
+          :class="isIterating ? 'animate-spin' : ''"
         />
         <div class="min-w-0">
-          <p class="text-sm font-medium truncate">{{ iterationGoal || 'Refining...' }}</p>
+          <p class="text-sm font-medium truncate">{{ iterationGoal || 'Prompt Refiner' }}</p>
           <p class="text-[10px] text-muted">
             {{ iterationPassCount }} {{ iterationPassCount === 1 ? 'round' : 'rounds' }} · Tap to
             expand
@@ -71,6 +79,7 @@ const submitLabel = computed(() =>
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <UButton
+          v-if="isIterating"
           color="neutral"
           variant="outline"
           icon="i-lucide-octagon-x"
@@ -86,7 +95,7 @@ const submitLabel = computed(() =>
     <!-- Full form -->
     <div
       class="px-4 py-4 sm:px-5 sm:py-5 space-y-4"
-      :class="{ 'hidden md:block': isFormCollapsed && isIterating }"
+      :class="{ 'hidden md:block': showCollapsed }"
     >
       <!-- Card header -->
       <div class="flex items-center justify-between gap-2.5">
@@ -102,7 +111,6 @@ const submitLabel = computed(() =>
           </div>
         </div>
         <UButton
-          v-if="isIterating"
           color="neutral"
           variant="ghost"
           icon="i-lucide-chevron-up"

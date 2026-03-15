@@ -270,9 +270,9 @@ function handleNewChat() {
 
     <!-- Input Area -->
     <div
-      class="px-3 pt-3 md:px-6 md:pt-4 md:pb-8 bg-default border-t border-default/50 shrink-0 pb-safe"
+      class="px-3 pt-2 md:px-6 md:pt-4 md:pb-8 bg-default border-t border-default/50 shrink-0 pb-safe"
     >
-      <div class="max-w-5xl mx-auto space-y-3">
+      <div class="max-w-5xl mx-auto space-y-2 md:space-y-3">
         <!-- Segmented Mode Toggle -->
         <div
           class="inline-flex items-center rounded-full bg-elevated border border-default/50 p-0.5 relative"

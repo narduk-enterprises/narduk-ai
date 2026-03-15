@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { IterationRun, IterationStep } from '~/types/chat'
 
-const props = defineProps<{
+defineProps<{
   run: IterationRun
   imageSteps: IterationStep[]
   savePromptText: string
@@ -38,6 +38,20 @@ function handleImageKeydown(event: KeyboardEvent, step: IterationStep) {
   if (event.key !== 'Enter' && event.key !== ' ') return
   event.preventDefault()
   openStepViewer(step)
+}
+
+const PROMPT_COLLAPSE_THRESHOLD = 120
+const expandedPrompts = ref(new Set<number>())
+
+function isPromptExpanded(iteration: number) {
+  return expandedPrompts.value.has(iteration)
+}
+
+function togglePrompt(iteration: number) {
+  const next = new Set(expandedPrompts.value)
+  if (next.has(iteration)) next.delete(iteration)
+  else next.add(iteration)
+  expandedPrompts.value = next
 }
 </script>
 
@@ -158,31 +172,50 @@ function handleImageKeydown(event: KeyboardEvent, step: IterationStep) {
                   <p class="text-xs text-default/90 leading-relaxed">{{ step.imageAnalysis }}</p>
                 </div>
 
-                <!-- Prompt used -->
+                <!-- Prompt used (auto-collapsed for long prompts) -->
                 <div
                   v-if="step.renderedPrompt"
                   class="rounded-lg bg-elevated/50 border border-default/30 px-3 py-2"
                 >
-                  <div class="flex items-center gap-1.5 mb-1">
+                  <div
+                    class="flex items-center gap-1.5 cursor-pointer"
+                    role="button"
+                    tabindex="0"
+                    @click="togglePrompt(step.iteration)"
+                    @keydown.enter="togglePrompt(step.iteration)"
+                  >
+                    <UIcon
+                      :name="isPromptExpanded(step.iteration) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                      class="size-3 text-dimmed transition-transform"
+                    />
                     <UIcon name="i-lucide-file-text" class="size-3.5 text-dimmed" />
                     <span class="text-[11px] font-semibold text-dimmed uppercase tracking-wider">
                       Prompt Used
                     </span>
                   </div>
-                  <p class="text-xs text-muted leading-relaxed font-mono wrap-break-word">
+                  <p
+                    v-if="step.renderedPrompt.length <= PROMPT_COLLAPSE_THRESHOLD || isPromptExpanded(step.iteration)"
+                    class="text-xs text-muted leading-relaxed font-mono wrap-break-word mt-1.5"
+                  >
                     {{ step.renderedPrompt }}
+                  </p>
+                  <p
+                    v-else
+                    class="text-xs text-muted leading-relaxed font-mono wrap-break-word mt-1.5"
+                  >
+                    {{ step.renderedPrompt.slice(0, PROMPT_COLLAPSE_THRESHOLD) }}…
                   </p>
                 </div>
 
-                <div v-if="step.generationId" class="pt-0.5">
+                <div v-if="step.imageUrl" class="pt-0.5">
                   <UButton
                     color="neutral"
                     variant="ghost"
                     size="xs"
-                    icon="i-lucide-images"
-                    :to="`/gallery/${step.generationId}`"
+                    icon="i-lucide-maximize-2"
+                    @click="openStepViewer(step)"
                   >
-                    Open in Gallery
+                    View Full Size
                   </UButton>
                 </div>
               </div>
