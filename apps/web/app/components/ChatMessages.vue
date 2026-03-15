@@ -553,7 +553,10 @@ function getIterationStatusLabel(run: IterationRun) {
 
               <!-- Failed indicator as timeline step -->
               <div v-if="entry.iterationRun.status === 'failed'" class="iteration-step">
-                <div class="iteration-step-dot" style="background: var(--ui-color-error); color: white;">
+                <div
+                  class="iteration-step-dot"
+                  style="background: var(--ui-color-error); color: white"
+                >
                   <UIcon name="i-lucide-x" class="size-3" />
                 </div>
                 <div
@@ -562,7 +565,9 @@ function getIterationStatusLabel(run: IterationRun) {
                   <div class="flex flex-col gap-0.5">
                     <span class="text-sm font-medium text-error">Failed</span>
                     <span class="text-xs text-muted">
-                      Something went wrong on round {{ (entry.iterationRun.completedIterations || 0) + 1 }}. You can retry or continue from the last successful point.
+                      Something went wrong on round
+                      {{ (entry.iterationRun.completedIterations || 0) + 1 }}. You can retry or
+                      continue from the last successful point.
                     </span>
                   </div>
                 </div>
@@ -594,7 +599,11 @@ function getIterationStatusLabel(run: IterationRun) {
               <UButton
                 color="primary"
                 :variant="entry.iterationRun.status === 'failed' ? 'solid' : 'soft'"
-                :icon="entry.iterationRun.status === 'failed' ? 'i-lucide-refresh-cw' : 'i-lucide-rotate-cw'"
+                :icon="
+                  entry.iterationRun.status === 'failed'
+                    ? 'i-lucide-refresh-cw'
+                    : 'i-lucide-rotate-cw'
+                "
                 size="sm"
                 @click="handleContinueIteration(entry.iterationRun)"
               >

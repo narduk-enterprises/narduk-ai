@@ -67,7 +67,9 @@ function saveFormState() {
   }
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  } catch { /* quota exceeded — ignore */ }
+  } catch {
+    /* quota exceeded — ignore */
+  }
 }
 
 function restoreFormState() {
@@ -81,7 +83,9 @@ function restoreFormState() {
     if (state.goal) iterationGoal.value = state.goal
     if (state.context) iterationContext.value = state.context
     if (state.passCount) iterationPassCount.value = state.passCount
-  } catch { /* corrupt data — ignore */ }
+  } catch {
+    /* corrupt data — ignore */
+  }
 }
 
 function clearFormState() {
@@ -380,11 +384,15 @@ function handleNewChat() {
             @click="isFormCollapsed = false"
           >
             <div class="flex items-center gap-2 min-w-0">
-              <UIcon name="i-lucide-wand-sparkles" class="size-4 text-primary shrink-0 animate-spin" />
+              <UIcon
+                name="i-lucide-wand-sparkles"
+                class="size-4 text-primary shrink-0 animate-spin"
+              />
               <div class="min-w-0">
                 <p class="text-sm font-medium truncate">{{ iterationGoal || 'Refining...' }}</p>
                 <p class="text-[10px] text-muted">
-                  {{ iterationPassCount }} {{ iterationPassCount === 1 ? 'round' : 'rounds' }} · Tap to expand
+                  {{ iterationPassCount }} {{ iterationPassCount === 1 ? 'round' : 'rounds' }} · Tap
+                  to expand
                 </p>
               </div>
             </div>
@@ -433,7 +441,11 @@ function handleNewChat() {
             </div>
 
             <UForm
-              :state="{ prompt: iterationPrompt, goal: iterationGoal, passCount: iterationPassCount }"
+              :state="{
+                prompt: iterationPrompt,
+                goal: iterationGoal,
+                passCount: iterationPassCount,
+              }"
               class="w-full space-y-3"
               @submit.prevent="() => startIterationRun()"
             >
