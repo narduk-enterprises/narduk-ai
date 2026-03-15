@@ -147,7 +147,7 @@ async function savePromptToLibrary(promptText: string) {
 
   savingPrompt.value = true
   try {
-    await createElement('prompt', name, promptText)
+    await createElement('scene', name, promptText)
     toast.add({
       title: 'Saved to Presets',
       description: `"${name}" has been added to your presets.`,
@@ -155,10 +155,12 @@ async function savePromptToLibrary(promptText: string) {
       color: 'success',
     })
     await fetchElements()
-  } catch {
+  } catch (e) {
+    const err = e as { data?: { message?: string }; message?: string }
+    console.error('[chat] Failed to save preset:', err)
     toast.add({
       title: 'Failed to Save',
-      description: 'An error occurred while saving.',
+      description: err.data?.message || err.message || 'An error occurred while saving.',
       icon: 'i-lucide-alert-triangle',
       color: 'error',
     })
