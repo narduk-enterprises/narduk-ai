@@ -6,10 +6,7 @@ const bodySchema = z.object({
   basePrompt: z
     .string()
     .min(1)
-    .max(2000)
-    .default(
-      'standing naturally, hands on hips, full body shot, white studio background, soft natural lighting, photorealistic, shot on Sony A7IV, 35mm',
-    ),
+    .max(2000),
   /** Number of person variations to generate */
   count: z.coerce.number().min(1).max(100).default(10),
   /** Aspect ratio for all generated images */
@@ -54,25 +51,20 @@ export default defineEventHandler(async (event) => {
     userId: user.id,
     batchId,
     count: body.count,
+    basePrompt: body.basePrompt,
   })
 
   // Step 1: Generate person variations via Grok Chat
-  // Use the basePrompt to derive what kind of subject variations to create
-  const variationsPrompt = `You are generating ${body.count} unique visual variations for AI image generation.
+  // The user's basePrompt is used EXACTLY — variations only add a short appearance prefix
+  const variationsPrompt = `Generate ${body.count} SHORT appearance-only descriptions to prepend to this image generation prompt:
 
-The user's base prompt is: "${body.basePrompt}"
+"${body.basePrompt}"
 
-Analyze the base prompt to understand the subject (person, object, scene, etc.) and generate ${body.count} COMPLETELY DIFFERENT variations of that subject. Each variation should change the visual attributes dramatically while keeping the same general category.
+Each description should ONLY describe how the person/subject LOOKS — hair, face, body type, clothing, accessories. Keep them to 1 short sentence of comma-separated visual traits.
 
-For people: vary hair color/style, body type, facial features, clothing, accessories, skin tone, eye color, overall vibe.
-For objects/scenes: vary materials, colors, lighting, style, composition, mood.
+Do NOT repeat anything from the base prompt (pose, framing, age, etc.) — your output gets prepended directly before it.
 
-Rules:
-- Each description should be 1-2 sentences max, written as comma-separated visual descriptors
-- The descriptors will be PREPENDED to the base prompt, so don't repeat what's already in the base prompt (like pose or framing)
-- NO names, NO backstories — visual descriptors only
-
-Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description": "the visual descriptors" }, ...] }`
+Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description": "appearance descriptors only" }, ...] }`
 
   let variations: PersonVariation[]
 
@@ -113,7 +105,9 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
   const maxRetries = 3
 
   async function generateOne(variation: PersonVariation) {
+    // User's exact prompt with only appearance descriptors prepended
     const prompt = `${variation.description}, ${body.basePrompt}`
+    log.info('Image prompt', { batchId, variation: variation.name, prompt })
     let attempt = 0
 
     while (attempt < maxRetries) {
