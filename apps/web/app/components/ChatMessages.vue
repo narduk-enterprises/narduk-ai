@@ -240,12 +240,19 @@ function getLatestIterationReview(run: IterationRun) {
       </template>
 
       <!-- Assistant Chat Bubble -->
-      <div
-        v-else-if="entry.hasAssistantBubbleContent"
-        class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-elevated text-default border border-default rounded-tl-sm shadow-sm"
+      <template v-else-if="entry.hasAssistantBubbleContent">
+        <div class="flex items-center gap-1.5 mb-1">
+          <div class="flex items-center justify-center size-5 rounded-full bg-primary/15">
+            <UIcon name="i-lucide-bot" class="size-3 text-primary" />
+          </div>
+          <span class="text-[11px] font-medium text-muted">Grok</span>
+        </div>
+        <div
+          class="p-4 rounded-2xl text-sm md:text-base leading-relaxed bg-elevated text-default border border-default rounded-tl-sm shadow-sm"
       >
-        <MarkdownRenderer :content="getDisplayContent(entry.message)" />
-      </div>
+          <MarkdownRenderer :content="getDisplayContent(entry.message)" />
+        </div>
+      </template>
 
       <!-- Inline Generated Image -->
       <div v-if="entry.inlineImageUrl" class="mt-3 animate-fade-in-up">
@@ -356,104 +363,114 @@ function getLatestIterationReview(run: IterationRun) {
       </div>
 
       <div v-if="entry.iterationRun" class="mt-3 w-full animate-fade-in-up">
-        <UCard class="ring-1 ring-primary/20 bg-primary/5">
-          <div class="p-4 sm:p-5 space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div class="space-y-1">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                  Iteration Trace
-                </p>
-                <p class="text-sm text-muted">
-                  Round {{ entry.iterationRun.round }} ·
+        <UCard class="ring-1 ring-primary/20 overflow-hidden">
+          <!-- Header -->
+          <div class="px-4 pt-4 sm:px-5 sm:pt-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+              <div class="flex items-center justify-center size-8 rounded-full bg-primary/10">
+                <UIcon name="i-lucide-sparkles" class="size-4 text-primary" />
+              </div>
+              <div>
+                <p class="font-display font-semibold text-sm text-default">Refinement Progress</p>
+                <p class="text-xs text-muted">
                   {{ getIterationStatusLabel(entry.iterationRun) }}
                 </p>
               </div>
-              <UBadge
-                :color="getIterationStatusTone(entry.iterationRun.status)"
-                variant="subtle"
-                size="sm"
-              >
-                {{ entry.iterationRun.completedIterations }}/{{
-                  entry.iterationRun.totalIterations
-                }}
-              </UBadge>
             </div>
-
-            <div class="rounded-xl border border-default/50 bg-default/60 px-3 py-2">
-              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed">Goal</p>
-              <p class="mt-1 text-sm text-default whitespace-pre-wrap">
-                {{ entry.iterationRun.goal }}
-              </p>
-            </div>
-
-            <div class="grid gap-3 md:grid-cols-2">
-              <div
-                v-if="entry.iterationRun.context"
-                class="rounded-xl border border-default/50 bg-default/60 px-3 py-2"
-              >
-                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed">
-                  Context & Feedback
-                </p>
-                <p class="mt-1 text-sm text-default whitespace-pre-wrap">
-                  {{ entry.iterationRun.context }}
-                </p>
-              </div>
-
-              <div class="rounded-xl border border-default/50 bg-default/60 px-3 py-2">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed">
-                  Agent Scope
-                </p>
-                <p class="mt-1 text-sm text-default whitespace-pre-wrap">
-                  {{
-                    entry.iterationRun.status === 'running'
-                      ? 'This pass uses the goal, your latest context notes, prior pass summaries, and the rendered images from this run.'
-                      : 'This run used the goal, your context notes, prior pass summaries, and the rendered images from this run.'
-                  }}
-                </p>
-              </div>
-            </div>
-
-            <div
-              v-if="getLatestIterationReview(entry.iterationRun)"
-              class="rounded-xl border border-default/50 bg-default/60 px-3 py-2"
+            <UBadge
+              :color="getIterationStatusTone(entry.iterationRun.status)"
+              variant="subtle"
+              size="sm"
             >
-              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed">
-                Latest Visual Review
-              </p>
-              <p class="mt-1 text-sm text-default whitespace-pre-wrap">
-                {{ getLatestIterationReview(entry.iterationRun) }}
-              </p>
-            </div>
+              {{ entry.iterationRun.completedIterations }}/{{
+                entry.iterationRun.totalIterations
+              }}
+              rounds
+            </UBadge>
+          </div>
 
-            <div class="space-y-2">
+          <!-- Goal pill -->
+          <div class="px-4 pt-3 sm:px-5">
+            <div class="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/10 px-3 py-2">
+              <UIcon name="i-lucide-target" class="size-4 text-primary shrink-0 mt-0.5" />
+              <p class="text-sm text-default leading-relaxed">{{ entry.iterationRun.goal }}</p>
+            </div>
+          </div>
+
+          <!-- Context pill (only if present) -->
+          <div v-if="entry.iterationRun.context" class="px-4 pt-2 sm:px-5">
+            <div class="flex items-start gap-2 rounded-lg bg-elevated border border-default/50 px-3 py-2">
+              <UIcon name="i-lucide-message-circle" class="size-4 text-muted shrink-0 mt-0.5" />
+              <p class="text-sm text-muted leading-relaxed">{{ entry.iterationRun.context }}</p>
+            </div>
+          </div>
+
+          <!-- Image comparison strip (when multiple passes have images) -->
+          <div
+            v-if="entry.iterationRun.steps.filter((s: IterationStep) => s.imageUrl).length > 1"
+            class="px-4 pt-4 sm:px-5"
+          >
+            <p class="text-[11px] font-semibold text-dimmed uppercase tracking-wider mb-2">
+              Visual Progression
+            </p>
+            <div class="image-strip">
+              <div
+                v-for="(step, si) in entry.iterationRun.steps.filter((s: IterationStep) => s.imageUrl)"
+                :key="`strip-${si}`"
+                class="relative rounded-xl overflow-hidden ring-1 ring-primary/20 hover:ring-primary/50 transition-all hover:scale-[1.02] shadow-card cursor-zoom-in"
+                role="button"
+                tabindex="0"
+                @click="openIterationStepViewer(step)"
+                @keydown="handleIterationImageKeydown($event, step)"
+              >
+                <img
+                  :src="step.imageUrl!"
+                  :alt="`Round ${step.iteration}`"
+                  class="h-24 w-auto min-w-20 object-cover"
+                />
+                <span
+                  class="absolute bottom-1 left-1 text-[10px] font-bold text-white bg-black/60 rounded-full px-1.5 py-0.5"
+                >
+                  {{ step.iteration }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timeline -->
+          <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
+            <div class="iteration-timeline space-y-4">
               <div
                 v-for="step in entry.iterationRun.steps"
                 :key="`${entry.iterationRun.round}-${step.iteration}`"
-                class="rounded-xl border border-default/50 bg-default/60 px-3 py-3"
+                class="iteration-step"
               >
-                <div class="flex items-center justify-between gap-2">
-                  <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-                    Pass {{ step.iteration }}
-                  </p>
-                  <span class="text-[11px] text-dimmed">
-                    Prompt {{ step.prompt.length }} chars
-                  </span>
+                <!-- Step dot -->
+                <div class="iteration-step-dot iteration-step-dot--done">
+                  <UIcon name="i-lucide-check" class="size-3" />
                 </div>
-                <p class="mt-1 text-sm text-default whitespace-pre-wrap">
-                  {{ step.changeSummary }}
-                </p>
-                <div v-if="step.contextSnapshot" class="mt-3 space-y-1">
-                  <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed">
-                    Context Used
+
+                <!-- Step content -->
+                <div class="space-y-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-primary">
+                      Round {{ step.iteration }}
+                    </span>
+                  </div>
+
+                  <!-- Change summary -->
+                  <p class="text-sm text-default leading-relaxed">
+                    {{ step.changeSummary }}
                   </p>
-                  <p class="text-xs text-default/90 leading-relaxed whitespace-pre-wrap">
-                    {{ step.contextSnapshot }}
-                  </p>
-                </div>
-                <div v-if="step.imageUrl || step.renderedPrompt || step.imageAnalysis" class="mt-3">
-                  <div class="flex flex-col gap-3 md:flex-row md:items-start">
+
+                  <!-- Image + details row -->
+                  <div
+                    v-if="step.imageUrl || step.renderedPrompt || step.imageAnalysis"
+                    class="flex flex-col gap-3 md:flex-row md:items-start"
+                  >
+                    <!-- Single image (only shown when strip isn't visible) -->
                     <div
-                      v-if="step.imageUrl"
+                      v-if="step.imageUrl && entry.iterationRun.steps.filter((s: IterationStep) => s.imageUrl).length <= 1"
                       class="w-fit rounded-xl overflow-hidden ring-1 ring-primary/20 hover:ring-primary/50 transition-all hover:scale-[1.01] shadow-card cursor-zoom-in"
                       role="button"
                       tabindex="0"
@@ -462,37 +479,35 @@ function getLatestIterationReview(run: IterationRun) {
                     >
                       <img
                         :src="step.imageUrl"
-                        :alt="step.renderedPrompt || `Iteration pass ${step.iteration}`"
+                        :alt="step.renderedPrompt || `Round ${step.iteration}`"
                         class="h-36 w-auto max-w-[180px] object-cover"
                       />
                     </div>
 
-                    <div class="min-w-0 flex-1 space-y-3">
-                      <div v-if="step.renderedPrompt" class="space-y-1">
-                        <p
-                          class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed"
-                        >
-                          Render Prompt
-                        </p>
-                        <p
-                          class="text-xs text-default/90 leading-relaxed font-mono whitespace-pre-wrap break-words"
-                        >
-                          {{ step.renderedPrompt }}
-                        </p>
-                      </div>
-
-                      <div v-if="step.imageAnalysis" class="space-y-1">
-                        <p
-                          class="text-[11px] font-semibold uppercase tracking-[0.16em] text-dimmed"
-                        >
-                          Image Review
-                        </p>
-                        <p class="text-xs text-default/90 leading-relaxed whitespace-pre-wrap">
+                    <div class="min-w-0 flex-1 space-y-2">
+                      <!-- AI Feedback -->
+                      <div v-if="step.imageAnalysis" class="rounded-lg bg-elevated border border-default/50 px-3 py-2">
+                        <div class="flex items-center gap-1.5 mb-1">
+                          <UIcon name="i-lucide-scan-eye" class="size-3.5 text-muted" />
+                          <span class="text-[11px] font-semibold text-muted uppercase tracking-wider">AI Feedback</span>
+                        </div>
+                        <p class="text-xs text-default/90 leading-relaxed">
                           {{ step.imageAnalysis }}
                         </p>
                       </div>
 
-                      <div v-if="step.generationId" class="pt-1">
+                      <!-- Prompt used (collapsed by default feel) -->
+                      <div v-if="step.renderedPrompt" class="rounded-lg bg-elevated/50 border border-default/30 px-3 py-2">
+                        <div class="flex items-center gap-1.5 mb-1">
+                          <UIcon name="i-lucide-file-text" class="size-3.5 text-dimmed" />
+                          <span class="text-[11px] font-semibold text-dimmed uppercase tracking-wider">Prompt Used</span>
+                        </div>
+                        <p class="text-xs text-muted leading-relaxed font-mono wrap-break-word">
+                          {{ step.renderedPrompt }}
+                        </p>
+                      </div>
+
+                      <div v-if="step.generationId" class="pt-0.5">
                         <UButton
                           color="neutral"
                           variant="ghost"
@@ -508,27 +523,42 @@ function getLatestIterationReview(run: IterationRun) {
                 </div>
               </div>
 
+              <!-- Running indicator as timeline step -->
               <div
                 v-if="entry.iterationRun.status === 'running'"
-                class="rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-sm text-muted"
+                class="iteration-step"
               >
-                Working on the next pass...
+                <div class="iteration-step-dot iteration-step-dot--active">
+                  <UIcon name="i-lucide-loader-2" class="size-3 animate-spin" />
+                </div>
+                <div class="rounded-xl border border-dashed border-primary/30 bg-primary/5 px-4 py-3 flex items-center gap-3">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-sm font-medium text-primary">Working on it…</span>
+                    <span class="text-xs text-muted">
+                      Analyzing your image and refining the prompt for round {{ (entry.iterationRun.completedIterations || 0) + 1 }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
 
-            <div
-              v-if="entry.canContinueIteration"
-              class="flex flex-wrap items-center justify-between gap-3 border-t border-primary/10 pt-3"
-            >
-              <p class="text-xs text-muted">
-                Continue from the latest prompt for another
-                {{ props.iterationPassCount ?? entry.iterationRun.totalIterations }}
-                {{
-                  (props.iterationPassCount ?? entry.iterationRun.totalIterations) === 1
-                    ? 'pass'
-                    : 'passes'
-                }}.
-              </p>
+          <!-- Continue footer -->
+          <div
+            v-if="entry.canContinueIteration"
+            class="px-4 py-3 sm:px-5 border-t border-default/50 bg-elevated/50 flex flex-wrap items-center justify-between gap-3"
+          >
+            <p class="text-xs text-muted">
+              Keep refining for
+              {{ props.iterationPassCount ?? entry.iterationRun.totalIterations }}
+              more
+              {{
+                (props.iterationPassCount ?? entry.iterationRun.totalIterations) === 1
+                  ? 'round'
+                  : 'rounds'
+              }}?
+            </p>
+            <div class="flex items-center gap-2">
               <UButton
                 color="primary"
                 variant="soft"
@@ -536,7 +566,16 @@ function getLatestIterationReview(run: IterationRun) {
                 size="sm"
                 @click="handleContinueIteration(entry.iterationRun)"
               >
-                Continue x{{ props.iterationPassCount ?? entry.iterationRun.totalIterations }}
+                Continue
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-bookmark-plus"
+                size="sm"
+                @click="handleSavePrompt(entry.iterationRun.currentPrompt || entry.iterationRun.initialPrompt)"
+              >
+                Save as Preset
               </UButton>
             </div>
           </div>
@@ -576,11 +615,19 @@ function getLatestIterationReview(run: IterationRun) {
     <!-- Typing Indicator -->
     <div
       v-if="isChatting"
-      class="flex self-start items-center gap-1.5 p-4 rounded-2xl bg-elevated border border-default rounded-tl-sm max-w-[85%]"
+      class="flex self-start items-start gap-3 max-w-[85%] animate-fade-in-up"
     >
-      <span class="size-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]"></span>
-      <span class="size-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]"></span>
-      <span class="size-2 rounded-full bg-primary animate-bounce"></span>
+      <div class="flex items-center justify-center size-5 rounded-full bg-primary/15 mt-4 shrink-0">
+        <UIcon name="i-lucide-bot" class="size-3 text-primary" />
+      </div>
+      <div class="space-y-1">
+        <span class="text-[11px] font-medium text-muted">Grok is thinking…</span>
+        <div class="flex items-center gap-1.5 p-3 rounded-2xl bg-elevated border border-default rounded-tl-sm">
+          <span class="size-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+          <span class="size-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+          <span class="size-2 rounded-full bg-primary animate-bounce" />
+        </div>
+      </div>
     </div>
 
     <!-- Inline Generation Loading -->

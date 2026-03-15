@@ -125,7 +125,7 @@ async function handleContinueIteration(run: IterationRun) {
 
 const { chatModels, pending: modelsPending, error: modelsError } = useXaiModels()
 const iterationSubmitLabel = computed(() =>
-  iterationPassCount.value === 1 ? 'Run 1 Pass' : `Run ${iterationPassCount.value} Passes`,
+  iterationPassCount.value === 1 ? 'Run 1 Round' : `Run ${iterationPassCount.value} Rounds`,
 )
 </script>
 
@@ -215,24 +215,35 @@ const iterationSubmitLabel = computed(() =>
       class="px-3 pt-3 md:px-6 md:pt-4 md:pb-8 bg-default border-t border-default/50 shrink-0 pb-safe"
     >
       <div class="max-w-5xl mx-auto space-y-3">
-        <div class="flex flex-wrap items-center gap-2">
+        <!-- Segmented Mode Toggle -->
+        <div class="inline-flex items-center rounded-full bg-elevated border border-default/50 p-0.5 relative">
+          <!-- Sliding highlight -->
+          <div
+            class="absolute h-[calc(100%-4px)] rounded-full bg-primary transition-all duration-200 ease-out"
+            :style="{
+              width: inputMode === 'chat' ? '50%' : '50%',
+              left: inputMode === 'chat' ? '2px' : 'calc(50% + 0px)',
+            }"
+          />
           <UButton
-            color="neutral"
+            :variant="inputMode === 'chat' ? 'link' : 'link'"
+            :color="inputMode === 'chat' ? 'neutral' : 'neutral'"
             size="sm"
-            :variant="inputMode === 'chat' ? 'solid' : 'outline'"
             icon="i-lucide-message-square"
-            class="rounded-full"
+            class="rounded-full relative z-10 transition-colors duration-200 px-4"
+            :class="inputMode === 'chat' ? 'text-white' : 'text-muted'"
             :disabled="isIterating"
             @click="inputMode = 'chat'"
           >
             Chat
           </UButton>
           <UButton
-            color="neutral"
+            :variant="inputMode === 'iterate' ? 'link' : 'link'"
+            :color="inputMode === 'iterate' ? 'neutral' : 'neutral'"
             size="sm"
-            :variant="inputMode === 'iterate' ? 'solid' : 'outline'"
             icon="i-lucide-repeat"
-            class="rounded-full"
+            class="rounded-full relative z-10 transition-colors duration-200 px-4"
+            :class="inputMode === 'iterate' ? 'text-white' : 'text-muted'"
             :disabled="isChatting || generatingInline"
             @click="inputMode = 'iterate'"
           >
@@ -240,16 +251,7 @@ const iterationSubmitLabel = computed(() =>
           </UButton>
         </div>
 
-        <p class="text-xs text-muted leading-relaxed">
-          <span v-if="inputMode === 'chat'">
-            Chat mode uses the full brainstorm thread and any images you explicitly share there.
-          </span>
-          <span v-else>
-            Iterate mode uses the starting prompt, goal, your context and feedback notes, plus the
-            rendered images and reviews from this iteration run only.
-          </span>
-        </p>
-
+        <!-- Chat Input -->
         <UForm
           v-if="inputMode === 'chat'"
           :state="{ input: chatInput }"
@@ -280,112 +282,127 @@ const iterationSubmitLabel = computed(() =>
           />
         </UForm>
 
-        <UForm
-          v-else
-          :state="{ prompt: iterationPrompt, goal: iterationGoal, passCount: iterationPassCount }"
-          class="w-full space-y-3"
-          @submit.prevent="() => startIterationRun()"
-        >
-          <UFormField label="Starting Prompt" class="w-full">
-            <UTextarea
-              v-model="iterationPrompt"
-              placeholder="Paste the prompt you want to improve..."
-              autoresize
-              :rows="4"
-              :maxrows="10"
-              :disabled="isIterating || isChatting || generatingInline"
-              class="w-full"
-              :ui="{ base: 'rounded-2xl shadow-card' }"
-            />
-          </UFormField>
-          <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_14rem] md:items-start">
-            <UFormField label="Goal" class="w-full">
+        <!-- Iteration Form -->
+        <div v-else class="glass-card px-4 py-4 sm:px-5 sm:py-5 space-y-4">
+          <!-- Card header -->
+          <div class="flex items-center gap-2.5">
+            <div class="flex items-center justify-center size-8 rounded-full bg-primary/10">
+              <UIcon name="i-lucide-wand-sparkles" class="size-4 text-primary" />
+            </div>
+            <div>
+              <p class="font-display font-semibold text-sm">Prompt Refiner</p>
+              <p class="text-xs text-muted">
+                Paste a prompt, set a goal, and Grok will rewrite → render → review → repeat.
+              </p>
+            </div>
+          </div>
+
+          <UForm
+            :state="{ prompt: iterationPrompt, goal: iterationGoal, passCount: iterationPassCount }"
+            class="w-full space-y-3"
+            @submit.prevent="() => startIterationRun()"
+          >
+            <UFormField label="Starting Prompt" class="w-full">
               <UTextarea
-                v-model="iterationGoal"
-                placeholder="What should the prompt get better at?"
+                v-model="iterationPrompt"
+                placeholder="Paste the prompt you want to improve..."
                 autoresize
-                :rows="2"
-                :maxrows="5"
+                :rows="3"
+                :maxrows="8"
                 :disabled="isIterating || isChatting || generatingInline"
                 class="w-full"
-                :ui="{ base: 'rounded-2xl shadow-card' }"
+                :ui="{ base: 'rounded-xl' }"
               />
             </UFormField>
 
-            <UFormField
-              label="Pass Count"
-              :description="`Run between 1 and ${MAX_ITERATION_PASS_COUNT} passes in this round.`"
-              class="w-full"
-            >
-              <UInput
-                :model-value="String(iterationPassCount)"
-                type="number"
-                min="1"
-                :max="String(MAX_ITERATION_PASS_COUNT)"
-                step="1"
-                :disabled="isIterating || isChatting || generatingInline"
+            <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_10rem] md:items-start">
+              <UFormField label="Goal" class="w-full">
+                <UTextarea
+                  v-model="iterationGoal"
+                  placeholder="What should the prompt get better at?"
+                  autoresize
+                  :rows="2"
+                  :maxrows="4"
+                  :disabled="isIterating || isChatting || generatingInline"
+                  class="w-full"
+                  :ui="{ base: 'rounded-xl' }"
+                />
+              </UFormField>
+
+              <UFormField label="Rounds" class="w-full">
+                <UInput
+                  :model-value="String(iterationPassCount)"
+                  type="number"
+                  min="1"
+                  :max="String(MAX_ITERATION_PASS_COUNT)"
+                  step="1"
+                  :disabled="isIterating || isChatting || generatingInline"
+                  class="w-full"
+                  :ui="{ base: 'rounded-xl' }"
+                  @update:model-value="setIterationPassCount"
+                />
+              </UFormField>
+            </div>
+
+            <UFormField class="w-full">
+              <template #label>
+                <div class="flex items-center gap-2">
+                  <span>Context & Feedback</span>
+                  <span
+                    v-if="isIterating"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary"
+                  >
+                    <UIcon name="i-lucide-pencil" class="size-2.5" />
+                    edits apply on next round
+                  </span>
+                  <span v-else class="text-[10px] text-dimmed font-normal">Optional</span>
+                </div>
+              </template>
+              <UTextarea
+                v-model="iterationContext"
+                placeholder="Add constraints or feedback after reviewing each round..."
+                autoresize
+                :rows="2"
+                :maxrows="6"
+                :disabled="isChatting || generatingInline"
                 class="w-full"
-                :ui="{ base: 'rounded-2xl shadow-card' }"
-                @update:model-value="setIterationPassCount"
+                :ui="{ base: 'rounded-xl' }"
               />
             </UFormField>
-          </div>
-          <UFormField
-            label="Context & Feedback"
-            description="Optional. Add constraints, reference details, or notes after reviewing each pass."
-            class="w-full"
-          >
-            <UTextarea
-              v-model="iterationContext"
-              placeholder="Examples: keep the exact face shape from the preset, the breasts are still too large, preserve the plain white background, prioritize likeness over cinematic style..."
-              autoresize
-              :rows="3"
-              :maxrows="8"
-              :disabled="isChatting || generatingInline"
-              class="w-full"
-              :ui="{ base: 'rounded-2xl shadow-card' }"
-            />
-          </UFormField>
-          <p v-if="isIterating" class="text-xs text-primary">
-            Changes to context and feedback apply on the next pass.
-          </p>
-          <div class="flex flex-wrap items-center gap-2">
-            <UButton
-              type="submit"
-              color="primary"
-              variant="solid"
-              icon="i-lucide-wand-sparkles"
-              :loading="isIterating"
-              :disabled="
-                !iterationPrompt.trim() ||
-                !iterationGoal.trim() ||
-                isIterating ||
-                isChatting ||
-                generatingInline
-              "
-              class="rounded-xl"
-              size="lg"
-            >
-              {{ iterationSubmitLabel }}
-            </UButton>
-            <UButton
-              v-if="isIterating"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-octagon-x"
-              class="rounded-xl"
-              size="lg"
-              @click="stopIterationRun"
-            >
-              Stop
-            </UButton>
-            <p class="text-xs text-dimmed">
-              Each pass rewrites the prompt, renders an image, reviews the result, and adjusts for
-              the next pass. This round is set to {{ iterationPassCount }}
-              {{ iterationPassCount === 1 ? 'pass' : 'passes' }} unless you stop it.
-            </p>
-          </div>
-        </UForm>
+
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <UButton
+                type="submit"
+                color="primary"
+                variant="solid"
+                icon="i-lucide-wand-sparkles"
+                :loading="isIterating"
+                :disabled="
+                  !iterationPrompt.trim() ||
+                  !iterationGoal.trim() ||
+                  isIterating ||
+                  isChatting ||
+                  generatingInline
+                "
+                class="rounded-xl"
+                size="lg"
+              >
+                {{ iterationSubmitLabel }}
+              </UButton>
+              <UButton
+                v-if="isIterating"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-octagon-x"
+                class="rounded-xl"
+                size="lg"
+                @click="stopIterationRun"
+              >
+                Stop
+              </UButton>
+            </div>
+          </UForm>
+        </div>
 
         <p v-if="inputMode === 'chat'" class="text-center text-[11px] text-dimmed hidden md:block">
           Press Enter to send · Shift+Enter for new line
