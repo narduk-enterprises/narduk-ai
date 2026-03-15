@@ -111,6 +111,8 @@ function handleCompare() {
         <video
           v-else
           :src="generation.mediaUrl"
+          :poster="generation.thumbnailUrl || undefined"
+          preload="none"
           loop
           muted
           playsinline

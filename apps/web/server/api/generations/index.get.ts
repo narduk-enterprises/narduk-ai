@@ -60,114 +60,157 @@ export default defineEventHandler(async (event) => {
     filters.push(like(generations.metadata, `%"batchId":"${batchId}"%`))
   }
 
-  // Find and refresh all pending video generations for this user regardless of the query limit/since
-  const pendingVideos = await db
-    .select()
-    .from(generations)
-    .where(
-      and(
-        eq(generations.userId, user.id),
-        eq(generations.status, 'pending'),
-        eq(generations.type, 'video'),
-      ),
-    )
-    .limit(50)
+  // Only refresh pending videos during delta polls (?since= requests).
+  // Initial load and pagination must be fast — the poller handles updates.
+  if (since && config.xaiApiKey) {
+    const pendingVideos = await db
+      .select()
+      .from(generations)
+      .where(
+        and(
+          eq(generations.userId, user.id),
+          eq(generations.status, 'pending'),
+          eq(generations.type, 'video'),
+        ),
+      )
+      .limit(50)
 
-  if (pendingVideos.length && config.xaiApiKey) {
-    const now = new Date().toISOString()
+    if (pendingVideos.length) {
+      const now = new Date().toISOString()
 
-    await Promise.all(
-      // eslint-disable-next-line narduk/no-map-async-in-server -- xAI has no batch poll API; parallel per-generation calls are required
-      pendingVideos.map(async (gen) => {
-        try {
-          // Staleness check first
-          const ageMs = Date.now() - new Date(gen.createdAt).getTime()
-          if (ageMs > GENERATION_STALE_TIMEOUT_MS) {
-            const errorMeta = JSON.stringify({
-              error: {
-                code: 'timeout',
-                message:
-                  'Generation timed out after 5 minutes. The API did not return a result in time.',
-              },
-            })
-            await db
-              .update(generations)
-              .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
-              .where(eq(generations.id, gen.id))
-            gen.status = 'failed'
-            gen.metadata = errorMeta
-            gen.updatedAt = now
-            return
-          }
-
-          // Poll xAI for current status
-          const result = await grokPollVideo(config.xaiApiKey, gen.xaiRequestId!)
-
-          if (result.status === 'done' && result.video?.url) {
-            const r2Key = `generations/${user.id}/${gen.id}.mp4`
-            const buffer = await downloadMedia(result.video.url)
-            await uploadToR2(event, r2Key, buffer, 'video/mp4')
-
-            const generationTimeMs = Date.now() - new Date(gen.createdAt).getTime()
-            await db
-              .update(generations)
-              .set({
-                status: 'done',
-                r2Key,
-                mediaUrl: `/api/media/${r2Key}`,
-                thumbnailUrl: result.video.coverImg ?? null,
-                duration: result.video.duration,
-                generationTimeMs,
-                metadata: JSON.stringify(result),
-                updatedAt: now,
+      await Promise.all(
+        // eslint-disable-next-line narduk/no-map-async-in-server -- xAI has no batch poll API; parallel per-generation calls are required
+        pendingVideos.map(async (gen) => {
+          try {
+            // Staleness check first
+            const ageMs = Date.now() - new Date(gen.createdAt).getTime()
+            if (ageMs > GENERATION_STALE_TIMEOUT_MS) {
+              const errorMeta = JSON.stringify({
+                error: {
+                  code: 'timeout',
+                  message:
+                    'Generation timed out after 5 minutes. The API did not return a result in time.',
+                },
               })
-              .where(eq(generations.id, gen.id))
-            gen.status = 'done'
-            gen.r2Key = r2Key
-            gen.mediaUrl = `/api/media/${r2Key}`
-            gen.thumbnailUrl = result.video.coverImg ?? null
-            gen.duration = result.video.duration
-            gen.generationTimeMs = generationTimeMs
-            gen.metadata = JSON.stringify(result)
-            gen.updatedAt = now
-          } else if (result.status === 'failed') {
-            const errorMeta = JSON.stringify({
-              error: result.error || { code: 'unknown', message: 'Video generation failed' },
+              await db
+                .update(generations)
+                .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
+                .where(eq(generations.id, gen.id))
+              gen.status = 'failed'
+              gen.metadata = errorMeta
+              gen.updatedAt = now
+              return
+            }
+
+            // Poll xAI for current status
+            const result = await grokPollVideo(config.xaiApiKey, gen.xaiRequestId!)
+
+            if (result.status === 'done' && result.video?.url) {
+              const r2Key = `generations/${user.id}/${gen.id}.mp4`
+              const buffer = await downloadMedia(result.video.url)
+              await uploadToR2(event, r2Key, buffer, 'video/mp4')
+
+              const generationTimeMs = Date.now() - new Date(gen.createdAt).getTime()
+              await db
+                .update(generations)
+                .set({
+                  status: 'done',
+                  r2Key,
+                  mediaUrl: `/api/media/${r2Key}`,
+                  thumbnailUrl: result.video.coverImg ?? null,
+                  duration: result.video.duration,
+                  generationTimeMs,
+                  metadata: JSON.stringify(result),
+                  updatedAt: now,
+                })
+                .where(eq(generations.id, gen.id))
+              gen.status = 'done'
+              gen.r2Key = r2Key
+              gen.mediaUrl = `/api/media/${r2Key}`
+              gen.thumbnailUrl = result.video.coverImg ?? null
+              gen.duration = result.video.duration
+              gen.generationTimeMs = generationTimeMs
+              gen.metadata = JSON.stringify(result)
+              gen.updatedAt = now
+            } else if (result.status === 'failed') {
+              const errorMeta = JSON.stringify({
+                error: result.error || { code: 'unknown', message: 'Video generation failed' },
+              })
+              await db
+                .update(generations)
+                .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
+                .where(eq(generations.id, gen.id))
+              gen.status = 'failed'
+              gen.metadata = errorMeta
+              gen.updatedAt = now
+            } else if (result.status === 'expired') {
+              await db
+                .update(generations)
+                .set({ status: 'expired', updatedAt: now })
+                .where(eq(generations.id, gen.id))
+              gen.status = 'expired'
+              gen.updatedAt = now
+            }
+          } catch (err) {
+            log.warn('Failed to refresh pending generation', {
+              generationId: gen.id,
+              error: err instanceof Error ? err.message : String(err),
             })
-            await db
-              .update(generations)
-              .set({ status: 'failed', metadata: errorMeta, updatedAt: now })
-              .where(eq(generations.id, gen.id))
-            gen.status = 'failed'
-            gen.metadata = errorMeta
-            gen.updatedAt = now
-          } else if (result.status === 'expired') {
-            await db
-              .update(generations)
-              .set({ status: 'expired', updatedAt: now })
-              .where(eq(generations.id, gen.id))
-            gen.status = 'expired'
-            gen.updatedAt = now
           }
-        } catch (err) {
-          log.warn('Failed to refresh pending generation', {
-            generationId: gen.id,
-            error: err instanceof Error ? err.message : String(err),
-          })
-        }
-      }),
-    )
+        }),
+      )
+    }
   }
 
-  const baseQuery = db
-    .select()
-    .from(generations)
-    .where(filters.length > 1 ? and(...filters) : filters[0])
+  // Select only the columns the gallery grid needs — exclude large `metadata` blob.
+  // The detail page (GET /api/generations/[id]) still returns full metadata.
+  const listColumns = {
+    id: generations.id,
+    userId: generations.userId,
+    type: generations.type,
+    mode: generations.mode,
+    prompt: generations.prompt,
+    sourceGenerationId: generations.sourceGenerationId,
+    status: generations.status,
+    xaiRequestId: generations.xaiRequestId,
+    r2Key: generations.r2Key,
+    mediaUrl: generations.mediaUrl,
+    thumbnailUrl: generations.thumbnailUrl,
+    comparisonScore: generations.comparisonScore,
+    comparisonWins: generations.comparisonWins,
+    comparisonLosses: generations.comparisonLosses,
+    lastComparedAt: generations.lastComparedAt,
+    duration: generations.duration,
+    generationTimeMs: generations.generationTimeMs,
+    aspectRatio: generations.aspectRatio,
+    resolution: generations.resolution,
+    // metadata intentionally excluded — large JSON blob unused by the grid
+    promptElements: generations.promptElements,
+    presets: generations.presets,
+    lineage: generations.lineage,
+    userPromptId: generations.userPromptId,
+    createdAt: generations.createdAt,
+    updatedAt: generations.updatedAt,
+  }
 
-  // When polling with `since`, skip pagination — always return newest delta
-  const rows = since
-    ? await baseQuery.orderBy(desc(generations.updatedAt)).limit(100)
-    : sort === 'rank'
+  const whereClause = filters.length > 1 ? and(...filters) : filters[0]
+
+  // When polling with `since`, return full rows (including metadata) for delta merge
+  if (since) {
+    const rows = await db
+      .select()
+      .from(generations)
+      .where(whereClause)
+      .orderBy(desc(generations.updatedAt))
+      .limit(100)
+    log.debug('Generations delta poll', { userId: user.id, count: rows.length })
+    return rows
+  }
+
+  const baseQuery = db.select(listColumns).from(generations).where(whereClause)
+
+  const rows =
+    sort === 'rank'
       ? await baseQuery
           .orderBy(
             desc(generations.comparisonScore),

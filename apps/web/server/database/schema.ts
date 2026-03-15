@@ -49,6 +49,10 @@ export const generations = sqliteTable(
     index('generations_status_idx').on(table.status),
     index('generations_xai_request_id_idx').on(table.xaiRequestId),
     index('generations_comparison_score_idx').on(table.comparisonScore),
+    // Composite indexes for gallery query performance
+    index('generations_user_created_idx').on(table.userId, table.createdAt),
+    index('generations_user_updated_idx').on(table.userId, table.updatedAt),
+    index('generations_user_status_type_idx').on(table.userId, table.status, table.type),
   ],
 )
 
