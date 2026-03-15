@@ -24,6 +24,7 @@ const filters = [
   { value: 'all', label: 'All', icon: 'i-lucide-layout-grid' },
   { value: 'person', label: 'Persons', icon: 'i-lucide-user' },
   { value: 'scene', label: 'Scenes', icon: 'i-lucide-image' },
+  { value: 'clothing', label: 'Clothing', icon: 'i-lucide-shirt' },
   { value: 'framing', label: 'Framing', icon: 'i-lucide-camera' },
   { value: 'action', label: 'Actions', icon: 'i-lucide-activity' },
   { value: 'style', label: 'Styles', icon: 'i-lucide-palette' },
@@ -80,6 +81,7 @@ const submitting = ref(false)
 const presetTypes = [
   { label: 'Person', value: 'person', icon: 'i-lucide-user' },
   { label: 'Scene', value: 'scene', icon: 'i-lucide-image' },
+  { label: 'Clothing', value: 'clothing', icon: 'i-lucide-shirt' },
   { label: 'Framing', value: 'framing', icon: 'i-lucide-camera' },
   { label: 'Action', value: 'action', icon: 'i-lucide-activity' },
   { label: 'Style', value: 'style', icon: 'i-lucide-palette' },
