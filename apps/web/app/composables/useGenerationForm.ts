@@ -314,14 +314,16 @@ export function useGenerationForm() {
   let sourceLookupToken = 0
 
   watch(
-    [sourceGenerationId, userImages],
-    async ([sourceId, images]) => {
+    sourceGenerationId,
+    async (sourceId) => {
       if (!sourceId) {
         hydratedSourceGeneration.value = null
         return
       }
 
-      const existing = images.find((g: Generation) => g.id === sourceId) || null
+      // Look up from store directly — avoid depending on doneImages computed
+      const store = useGenerationsStore()
+      const existing = store.items.find((g: Generation) => g.id === sourceId && g.status === 'done') || null
       if (existing) {
         hydratedSourceGeneration.value = existing
         return
@@ -334,7 +336,7 @@ export function useGenerationForm() {
         if (currentLookup !== sourceLookupToken) return
 
         hydratedSourceGeneration.value = fetched
-        generationStore.upsert(fetched)
+        store.upsert(fetched)
       } catch {
         if (currentLookup !== sourceLookupToken) return
         hydratedSourceGeneration.value = null
@@ -345,8 +347,9 @@ export function useGenerationForm() {
 
   const sourceGeneration = computed(() => {
     if (!sourceGenerationId.value) return null
+    const store = useGenerationsStore()
     return (
-      userImages.value.find((g: Generation) => g.id === sourceGenerationId.value) ||
+      store.items.find((g: Generation) => g.id === sourceGenerationId.value && g.status === 'done') ||
       (hydratedSourceGeneration.value?.id === sourceGenerationId.value
         ? hydratedSourceGeneration.value
         : null)
@@ -373,7 +376,6 @@ export function useGenerationForm() {
     compilePrompt,
     currentMediaType,
     sourceGeneration,
-    recentGenerations,
     latestResult,
   })
 
@@ -543,7 +545,7 @@ export function useGenerationForm() {
       return isGenerating.value
     }
 
-    return !compiledPrompt.value.trim() || isGenerating.value
+    return !prosePrompt.value.trim() || isGenerating.value
   })
 
   const resultBadgeColor = computed(() => {

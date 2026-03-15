@@ -168,18 +168,20 @@ const personSelectItems = computed(() =>
   }),
 )
 
-function getTypeSelectItems(type: string) {
-  return elements.value
-    .filter((el) => el.type === type)
-    .map((el) => {
-      const src = getPresetPreviewUrl(el)
-      return {
-        label: el.name,
-        value: el.id,
-        ...(src ? { avatar: { src, size: 'xs' as const } } : {}),
-      }
+const typeSelectItemsMap = computed(() => {
+  const map: Record<string, Array<{ label: string; value: string; avatar?: { src: string; size: 'xs' } }>> = {}
+  for (const el of elements.value) {
+    if (el.type === 'person') continue // handled by personSelectItems
+    if (!map[el.type]) map[el.type] = []
+    const src = getPresetPreviewUrl(el)
+    map[el.type]!.push({
+      label: el.name,
+      value: el.id,
+      ...(src ? { avatar: { src, size: 'xs' as const } } : {}),
     })
-}
+  }
+  return map
+})
 
 function handlePersonSelect(item: { label: string; value: string } | null) {
   if (!item) return
@@ -533,7 +535,7 @@ function editResult(gen: Generation) {
               <!-- Searchable select -->
               <USelectMenu
                 v-else
-                :items="getTypeSelectItems(pt.type)"
+                :items="typeSelectItemsMap[pt.type] || []"
                 searchable
                 :search-attributes="['label']"
                 :placeholder="`Search ${pt.label.toLowerCase()}...`"

@@ -10,7 +10,6 @@ export function usePromptEnhance(deps: {
   compilePrompt: () => string
   currentMediaType: ComputedRef<'image' | 'video'>
   sourceGeneration: ComputedRef<Generation | null>
-  recentGenerations: Ref<Generation[]>
   latestResult: Ref<Generation | null>
 }) {
   const {
@@ -19,7 +18,6 @@ export function usePromptEnhance(deps: {
     compilePrompt,
     currentMediaType,
     sourceGeneration,
-    recentGenerations,
     latestResult,
   } = deps
 
@@ -126,8 +124,9 @@ export function usePromptEnhance(deps: {
         method: 'POST',
         body: { generationId },
       })
-      // Add upscaled image to recent generations
-      recentGenerations.value.unshift(result)
+      // Add via store for proper deduplication and reactivity
+      const store = useGenerationsStore()
+      store.upsert(result)
       latestResult.value = result
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Upscale failed'
