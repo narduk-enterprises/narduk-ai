@@ -193,6 +193,11 @@ export function usePromptElements() {
     )
     if (!tagCatalog.value.length) return compiledPrompt
 
+    // Detect if this is a prose-format prompt (no "Key: Value" structured lines).
+    // Prose prompts can't be remixed client-side — fall through to LLM path.
+    const structuredLinePattern = /^\w[\w ]*: \S/m
+    if (!structuredLinePattern.test(compiledPrompt)) return compiledPrompt
+
     // Build a lookup: attributeKey → list of available snippets
     const snippetMap: Record<string, string[]> = {}
     for (const cat of tagCatalog.value) {

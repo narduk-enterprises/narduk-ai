@@ -95,6 +95,10 @@ export const userPrompts = sqliteTable(
     prompt: text('prompt').notNull(),
     initialPresets: text('initial_presets'), // JSON blob
     chatHistory: text('chat_history'), // JSON blob
+    // Recipe fields (Phase 4)
+    templateId: text('template_id').references(() => promptTemplates.id, { onDelete: 'set null' }),
+    presetMap: text('preset_map'), // JSON: Record<string, string> — slot type → elementId
+    modifierIds: text('modifier_ids'), // JSON: string[] — selected tag IDs
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
@@ -213,4 +217,45 @@ export const chatMessages = sqliteTable(
     index('chat_messages_session_id_idx').on(table.sessionId),
     index('chat_messages_created_idx').on(table.createdAt),
   ],
+)
+
+// ─── Prompt Templates ────────────────────────────────────────
+
+export const promptTemplates = sqliteTable(
+  'prompt_templates',
+  {
+    id: text('id').primaryKey().notNull(),
+    userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }), // null = system template
+    name: text('name').notNull(),
+    description: text('description'),
+    category: text('category').notNull().default('general'), // 'portrait' | 'environmental' | 'cinematic' | 'video' | 'duo' | 'general'
+    pattern: text('pattern').notNull(), // e.g. "[PERSON], [ACTION] in [SCENE]. [FRAMING]. [STYLE]."
+    slots: text('slots').notNull(), // JSON: string[] — ordered slot types e.g. ["person","action","scene","framing","style"]
+    isSystem: integer('is_system').notNull().default(0), // 1 = system template, 0 = user template
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('prompt_templates_user_id_idx').on(table.userId),
+    index('prompt_templates_category_idx').on(table.category),
+  ],
+)
+
+// ─── Prompt Element Variants (outfits, moods, etc.) ──────────
+
+export const promptElementVariants = sqliteTable(
+  'prompt_element_variants',
+  {
+    id: text('id').primaryKey().notNull(),
+    elementId: text('element_id')
+      .notNull()
+      .references(() => promptElements.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(), // e.g. "Beach Outfit", "Casual", "Formal"
+    variantAttributes: text('variant_attributes').notNull(), // JSON: Record<string, string> — override attrs
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [index('prompt_element_variants_element_id_idx').on(table.elementId)],
 )

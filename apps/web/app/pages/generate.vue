@@ -25,7 +25,8 @@ const {
   selectedVideoModel,
   activePresets,
   activePresetIds,
-  compiledPrompt,
+  prosePrompt,
+  promptWarnings,
   isCharacterJsonModalOpen,
   characterJsonInput,
   characterJsonError,
@@ -91,11 +92,46 @@ const {
 
 const { deleteGeneration } = useGenerate()
 const { elements, fetchElements, remixPrompt } = usePromptElements()
+const { templates, fetchTemplates } = usePromptTemplates()
 
 const isModifierSlideoverOpen = ref(false)
 const isLibraryModalOpen = ref(false)
+const selectedTemplateId = ref<string | null>(null)
 
 const { imageModels, videoModels, pending: modelsPending, error: modelsError } = useXaiModels()
+
+// ── Complexity indicator ─────────────────────────────────────
+const attachedElementCount = computed(() => {
+  let count = 0
+  if (attachedPerson.value) count++
+  for (const key of Object.keys(attachedPresets.value)) {
+    if (attachedPresets.value[key]) count++
+  }
+  return count
+})
+
+const complexityLevel = computed<'green' | 'yellow' | 'red'>(() => {
+  if (attachedElementCount.value <= 3) return 'green'
+  if (attachedElementCount.value <= 5) return 'yellow'
+  return 'red'
+})
+
+const complexityLabel = computed(() => {
+  if (complexityLevel.value === 'green') return 'Optimal'
+  if (complexityLevel.value === 'yellow') return 'Complex'
+  return 'Overloaded'
+})
+
+const selectedTemplate = computed(
+  () => templates.value.find((t) => t.id === selectedTemplateId.value) ?? null,
+)
+
+const templateSelectItems = computed(() =>
+  templates.value.map((t) => ({
+    label: t.name,
+    value: t.id,
+  })),
+)
 
 // Preset type configuration for UI rendering
 const PRESET_TYPE_CONFIG: Record<string, { label: string; icon: string; order: number }> = {
@@ -201,7 +237,7 @@ function handleUseGenerationPrompt(gen: Generation) {
 }
 
 const showFinalPromptPanel = computed(() => {
-  const finalPrompt = compiledPrompt.value.trim()
+  const finalPrompt = prosePrompt.value.trim()
   if (!finalPrompt) return false
 
   return (
@@ -241,6 +277,7 @@ async function handleRemix() {
 onMounted(() => {
   fetchElements()
   ensureTagsLoaded()
+  fetchTemplates()
   loadMoreGenerations(20)
 })
 
@@ -346,6 +383,80 @@ function editResult(gen: Generation) {
 
         <!-- Generation Form Card -->
         <div class="glass-card p-5 space-y-4">
+          <!-- ── Template Selector ──────────────────────────────────── -->
+          <div
+            v-if="!hasCharacterBatchImport && templates.length"
+            class="flex flex-wrap items-center gap-2"
+          >
+            <USelectMenu
+              :items="templateSelectItems"
+              :model-value="
+                templateSelectItems.find((i) => i.value === selectedTemplateId) ?? undefined
+              "
+              placeholder="Choose a template..."
+              searchable
+              :search-attributes="['label']"
+              :ui="{ content: 'min-w-64' }"
+              @update:model-value="(item) => (selectedTemplateId = item?.value ?? null)"
+            >
+              <UButton
+                size="xs"
+                :variant="selectedTemplateId ? 'solid' : 'outline'"
+                :color="selectedTemplateId ? 'primary' : 'neutral'"
+                icon="i-lucide-layout-template"
+                class="rounded-full"
+              >
+                {{ selectedTemplate?.name || 'Template' }}
+              </UButton>
+            </USelectMenu>
+            <UButton
+              v-if="selectedTemplateId"
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              icon="i-lucide-x"
+              class="rounded-full"
+              @click="selectedTemplateId = null"
+            />
+            <p v-if="selectedTemplate?.description" class="text-xs text-muted">
+              {{ selectedTemplate.description }}
+            </p>
+          </div>
+
+          <!-- ── Complexity Indicator ───────────────────────────────── -->
+          <div v-if="attachedElementCount > 0" class="flex items-center gap-2">
+            <div
+              class="size-2 rounded-full"
+              :class="{
+                'bg-success': complexityLevel === 'green',
+                'bg-warning': complexityLevel === 'yellow',
+                'bg-error': complexityLevel === 'red',
+              }"
+            />
+            <span
+              class="text-xs"
+              :class="{
+                'text-success': complexityLevel === 'green',
+                'text-warning': complexityLevel === 'yellow',
+                'text-error': complexityLevel === 'red',
+              }"
+            >
+              {{ complexityLabel }} ({{ attachedElementCount }} element{{
+                attachedElementCount === 1 ? '' : 's'
+              }})
+            </span>
+            <UTooltip
+              v-if="complexityLevel !== 'green'"
+              :text="
+                complexityLevel === 'red'
+                  ? 'Aurora produces best results with 3-4 elements. Consider removing some for sharper output.'
+                  : 'Prompt has several elements — results may vary. Aurora works best with 3-4 core elements.'
+              "
+            >
+              <UIcon name="i-lucide-info" class="size-3.5 text-muted" />
+            </UTooltip>
+          </div>
+
           <!-- ── Preset Slot Tray ───────────────────────────────────── -->
           <div
             v-if="!hasCharacterBatchImport && (personElements.length || otherPresetTypes.length)"
@@ -688,7 +799,7 @@ function editResult(gen: Generation) {
                 </p>
               </div>
               <div class="flex items-center gap-2 shrink-0">
-                <CopyButton :text="compiledPrompt" />
+                <CopyButton :text="prosePrompt" />
                 <UButton
                   size="sm"
                   color="primary"
@@ -701,10 +812,41 @@ function editResult(gen: Generation) {
               </div>
             </div>
 
+            <!-- Prompt Warnings -->
+            <div v-if="promptWarnings.length" class="space-y-1.5">
+              <div
+                v-for="(warning, idx) in promptWarnings"
+                :key="idx"
+                class="flex items-start gap-2 text-xs rounded-lg px-3 py-2"
+                :class="{
+                  'bg-warning/10 text-warning': warning.severity === 'warning',
+                  'bg-info/10 text-info': warning.severity === 'caution',
+                  'bg-muted text-muted': warning.severity === 'info',
+                }"
+              >
+                <UIcon
+                  :name="
+                    warning.severity === 'warning'
+                      ? 'i-lucide-alert-triangle'
+                      : warning.severity === 'caution'
+                        ? 'i-lucide-alert-circle'
+                        : 'i-lucide-info'
+                  "
+                  class="size-3.5 mt-0.5 shrink-0"
+                />
+                <div>
+                  <p>{{ warning.message }}</p>
+                  <p v-if="warning.suggestion" class="opacity-75 mt-0.5">
+                    💡 {{ warning.suggestion }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div
-              class="rounded-xl border border-default/50 bg-muted/35 px-4 py-3 font-mono text-sm leading-relaxed text-muted whitespace-pre-wrap max-h-72 overflow-y-auto select-text cursor-text"
+              class="rounded-xl border border-default/50 bg-muted/35 px-4 py-3 text-sm leading-relaxed text-muted whitespace-pre-wrap max-h-72 overflow-y-auto select-text cursor-text"
             >
-              {{ compiledPrompt }}
+              {{ prosePrompt }}
             </div>
           </div>
 

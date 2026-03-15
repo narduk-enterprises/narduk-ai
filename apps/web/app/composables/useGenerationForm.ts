@@ -135,7 +135,15 @@ export function useGenerationForm() {
 
   // ─── Prompt Compiler ────────────────────────────────────────
 
-  const { compiledPrompt, compilePrompt, setBuilderContext } = usePromptCompiler({
+  const {
+    compiledPrompt,
+    prosePrompt,
+    compilePrompt,
+    compileStructured,
+    promptLength,
+    promptWarnings,
+    setBuilderContext,
+  } = usePromptCompiler({
     prompt,
     activePresetBlocks,
     selectedTags: tags.selectedTagsList,
@@ -498,7 +506,7 @@ export function useGenerationForm() {
       return
     }
 
-    const nextPrompt = compiledPrompt.value.trim()
+    const nextPrompt = prosePrompt.value.trim()
     const hadStructuredInputs =
       activePresetIds.value.length > 0 || tags.selectedTagsList.value.length > 0
 
@@ -524,7 +532,7 @@ export function useGenerationForm() {
 
   // ─── Computed ───────────────────────────────────────────────
 
-  const charCount = computed(() => compiledPrompt.value.length)
+  const charCount = computed(() => prosePrompt.value.length)
   const isGenerating = computed(() => generating.value || batchGenerating.value)
   const isGenerateDisabled = computed(() => {
     if (hasCharacterBatchImport.value && !isCharacterBatchReady.value) {
@@ -608,7 +616,11 @@ export function useGenerationForm() {
 
     // Compilation
     compilePrompt,
+    compileStructured,
     compiledPrompt,
+    prosePrompt,
+    promptLength,
+    promptWarnings,
 
     // Test JSON import
     isCharacterJsonModalOpen,

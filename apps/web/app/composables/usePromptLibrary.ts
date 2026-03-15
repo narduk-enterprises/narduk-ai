@@ -1,3 +1,10 @@
+/**
+ * usePromptLibrary — manages the user's saved prompts and recipes.
+ *
+ * v2: Enhanced with recipe support — prompts can now include a templateId,
+ * preset map (slot → elementId), and modifier IDs for full composition recall.
+ */
+
 export interface UserPrompt {
   id: string
   userId: string
@@ -5,8 +12,19 @@ export interface UserPrompt {
   prompt: string
   initialPresets?: string | null
   chatHistory?: string | null
+  // Recipe fields
+  templateId?: string | null
+  presetMap?: string | null // JSON: Record<string, string>
+  modifierIds?: string | null // JSON: string[]
   createdAt: string
   updatedAt: string
+}
+
+/** Parsed recipe data from a UserPrompt */
+export interface RecipeData {
+  templateId: string | null
+  presetMap: Record<string, string> // slotType → elementId
+  modifierIds: string[]
 }
 
 export function usePromptLibrary() {
@@ -32,13 +50,26 @@ export function usePromptLibrary() {
     prompt: string,
     initialPresets?: string | null,
     chatHistory?: string | null,
+    recipe?: {
+      templateId?: string | null
+      presetMap?: Record<string, string>
+      modifierIds?: string[]
+    },
   ) {
     loading.value = true
     error.value = null
     try {
       const el = await $fetch<UserPrompt>('/api/prompts', {
         method: 'POST',
-        body: { title, prompt, initialPresets, chatHistory },
+        body: {
+          title,
+          prompt,
+          initialPresets,
+          chatHistory,
+          templateId: recipe?.templateId ?? null,
+          presetMap: recipe?.presetMap ? JSON.stringify(recipe.presetMap) : null,
+          modifierIds: recipe?.modifierIds?.length ? JSON.stringify(recipe.modifierIds) : null,
+        },
       })
       prompts.value.unshift(el)
       return el
@@ -66,12 +97,56 @@ export function usePromptLibrary() {
     }
   }
 
+  /**
+   * Parse recipe data from a UserPrompt.
+   * Returns structured recipe info for loading into the generation form.
+   */
+  function parseRecipe(prompt: UserPrompt): RecipeData {
+    let presetMap: Record<string, string> = {}
+    let modifierIds: string[] = []
+
+    if (prompt.presetMap) {
+      try {
+        presetMap = JSON.parse(prompt.presetMap)
+      } catch {
+        /* ignore */
+      }
+    }
+    if (prompt.modifierIds) {
+      try {
+        modifierIds = JSON.parse(prompt.modifierIds)
+      } catch {
+        /* ignore */
+      }
+    }
+
+    return {
+      templateId: prompt.templateId ?? null,
+      presetMap,
+      modifierIds,
+    }
+  }
+
+  /**
+   * Check if a prompt has recipe data attached.
+   */
+  function isRecipe(prompt: UserPrompt): boolean {
+    return !!(prompt.templateId || prompt.presetMap || prompt.modifierIds)
+  }
+
+  const recipes = computed(() => prompts.value.filter(isRecipe))
+  const plainPrompts = computed(() => prompts.value.filter((p) => !isRecipe(p)))
+
   return {
     prompts,
+    recipes,
+    plainPrompts,
     loading,
     error,
     fetchPrompts,
     savePrompt,
     deletePrompt,
+    parseRecipe,
+    isRecipe,
   }
 }
