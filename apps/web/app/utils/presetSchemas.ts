@@ -69,12 +69,6 @@ export const PERSON_SCHEMA: AttributeField[] = [
   },
   { key: 'vibe', label: 'Vibe', description: 'Overall energy and attitude', group: 'character' },
   {
-    key: 'distinguishing_features',
-    label: 'Distinguishing Features',
-    description: 'Unique physical traits',
-    group: 'character',
-  },
-  {
     key: 'extended_detail',
     label: 'Extended Detail',
     description: '~100-word vivid backstory/bio',
