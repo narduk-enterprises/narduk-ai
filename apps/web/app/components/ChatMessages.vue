@@ -208,8 +208,8 @@ function handleOpenImage(url: string, prompt: string, generationId?: string | nu
       </div>
       <h2 class="font-display font-semibold text-lg text-default mb-1">Start Brainstorming</h2>
       <p class="text-sm text-muted max-w-md leading-relaxed">
-        Describe what you want to create and Grok will craft a detailed prompt.
-        Switch to Iterate mode to refine with visual feedback.
+        Describe what you want to create and Grok will craft a detailed prompt. Switch to Iterate
+        mode to refine with visual feedback.
       </p>
       <div class="flex flex-wrap items-center justify-center gap-2 mt-5">
         <UButton
@@ -298,16 +298,22 @@ function handleOpenImage(url: string, prompt: string, generationId?: string | nu
           <MarkdownRenderer :content="getDisplayContent(entry.message)" />
 
           <!-- Collapsible raw JSON (shown when model responds with JSON) -->
-          <div
-            v-if="hasRawJsonContent(entry.message)"
-            class="mt-3 pt-3 border-t border-default"
-          >
+          <div v-if="hasRawJsonContent(entry.message)" class="mt-3 pt-3 border-t border-default">
             <UAccordion
-              :items="[{ label: 'Raw Response', icon: 'i-lucide-code-2', content: formatJson(entry.message.content as string) }]"
+              :items="[
+                {
+                  label: 'Raw Response',
+                  icon: 'i-lucide-code-2',
+                  content: formatJson(entry.message.content as string),
+                },
+              ]"
               :default-value="[]"
             >
               <template #body="{ item }">
-                <pre class="text-xs font-mono text-muted whitespace-pre-wrap break-all max-h-40 overflow-y-auto bg-muted/30 rounded-lg p-3">{{ item.content }}</pre>
+                <pre
+                  class="text-xs font-mono text-muted whitespace-pre-wrap break-all max-h-40 overflow-y-auto bg-muted/30 rounded-lg p-3"
+                  >{{ item.content }}</pre
+                >
               </template>
             </UAccordion>
           </div>
@@ -388,7 +394,9 @@ function handleOpenImage(url: string, prompt: string, generationId?: string | nu
                 <UButton
                   color="neutral"
                   variant="soft"
-                  :icon="isSaved(entry.promptText) ? 'i-lucide-check-circle' : 'i-lucide-bookmark-plus'"
+                  :icon="
+                    isSaved(entry.promptText) ? 'i-lucide-check-circle' : 'i-lucide-bookmark-plus'
+                  "
                   size="sm"
                   :loading="savingPrompt && !isSaved(entry.promptText)"
                   :disabled="isSaved(entry.promptText)"

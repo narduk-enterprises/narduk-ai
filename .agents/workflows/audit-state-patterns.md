@@ -27,7 +27,8 @@ echo "=== PAGES >500L ===" && find app/pages -name '*.vue' | xargs wc -l 2>/dev/
 echo "=== COMPONENTS >300L ===" && wc -l app/components/*.vue 2>/dev/null | sort -rn | awk '$1 > 300 {print}' | head -10
 ```
 
-**Action**: Files over threshold are candidates for extraction into sub-composables, child components, or utility modules.
+**Action**: Files over threshold are candidates for extraction into
+sub-composables, child components, or utility modules.
 
 ---
 
@@ -40,7 +41,8 @@ echo "=== DIRECT STORE WRITES IN COMPONENTS ===" && grep -rn '\.value\s*=' app/c
 ```
 
 - Stores should be modularized by domain, not monolithic.
-- Components call store _Actions_ to mutate. No `$patch` or raw reassignment in `.vue` files.
+- Components call store _Actions_ to mutate. No `$patch` or raw reassignment in
+  `.vue` files.
 - If NO stores exist, check if composables are filling the role correctly.
 
 ---
@@ -53,9 +55,12 @@ echo "=== RAW $fetch IN COMPOSABLES (should use useAppFetch for stores) ===" && 
 echo "=== useState USAGE ===" && grep -rn 'useState(' app/composables/ app/pages/ app/components/ 2>/dev/null | head -15
 ```
 
-- **Antipattern**: `ref()` at module scope in composables → SSR cross-request leak.
+- **Antipattern**: `ref()` at module scope in composables → SSR cross-request
+  leak.
 - **Exception**: `useState()` from Nuxt is safe for SSR-friendly global state.
-- Raw `$fetch` in composables is acceptable when used inside `useAsyncData`/`useFetch` callbacks, or when the composable is client-only. Flag any that should use `useAppFetch`.
+- Raw `$fetch` in composables is acceptable when used inside
+  `useAsyncData`/`useFetch` callbacks, or when the composable is client-only.
+  Flag any that should use `useAppFetch`.
 
 ---
 
@@ -93,7 +98,8 @@ echo "=== DUPLICATE UTILITY FUNCTIONS ===" && grep -rn 'function parse\|function
 echo "=== COMPONENTS IMPORTED >3 TIMES ===" && for comp in $(grep -roh "import .* from '~/components/[^']*'" app/ 2>/dev/null | awk -F"'" '{print $2}' | sort | uniq -c | sort -rn | awk '$1 > 3 {print $2}'); do echo "$comp"; done | head -5
 ```
 
-Check for duplicated utility logic across files that should be extracted into a shared `utils/` module.
+Check for duplicated utility logic across files that should be extracted into a
+shared `utils/` module.
 
 ---
 
@@ -103,11 +109,12 @@ Synthesize findings into a table:
 
 | Domain          | Standard                                       | Finding |
 | --------------- | ---------------------------------------------- | ------- |
-| **Stores**      | Thin, domain-focused, mutation via actions      |         |
-| **Composables** | Pure functions, SSR-safe, no module-scope refs  |         |
+| **Stores**      | Thin, domain-focused, mutation via actions     |         |
+| **Composables** | Pure functions, SSR-safe, no module-scope refs |         |
 | **Components**  | Smart/Dumb boundary, minimal local state       |         |
 | **Pages**       | Data via useFetch/useAsyncData, no raw $fetch  |         |
 | **Hydration**   | No double-fetch, client guards for window/doc  |         |
-| **Duplication**  | Single source of truth for shared utilities    |         |
+| **Duplication** | Single source of truth for shared utilities    |         |
 
-Present findings and proposed fixes. **Implement fixes without creating new anti-patterns.**
+Present findings and proposed fixes. **Implement fixes without creating new
+anti-patterns.**

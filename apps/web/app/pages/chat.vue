@@ -148,8 +148,8 @@ async function savePromptToLibrary(promptText: string) {
   // Use agent-provided preset type, validated against known types, defaulting to 'scene'
   const VALID_TYPES = ['person', 'scene', 'framing', 'action', 'style', 'clothing'] as const
   const agentType = lastAssistant?.parsedResponse?.preset_type?.toLowerCase()
-  const presetType = VALID_TYPES.includes(agentType as typeof VALID_TYPES[number])
-    ? (agentType as typeof VALID_TYPES[number])
+  const presetType = VALID_TYPES.includes(agentType as (typeof VALID_TYPES)[number])
+    ? (agentType as (typeof VALID_TYPES)[number])
     : 'scene'
 
   savingPrompt.value = true

@@ -105,15 +105,10 @@ onUnmounted(() => {
               class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
             />
-            <video
-              v-else
+            <LazyVideo
               :src="item.mediaUrl"
               :poster="item.thumbnailUrl || undefined"
-              preload="none"
-              loop
-              muted
-              playsinline
-              class="h-full w-full object-cover"
+              video-class="h-full w-full object-cover"
             />
           </template>
           <div v-else class="flex h-full w-full items-center justify-center">

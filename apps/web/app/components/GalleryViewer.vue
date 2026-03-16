@@ -3,6 +3,8 @@ import type { Generation } from '~/types/generation'
 
 defineOptions({ inheritAttrs: false })
 
+const store = useGenerationsStore()
+
 const {
   isOpen,
   currentItem,
@@ -33,8 +35,6 @@ const imageViewerRef = ref<{
   resetZoom: () => void
   zoomIn: () => void
   zoomOut: () => void
-  cancelSelectZoomMode: () => void
-  toggleSelectZoomMode: () => void
 } | null>(null)
 
 const videoViewerRef = ref<{
@@ -49,28 +49,18 @@ const mediaUrl = computed(() => currentItem.value?.mediaUrl ?? '')
 const isZoomed = ref(false)
 const zoomLevel = ref(1)
 const maxZoom = ref(8)
-const isSelectZoomMode = ref(false)
 
 function resetZoomState() {
   isZoomed.value = false
   zoomLevel.value = 1
   maxZoom.value = 8
-  isSelectZoomMode.value = false
 }
 
-function handleZoomStateChange(state: {
-  isZoomed: boolean
-  zoomLevel: number
-  maxZoom: number
-  isSelectZoomMode: boolean
-}) {
+function handleZoomStateChange(state: { isZoomed: boolean; zoomLevel: number; maxZoom: number }) {
   isZoomed.value = state.isZoomed
   zoomLevel.value = state.zoomLevel
   maxZoom.value = state.maxZoom
-  isSelectZoomMode.value = state.isSelectZoomMode
 }
-
-// ── Toolbar Actions (Delegated to specific functions below) ───
 
 // ── Reset state when switching items ───────────────────────
 watch(currentIndex, () => {
@@ -114,10 +104,6 @@ function handleKeydown(e: KeyboardEvent) {
 
   if (e.key === 'Escape') {
     e.preventDefault()
-    if (isSelectZoomMode.value && imageViewerRef.value) {
-      imageViewerRef.value.cancelSelectZoomMode()
-      return
-    }
     if (isZoomed.value && imageViewerRef.value) {
       imageViewerRef.value.resetZoom()
     } else {
@@ -219,13 +205,14 @@ async function handleDelete() {
   }
 }
 
-function handleToggleSelectZoomMode() {
-  imageViewerRef.value?.toggleSelectZoomMode()
-}
-
 function handlePresetClick(presetName: string) {
   close()
   navigateTo({ path: '/gallery', query: { search: presetName } })
+}
+
+async function handleFavorite() {
+  if (!currentItem.value) return
+  await store.toggleFavorite(currentItem.value.id)
 }
 </script>
 
@@ -248,13 +235,11 @@ function handlePresetClick(presetName: string) {
           :is-zoomed="isZoomed"
           :zoom-level="zoomLevel"
           :max-zoom="maxZoom"
-          :is-select-zoom-mode="isSelectZoomMode"
           :remixing="remixingRef"
           @close="close"
           @zoom-in="imageViewerRef?.zoomIn()"
           @zoom-out="imageViewerRef?.zoomOut()"
           @reset-zoom="imageViewerRef?.resetZoom()"
-          @toggle-select-zoom-mode="handleToggleSelectZoomMode"
           @info="handleInfo"
           @compare="handleCompare"
           @use-as-source="handleUseAsSource"
@@ -262,6 +247,7 @@ function handlePresetClick(presetName: string) {
           @use-prompt="handleUsePrompt"
           @remix="handleRemix"
           @upscale="handleUpscale"
+          @favorite="handleFavorite"
           @delete="handleDelete"
         />
 

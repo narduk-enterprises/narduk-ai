@@ -33,6 +33,7 @@ export function createSyntheticGeneration(
     metadata: null,
     presets: null,
     createdAt: new Date().toISOString(),
+    isFavorite: false,
     updatedAt: new Date().toISOString(),
   }
 }

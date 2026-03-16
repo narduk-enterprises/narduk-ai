@@ -35,6 +35,7 @@ function openInViewer(url: string, alt: string) {
     metadata: null,
     presets: null,
     createdAt: new Date().toISOString(),
+    isFavorite: false,
     updatedAt: new Date().toISOString(),
   }
   galleryViewer.open([syntheticItem], 0)

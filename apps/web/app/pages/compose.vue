@@ -88,7 +88,6 @@ function handleComposeToggle(el: { type: string; name: string }) {
   composeSelection[el.type] = composeSelection[el.type] === el.name ? null : el.name
 }
 
-
 // ── Chat / Refine ──────────────────────────────────────────────────
 const {
   chatLog,

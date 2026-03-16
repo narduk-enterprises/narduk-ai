@@ -24,6 +24,7 @@ const {
   handleUpscale,
   handleRemix,
   handleCompare,
+  handleToggleFavorite,
 } = useGalleryActions({ store, galleryViewer })
 
 const route = useRoute()
@@ -90,8 +91,8 @@ onUnmounted(() => {
 })
 
 // ── Sorted view ───────────────────────────────────────────────────
-const filteredGenerations = computed(() =>
-  [...store.items].sort((a, b) => {
+const filteredGenerations = computed(() => {
+  const sorted = [...store.items].sort((a, b) => {
     if (activeSort.value === 'rank') {
       if (b.comparisonScore !== a.comparisonScore) {
         return b.comparisonScore - a.comparisonScore
@@ -108,8 +109,15 @@ const filteredGenerations = computed(() =>
     }
 
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  }),
-)
+  })
+
+  // Client-side favorites filter
+  if (activeFilter.value === 'favorites') {
+    return sorted.filter((g) => g.isFavorite)
+  }
+
+  return sorted
+})
 
 // ── Sync viewer when list changes ─────────────────────────────────
 watch(filteredGenerations, (newList) => {
@@ -126,9 +134,13 @@ function setSort(value: 'recent' | 'rank') {
 
 const filters = [
   { label: 'All', value: 'all', icon: 'i-lucide-layout-grid' },
+  { label: 'Favorites', value: 'favorites', icon: 'i-lucide-heart' },
   { label: 'Images', value: 'images', icon: 'i-lucide-image' },
   { label: 'Videos', value: 'videos', icon: 'i-lucide-video' },
 ]
+
+// Mobile view toggle — default compact 2-col
+const mobileCompact = ref(true)
 </script>
 
 <template>
@@ -193,6 +205,19 @@ const filters = [
           size="sm"
         />
       </div>
+
+      <!-- Mobile view toggle -->
+      <div class="flex items-center gap-2">
+        <UButton
+          :icon="mobileCompact ? 'i-lucide-list' : 'i-lucide-grid-2x2'"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="sm:hidden rounded-full"
+          :aria-label="mobileCompact ? 'Switch to list view' : 'Switch to compact view'"
+          @click="mobileCompact = !mobileCompact"
+        />
+      </div>
     </div>
 
     <!-- Loading -->
@@ -226,12 +251,20 @@ const filters = [
 
     <!-- Grid -->
     <div v-else class="space-y-8">
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
+      <div
+        class="grid gap-3 sm:gap-5 stagger-children"
+        :class="[
+          mobileCompact
+            ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3'
+            : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+        ]"
+      >
         <GenerationCard
           v-for="gen in filteredGenerations"
           :key="gen.id"
           :generation="gen"
           :remixing="remixingId === gen.id"
+          :compact="mobileCompact"
           @click="openViewer(gen, filteredGenerations, loadMore)"
           @use-as-source="handleUseAsSource"
           @use-prompt="handleUsePrompt"
@@ -240,6 +273,7 @@ const filters = [
           @retry="handleRetry"
           @remix="handleRemix"
           @compare="(generation) => handleCompare(generation, 'gallery-card')"
+          @favorite="handleToggleFavorite"
         />
       </div>
 

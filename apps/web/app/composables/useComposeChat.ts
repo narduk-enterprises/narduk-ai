@@ -74,7 +74,8 @@ export function useComposeChat(options: {
           if (!saveTitle.value) saveTitle.value = title
         },
       })
-      if (!chatLog.value[assistantIndex]!.text) chatLog.value[assistantIndex]!.text = 'Draft created.'
+      if (!chatLog.value[assistantIndex]!.text)
+        chatLog.value[assistantIndex]!.text = 'Draft created.'
       chatMessages.value.push({ role: 'assistant', content: currentPromptDraft.value })
     } catch (e) {
       console.error('Failed to generate draft', e)

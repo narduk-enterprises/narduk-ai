@@ -41,6 +41,7 @@ export const generations = sqliteTable(
     presets: text('presets'), // JSON blob: Record<string, string>
     lineage: text('lineage'), // JSON blob: { presetIds, modifierIds, userPrompt, compiledPrompt, attributes }
     userPromptId: text('user_prompt_id').references(() => userPrompts.id, { onDelete: 'set null' }),
+    isFavorite: integer('is_favorite').notNull().default(0),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
@@ -53,6 +54,7 @@ export const generations = sqliteTable(
     index('generations_user_created_idx').on(table.userId, table.createdAt),
     index('generations_user_updated_idx').on(table.userId, table.updatedAt),
     index('generations_user_status_type_idx').on(table.userId, table.status, table.type),
+    index('generations_user_favorite_idx').on(table.userId, table.isFavorite),
   ],
 )
 

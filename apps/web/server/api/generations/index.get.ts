@@ -189,6 +189,7 @@ export default defineEventHandler(async (event) => {
     presets: generations.presets,
     lineage: generations.lineage,
     userPromptId: generations.userPromptId,
+    isFavorite: generations.isFavorite,
     createdAt: generations.createdAt,
     updatedAt: generations.updatedAt,
   }

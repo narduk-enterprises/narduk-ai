@@ -6,6 +6,7 @@ import { getGenerationSharePrompt } from '~/utils/generationPrompt'
 const props = defineProps<{
   generation: Generation
   remixing?: boolean
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   retry: [generation: Generation]
   remix: [generation: Generation]
   compare: [generation: Generation]
+  favorite: [generation: Generation]
 }>()
 
 const statusColors: Record<string, string> = {
@@ -99,7 +101,10 @@ function handleCompare() {
     @click="emit('click')"
   >
     <!-- Media Preview -->
-    <div class="relative w-full overflow-hidden bg-elevated/50 aspect-4/5">
+    <div
+      class="relative w-full overflow-hidden bg-elevated/50"
+      :class="compact ? 'aspect-square' : 'aspect-4/5'"
+    >
       <template v-if="generation.status === 'done' && generation.mediaUrl">
         <MediaImg
           v-if="generation.type === 'image'"
@@ -108,15 +113,11 @@ function handleCompare() {
           class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
         />
-        <video
-          v-else
+        <LazyVideo
           :src="generation.mediaUrl"
           :poster="generation.thumbnailUrl || undefined"
-          preload="none"
-          loop
-          muted
-          playsinline
-          class="h-full w-full object-cover"
+          video-class="h-full w-full object-cover"
+          :poster-only="compact"
         />
       </template>
       <div v-else class="flex h-full w-full items-center justify-center">
@@ -157,10 +158,26 @@ function handleCompare() {
         class="absolute bottom-2.5 right-2.5"
         :label="`${generation.duration}s`"
       />
+
+      <!-- Favorite button -->
+      <UButton
+        v-if="generation.status === 'done'"
+        :icon="generation.isFavorite ? 'i-lucide-heart' : 'i-lucide-heart'"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        class="absolute top-2.5 right-2.5 rounded-full transition-all duration-200"
+        :class="[
+          generation.isFavorite
+            ? 'text-error bg-black/40 opacity-100'
+            : 'text-white/80 bg-black/30 opacity-0 group-hover:opacity-100',
+        ]"
+        @click.stop="emit('favorite', generation)"
+      />
     </div>
 
-    <!-- Info -->
-    <div class="p-4 space-y-2">
+    <!-- Info (hidden in compact mode) -->
+    <div v-if="!compact" class="p-4 space-y-2">
       <div class="flex items-center gap-2">
         <UBadge
           :color="

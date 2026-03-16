@@ -38,7 +38,8 @@ const emit = defineEmits<{
     </div>
     <p class="line-clamp-2 text-xs text-muted">{{ generation.prompt }}</p>
     <p class="text-xs text-dimmed">
-      Score: {{ formatComparisonScore(generation.comparisonScore) }} ({{ generation.comparisonWins
+      Score: {{ formatComparisonScore(generation.comparisonScore) }} ({{
+        generation.comparisonWins
       }}W / {{ generation.comparisonLosses }}L)
     </p>
   </div>

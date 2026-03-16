@@ -16,7 +16,6 @@ const emit = defineEmits<{
       isZoomed: boolean
       zoomLevel: number
       maxZoom: number
-      isSelectZoomMode: boolean
     },
   ]
 }>()
@@ -26,18 +25,13 @@ const isVideo = computed(() => false)
 const {
   zoomLevel,
   isZoomed,
-  isSelectZoomMode,
-  isSelectingArea,
   isDragging,
-  selectionRect,
   imageContainerRef,
   imageTransform,
   MAX_ZOOM,
   resetZoom,
   zoomIn,
   zoomOut,
-  cancelSelectZoomMode,
-  toggleSelectZoomMode,
   handleWheelZoom,
   handleMouseDown,
   handleDblClick,
@@ -51,13 +45,12 @@ const {
 })
 
 watch(
-  [isZoomed, zoomLevel, isSelectZoomMode],
+  [isZoomed, zoomLevel],
   () => {
     emit('zoomStateChange', {
       isZoomed: isZoomed.value,
       zoomLevel: zoomLevel.value,
       maxZoom: MAX_ZOOM,
-      isSelectZoomMode: isSelectZoomMode.value,
     })
   },
   { immediate: true },
@@ -68,8 +61,6 @@ defineExpose({
   resetZoom,
   zoomIn,
   zoomOut,
-  cancelSelectZoomMode,
-  toggleSelectZoomMode,
 })
 </script>
 
@@ -83,7 +74,7 @@ defineExpose({
   >
     <!-- Prev Button (Desktop) -->
     <UButton
-      v-if="hasPrev && !isZoomed && !isSelectZoomMode"
+      v-if="hasPrev && !isZoomed"
       icon="i-lucide-chevron-left"
       color="neutral"
       variant="ghost"
@@ -97,14 +88,7 @@ defineExpose({
       ref="imageContainerRef"
       class="relative flex items-center justify-center w-full h-full"
       :style="{
-        cursor:
-          isSelectZoomMode || isSelectingArea
-            ? 'crosshair'
-            : isZoomed
-              ? isDragging
-                ? 'grabbing'
-                : 'grab'
-              : 'zoom-in',
+        cursor: isZoomed ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
       }"
       @mousedown="handleMouseDown"
       @dblclick="handleDblClick"
@@ -119,22 +103,11 @@ defineExpose({
           transformOrigin: 'center center',
         }"
       />
-
-      <div
-        v-if="selectionRect"
-        class="pointer-events-none absolute border-2 border-primary/90 bg-primary/10 shadow-overlay"
-        :style="{
-          left: `${selectionRect.left}px`,
-          top: `${selectionRect.top}px`,
-          width: `${selectionRect.width}px`,
-          height: `${selectionRect.height}px`,
-        }"
-      />
     </div>
 
     <!-- Next Button (Desktop) -->
     <UButton
-      v-if="hasNext && !isZoomed && !isSelectZoomMode"
+      v-if="hasNext && !isZoomed"
       icon="i-lucide-chevron-right"
       color="neutral"
       variant="ghost"
@@ -146,16 +119,16 @@ defineExpose({
     <!-- Interaction hint -->
     <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
       <span
-        class="text-xs text-white/50 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full whitespace-nowrap"
+        class="text-xs text-white/50 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full whitespace-nowrap hidden sm:inline"
       >
-        <template v-if="isSelectZoomMode">
-          Drag a rectangle to zoom into it &middot; Press Esc to cancel
-        </template>
-        <template v-else-if="isSelectingArea"> Release to zoom into the selection </template>
-        <template v-else-if="isZoomed">
-          Drag to pan &middot; Double-click or press 0 to reset
-        </template>
-        <template v-else> Hold Shift and drag for a quick zoom </template>
+        <template v-if="isZoomed"> Drag to pan &middot; Double-click or press 0 to reset </template>
+        <template v-else> Scroll or double-click to zoom </template>
+      </span>
+      <span
+        class="text-xs text-white/50 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full whitespace-nowrap sm:hidden"
+      >
+        <template v-if="isZoomed"> Drag to pan &middot; Double-tap to reset </template>
+        <template v-else> Pinch or double-tap to zoom </template>
       </span>
     </div>
   </div>

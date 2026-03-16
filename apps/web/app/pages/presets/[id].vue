@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PromptElement } from '~/composables/usePromptElements'
+import type { Generation } from '~/types/generation'
 import { createSyntheticGeneration, getPresetThumbnail } from '~/utils/presetMetadata'
 import {
   PRESET_ATTRIBUTES,
@@ -401,6 +402,10 @@ const presetSearch = ref('')
 const isMobilePresetsOpen = ref(false)
 const isDebugModalOpen = ref(false)
 
+function getElThumbnail(el: PromptElement): string | null {
+  return getPresetThumbnail(el.metadata ?? null)
+}
+
 onMounted(() => fetchElements())
 
 const filteredGroupedElements = computed(() => {
@@ -420,8 +425,6 @@ const filteredGroupedElements = computed(() => {
   }
   return groups
 })
-
-
 </script>
 
 <template>
@@ -761,20 +764,20 @@ const filteredGroupedElements = computed(() => {
             >
               <div
                 class="relative group rounded-xl overflow-hidden ring-1 ring-default shadow-card bg-elevated my-2 hover:ring-primary/50 transition-all duration-300 cursor-pointer"
-                @click="openPresetViewer(item)"
+                @click="openPresetViewer(item as unknown as Generation)"
               >
-                <div v-if="item.mediaUrl" class="block h-48 w-auto">
+                <div v-if="(item as any).mediaUrl" class="block h-48 w-auto">
                   <NuxtImg
-                    v-if="item.type === 'image'"
-                    :src="item.mediaUrl"
-                    :alt="item.prompt"
+                    v-if="(item as any).type === 'image'"
+                    :src="(item as any).mediaUrl"
+                    :alt="(item as any).prompt"
                     class="h-full w-auto object-cover"
                     loading="lazy"
                   />
                   <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
                   <video
                     v-else
-                    :src="item.mediaUrl"
+                    :src="(item as any).mediaUrl"
                     preload="metadata"
                     class="h-full w-auto object-cover"
                   />
@@ -805,7 +808,7 @@ const filteredGroupedElements = computed(() => {
             :maxrows="3"
             :disabled="isChatting"
             :ui="{ base: 'rounded-xl' }"
-            @keydown="handleKeydown"
+            @keydown.enter.exact.prevent="!isChatting && chatInput.trim() && sendChatMessage()"
           />
           <UButton
             type="submit"
@@ -862,8 +865,8 @@ const filteredGroupedElements = computed(() => {
                   >
                     <div class="flex items-center gap-2 flex-1 overflow-hidden">
                       <img
-                        v-if="parseMeta(el.metadata)?.headshotUrl"
-                        :src="parseMeta(el.metadata)!.headshotUrl"
+                        v-if="getElThumbnail(el)"
+                        :src="getElThumbnail(el)!"
                         :alt="el.name"
                         class="size-8 rounded-full object-cover shrink-0 ring-1 ring-default"
                       />

@@ -8,16 +8,14 @@ const props = defineProps<{
   isZoomed: boolean
   zoomLevel: number
   maxZoom: number
-  isSelectZoomMode: boolean
   remixing: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   close: []
   zoomIn: []
   zoomOut: []
   resetZoom: []
-  toggleSelectZoomMode: []
   info: []
   compare: []
   useAsSource: []
@@ -25,19 +23,60 @@ defineEmits<{
   usePrompt: []
   remix: []
   upscale: []
+  favorite: []
   delete: []
 }>()
 
 const isVideo = computed(() => props.item?.type === 'video')
 const isImage = computed(() => props.item?.type === 'image')
 const isDone = computed(() => props.item?.status === 'done')
+
+const overflowItems = computed(() => {
+  const group: { label: string; icon: string; disabled?: boolean; onSelect: () => void }[] = []
+
+  group.push({ label: 'View details', icon: 'i-lucide-info', onSelect: () => emit('info') })
+
+  if (isImage.value && isDone.value) {
+    group.push({ label: 'Compare', icon: 'i-lucide-scale', onSelect: () => emit('compare') })
+    group.push({ label: 'Animate', icon: 'i-lucide-video', onSelect: () => emit('useAsSource') })
+    group.push({
+      label: 'Edit image',
+      icon: 'i-lucide-layers',
+      onSelect: () => emit('editImage'),
+    })
+  }
+
+  if (isDone.value) {
+    group.push({
+      label: 'Use prompt',
+      icon: 'i-lucide-file-text',
+      onSelect: () => emit('usePrompt'),
+    })
+    group.push({
+      label: 'Remix',
+      icon: 'i-lucide-shuffle',
+      disabled: props.remixing,
+      onSelect: () => emit('remix'),
+    })
+  }
+
+  if (isImage.value && isDone.value) {
+    group.push({
+      label: 'Upscale to 2K',
+      icon: 'i-lucide-maximize-2',
+      onSelect: () => emit('upscale'),
+    })
+  }
+
+  return [group]
+})
 </script>
 
 <template>
   <div
-    class="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-4 py-3 bg-linear-to-b from-black/80 to-transparent"
+    class="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 bg-linear-to-b from-black/80 to-transparent"
   >
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 sm:gap-3">
       <UButton
         icon="i-lucide-x"
         color="neutral"
@@ -56,8 +95,8 @@ const isDone = computed(() => props.item?.status === 'done')
       </span>
     </div>
 
-    <div class="flex items-center gap-1.5">
-      <!-- Zoom controls (images only) -->
+    <div class="flex items-center gap-1">
+      <!-- Zoom controls (desktop only, images only) -->
       <template v-if="!isVideo && isDone">
         <UTooltip text="Zoom out (-)">
           <UButton
@@ -66,7 +105,7 @@ const isDone = computed(() => props.item?.status === 'done')
             variant="ghost"
             size="sm"
             :disabled="!isZoomed"
-            class="text-white hover:bg-white/10 rounded-full"
+            class="hidden sm:flex text-white hover:bg-white/10 rounded-full"
             @click="$emit('zoomOut')"
           />
         </UTooltip>
@@ -74,7 +113,7 @@ const isDone = computed(() => props.item?.status === 'done')
           color="neutral"
           variant="ghost"
           size="xs"
-          class="text-white/70 font-mono tabular-nums min-w-10 text-center hover:text-white hover:bg-white/10 rounded-md px-1"
+          class="hidden sm:flex text-white/70 font-mono tabular-nums min-w-10 text-center hover:text-white hover:bg-white/10 rounded-md px-1"
           @click="$emit('resetZoom')"
         >
           {{ Math.round(zoomLevel * 100) }}%
@@ -86,105 +125,40 @@ const isDone = computed(() => props.item?.status === 'done')
             variant="ghost"
             size="sm"
             :disabled="zoomLevel >= maxZoom"
-            class="text-white hover:bg-white/10 rounded-full"
+            class="hidden sm:flex text-white hover:bg-white/10 rounded-full"
             @click="$emit('zoomIn')"
           />
         </UTooltip>
-        <UTooltip
-          :text="
-            isSelectZoomMode ? 'Cancel area zoom (Esc)' : 'Select area to zoom (or Shift-drag)'
-          "
-        >
-          <UButton
-            icon="i-lucide-crop"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            class="rounded-full"
-            :class="
-              isSelectZoomMode
-                ? 'text-white bg-primary/20 hover:bg-primary/30'
-                : 'text-white hover:bg-white/10'
-            "
-            @click="$emit('toggleSelectZoomMode')"
-          />
-        </UTooltip>
-        <div class="w-px h-5 bg-white/20 mx-0.5" />
+        <div class="hidden sm:block w-px h-5 bg-white/20 mx-0.5" />
       </template>
 
-      <!-- Actions -->
-      <UTooltip text="View details">
+      <!-- Overflow Menu -->
+      <UDropdownMenu :items="overflowItems" :content="{ align: 'end', sideOffset: 8 }">
         <UButton
-          icon="i-lucide-info"
+          icon="i-lucide-ellipsis"
           color="neutral"
           variant="ghost"
           size="sm"
           class="text-white hover:bg-white/10 rounded-full"
-          @click="$emit('info')"
         />
-      </UTooltip>
-      <UTooltip v-if="isImage && isDone" text="Compare">
+      </UDropdownMenu>
+
+      <!-- Favorite (always visible) -->
+      <UTooltip :text="props.item.isFavorite ? 'Unfavorite' : 'Favorite'">
         <UButton
-          icon="i-lucide-scale"
+          icon="i-lucide-heart"
           color="neutral"
           variant="ghost"
           size="sm"
-          class="text-white hover:bg-white/10 rounded-full"
-          aria-label="Compare viewer image"
-          @click="$emit('compare')"
+          class="rounded-full transition-all duration-200"
+          :class="[
+            props.item.isFavorite ? 'text-error hover:bg-error/20' : 'text-white hover:bg-white/10',
+          ]"
+          @click="$emit('favorite')"
         />
       </UTooltip>
-      <UTooltip v-if="isImage && isDone" text="Animate">
-        <UButton
-          icon="i-lucide-video"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="text-white hover:bg-white/10 rounded-full"
-          @click="$emit('useAsSource')"
-        />
-      </UTooltip>
-      <UTooltip v-if="isImage && isDone" text="Edit image">
-        <UButton
-          icon="i-lucide-layers"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="text-white hover:bg-white/10 rounded-full"
-          @click="$emit('editImage')"
-        />
-      </UTooltip>
-      <UTooltip v-if="isDone" text="Use prompt">
-        <UButton
-          icon="i-lucide-file-text"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="text-white hover:bg-white/10 rounded-full"
-          @click="$emit('usePrompt')"
-        />
-      </UTooltip>
-      <UTooltip v-if="isDone" text="Remix">
-        <UButton
-          icon="i-lucide-shuffle"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="text-white hover:bg-white/10 rounded-full"
-          :loading="remixing"
-          @click="$emit('remix')"
-        />
-      </UTooltip>
-      <UTooltip v-if="isImage && isDone" text="Upscale to 2K">
-        <UButton
-          icon="i-lucide-maximize-2"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="text-white hover:bg-white/10 rounded-full"
-          @click="$emit('upscale')"
-        />
-      </UTooltip>
+
+      <!-- Delete (always visible, destructive) -->
       <UTooltip text="Delete">
         <UButton
           icon="i-lucide-trash-2"

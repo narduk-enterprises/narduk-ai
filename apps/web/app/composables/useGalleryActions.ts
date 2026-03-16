@@ -130,6 +130,10 @@ export function useGalleryActions(options?: {
     await launchCompare(gen, sourceContext)
   }
 
+  async function handleToggleFavorite(gen: Generation) {
+    await store.toggleFavorite(gen.id)
+  }
+
   return {
     remixingId,
     upscalingId,
@@ -142,5 +146,6 @@ export function useGalleryActions(options?: {
     handleUpscale,
     handleRemix,
     handleCompare,
+    handleToggleFavorite,
   }
 }

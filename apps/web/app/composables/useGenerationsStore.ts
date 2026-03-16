@@ -129,6 +129,28 @@ export const useGenerationsStore = defineStore('generations', () => {
     items.value.filter((g) => g.type === 'image' && g.status === 'done'),
   )
 
+  const favorites = computed(() => items.value.filter((g) => g.isFavorite))
+
+  /** Toggle favorite status with optimistic update */
+  async function toggleFavorite(id: string) {
+    // Optimistic toggle
+    const idx = items.value.findIndex((g) => g.id === id)
+    if (idx === -1) return
+    const prev = items.value[idx]!.isFavorite
+    items.value[idx]!.isFavorite = !prev
+    try {
+      const updated = await $fetch<Generation>(`/api/generations/${id}/favorite`, {
+        method: 'PATCH',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      })
+      // Sync with server response
+      items.value[idx]!.isFavorite = !!updated.isFavorite
+    } catch {
+      // Rollback on failure
+      items.value[idx]!.isFavorite = prev
+    }
+  }
+
   return {
     items,
     loading,
@@ -136,10 +158,12 @@ export const useGenerationsStore = defineStore('generations', () => {
     isFinished,
     lastSeenAt,
     doneImages,
+    favorites,
     load,
     loadMore,
     applyDelta,
     upsert,
     remove,
+    toggleFavorite,
   }
 })

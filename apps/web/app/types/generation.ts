@@ -35,6 +35,7 @@ export interface Generation {
   resolution: string | null
   metadata: string | null
   presets: string | null
+  isFavorite: boolean
   createdAt: string
   updatedAt: string
 }
