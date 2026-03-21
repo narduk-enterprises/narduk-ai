@@ -28,6 +28,7 @@ export interface RunAppSyncOptions {
   dryRun?: boolean
   strict?: boolean
   skipQuality?: boolean
+  allowDirtyApp?: boolean
   allowDirtyTemplate?: boolean
   skipRewriteRepo?: boolean
   log?: (message: string) => void
@@ -175,6 +176,22 @@ function ensureTemplateState(
     log('❌ Template repository has uncommitted changes.')
     log('   Commit or stash changes before syncing the fleet.')
     throw new Error('template repository is dirty')
+  }
+}
+
+function ensureAppState(
+  appDir: string,
+  allowDirtyApp: boolean,
+  dryRun: boolean,
+  log: (message: string) => void,
+) {
+  if (dryRun || allowDirtyApp) return
+
+  const status = getOutput('git status --porcelain', appDir)
+  if (status) {
+    log('❌ App repository has uncommitted changes.')
+    log('   Commit or stash changes before syncing, or re-run with --allow-dirty-app.')
+    throw new Error('app repository is dirty')
   }
 }
 
@@ -674,12 +691,14 @@ export async function runAppSync(options: RunAppSyncOptions) {
   const dryRun = options.dryRun ?? false
   const skipQuality = options.skipQuality ?? false
   const strict = options.strict ?? false
+  const allowDirtyApp = options.allowDirtyApp ?? false
   const allowDirtyTemplate = options.allowDirtyTemplate ?? false
   const skipRewriteRepo = options.skipRewriteRepo ?? false
   const log = options.log ?? console.log
   const counters = createCounters()
 
   ensureTemplateState(options.templateDir, allowDirtyTemplate, dryRun, log)
+  ensureAppState(options.appDir, allowDirtyApp, dryRun, log)
   const templateSha = getOutput('git rev-parse HEAD', options.templateDir)
 
   log('')
