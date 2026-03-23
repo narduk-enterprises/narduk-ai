@@ -9,10 +9,10 @@
     "dev": "pnpm run db:ready && (doppler run -- nuxt dev || nuxt dev)",
     "quality": "echo 'Turbo dependsOn handles lint + typecheck + format:check'",
     "db:check": "drizzle-kit check",
-    "db:migrate": "bash ../../tools/db-migrate.sh narduk-ai-db --local --dir drizzle",
+    "db:migrate": "bash ../../tools/db-migrate.sh narduk-ai-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle --dir drizzle",
     "db:seed": "wrangler d1 execute narduk-ai-db --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql && wrangler d1 execute narduk-ai-db --local --file=drizzle/seed-elements.sql && wrangler d1 execute narduk-ai-db --local --file=drizzle/0016_backfill_prompt_element_attributes.sql && wrangler d1 execute narduk-ai-db --local --file=drizzle/0017_backfill_unstructured_prompt_element_attributes.sql && wrangler d1 execute narduk-ai-db --local --file=drizzle/seed-generations.sql",
     "db:seed:elements": "wrangler d1 execute narduk-ai-db --local --file=drizzle/seed-elements.sql && wrangler d1 execute narduk-ai-db --local --file=drizzle/0016_backfill_prompt_element_attributes.sql && wrangler d1 execute narduk-ai-db --local --file=drizzle/0017_backfill_unstructured_prompt_element_attributes.sql",
-    "db:reset": "bash ../../tools/db-migrate.sh narduk-ai-db --local --dir drizzle --reset && pnpm run db:seed",
+    "db:reset": "bash ../../tools/db-migrate.sh narduk-ai-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle --dir drizzle --reset && pnpm run db:seed",
     "db:studio": "drizzle-kit studio",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
@@ -22,10 +22,11 @@
     "lint": "eslint . --max-warnings 0",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:e2e": "playwright test --project=web --config=../../playwright.config.ts",
-    "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path ../../.gitignore"
+    "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path ../../.gitignore",
+    "db:verify": "node node_modules/@narduk-enterprises/narduk-nuxt-template-layer/testing/verify-local-db.mjs ."
   },
   "dependencies": {
-    "@narduk-enterprises/eslint-config": "^1.0.12",
+    "@narduk-enterprises/eslint-config": "^1.0.14",
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",
     "@nuxt/ui": "^4.5.0",
     "drizzle-orm": "^0.45.1",
