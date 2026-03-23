@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import { generations } from '#server/database/schema'
 import { useAppDatabase } from '#server/utils/database'
 import { createGenerationComparisonDefaults } from '#server/utils/imageComparisons'
@@ -14,83 +15,83 @@ const bodySchema = z.object({
  * so that it seamlessly integrates with the rest of the generation gallery
  * and I2I workflows.
  */
-export default defineEventHandler(async (event) => {
-  const log = useLogger(event).child('MediaUpload')
-  const user = await requireAuth(event)
+export default defineUserMutation(
+  {
+    rateLimit: { namespace: 'media-upload', maxRequests: 5, windowMs: 60_000 },
+    parseBody: withValidatedBody(bodySchema.parse),
+  },
+  async ({ event, user, body }) => {
+    const log = useLogger(event).child('MediaUpload')
 
-  // Rate limit uploads to prevent spam (e.g. 5 uploads per minute)
-  await enforceRateLimit(event, 'media-upload', 5, 60_000)
+    log.info('AUDIT: Processing image upload', { userId: user.id })
 
-  const body = await readValidatedBody(event, bodySchema.parse)
+    try {
+      // 1. Decode base64
+      // Format is typically: data:image/jpeg;base64,/9j/4AAQSkZJRgAB...
+      const matches = body.imageBase64.match(/^data:([A-Za-z-+/]+);base64,(.+)$/)
 
-  log.info('AUDIT: Processing image upload', { userId: user.id })
+      if (!matches || matches.length !== 3) {
+        throw createError({ statusCode: 400, message: 'Invalid base64 image data' })
+      }
 
-  try {
-    // 1. Decode base64
-    // Format is typically: data:image/jpeg;base64,/9j/4AAQSkZJRgAB...
-    const matches = body.imageBase64.match(/^data:([A-Za-z-+/]+);base64,(.+)$/)
+      const mimeType = matches[1] || 'image/png'
+      const b64Data = matches[2]
 
-    if (!matches || matches.length !== 3) {
-      throw createError({ statusCode: 400, message: 'Invalid base64 image data' })
+      if (!b64Data) {
+        throw createError({ statusCode: 400, message: 'Invalid base64 image data' })
+      }
+
+      // Convert base64 string to buffer
+      const binaryStr = atob(b64Data)
+      const len = binaryStr.length
+      const bytes = new Uint8Array(len)
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryStr.charCodeAt(i)
+      }
+
+      const buffer = bytes.buffer
+
+      // 2. Upload to R2
+      const id = crypto.randomUUID()
+
+      // Determine extension from mime type
+      const extRaw = mimeType.split('/')[1] || 'png'
+      const extension = extRaw === 'jpeg' ? 'jpg' : extRaw
+      const r2Key = `uploads/${user.id}/${id}.${extension}`
+
+      await uploadToR2(event, r2Key, buffer, mimeType)
+
+      // 3. Create generation record
+      const now = new Date().toISOString()
+      const db = useAppDatabase(event)
+
+      const record = {
+        id,
+        userId: user.id,
+        type: 'image' as const,
+        mode: 't2i' as const, // Treat it conceptually like an image generation output
+        prompt: 'Uploaded Image',
+        status: 'done' as const,
+        r2Key,
+        mediaUrl: `/api/media/${r2Key}`,
+        thumbnailUrl: null,
+        ...createGenerationComparisonDefaults(),
+        createdAt: now,
+        updatedAt: now,
+      }
+
+      await db.insert(generations).values(record)
+
+      log.info('Upload complete', { userId: user.id, r2Key })
+
+      return record
+    } catch (error) {
+      const err = error as Error & { statusCode?: number }
+      log.error('Upload failed', { error: err.message, userId: user.id })
+      if (err.statusCode) {
+        throw err // rethrow specific H3 errors
+      }
+      throw createError({ statusCode: 500, message: 'Failed to process and upload image' })
     }
-
-    const mimeType = matches[1] || 'image/png'
-    const b64Data = matches[2]
-
-    if (!b64Data) {
-      throw createError({ statusCode: 400, message: 'Invalid base64 image data' })
-    }
-
-    // Convert base64 string to buffer
-    const binaryStr = atob(b64Data)
-    const len = binaryStr.length
-    const bytes = new Uint8Array(len)
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryStr.charCodeAt(i)
-    }
-
-    const buffer = bytes.buffer
-
-    // 2. Upload to R2
-    const id = crypto.randomUUID()
-
-    // Determine extension from mime type
-    const extRaw = mimeType.split('/')[1] || 'png'
-    const extension = extRaw === 'jpeg' ? 'jpg' : extRaw
-    const r2Key = `uploads/${user.id}/${id}.${extension}`
-
-    await uploadToR2(event, r2Key, buffer, mimeType)
-
-    // 3. Create generation record
-    const now = new Date().toISOString()
-    const db = useAppDatabase(event)
-
-    const record = {
-      id,
-      userId: user.id,
-      type: 'image' as const,
-      mode: 't2i' as const, // Treat it conceptually like an image generation output
-      prompt: 'Uploaded Image',
-      status: 'done' as const,
-      r2Key,
-      mediaUrl: `/api/media/${r2Key}`,
-      thumbnailUrl: null,
-      ...createGenerationComparisonDefaults(),
-      createdAt: now,
-      updatedAt: now,
-    }
-
-    await db.insert(generations).values(record)
-
-    log.info('Upload complete', { userId: user.id, r2Key })
-
-    return record
-  } catch (error) {
-    const err = error as Error & { statusCode?: number }
-    log.error('Upload failed', { error: err.message, userId: user.id })
-    if (err.statusCode) {
-      throw err // rethrow specific H3 errors
-    }
-    throw createError({ statusCode: 500, message: 'Failed to process and upload image' })
-  }
-})
+  },
+)

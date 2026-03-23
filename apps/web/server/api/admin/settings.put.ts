@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { appSettings } from '../../database/schema'
+import { appSettings } from '#server/database/schema'
+import { defineAdminMutation, withValidatedBody } from '#layer/server/utils/mutation'
 
 const bodySchema = z.object({
   videoModel: z.string().min(1),
@@ -10,44 +11,45 @@ const bodySchema = z.object({
 /**
  * PUT /api/admin/settings — Updates the global application settings.
  */
-export default defineEventHandler(async (event) => {
-  const log = useLogger(event).child('AdminSettings')
-  const user = await requireAdmin(event)
+export default defineAdminMutation(
+  {
+    rateLimit: { namespace: 'admin-settings', maxRequests: 10, windowMs: 60_000 },
+    parseBody: withValidatedBody(bodySchema.parse),
+  },
+  async ({ event, admin: user, body }) => {
+    const log = useLogger(event).child('AdminSettings')
+    const db = useAppDatabase(event)
+    const now = new Date().toISOString()
 
-  await enforceRateLimit(event, 'admin-settings', 10, 60_000)
-
-  const body = await readValidatedBody(event, bodySchema.parse)
-  const db = useDatabase(event)
-  const now = new Date().toISOString()
-
-  // Upsert the single row (id=1)
-  const result = await db
-    .insert(appSettings)
-    .values({
-      id: 1,
-      videoModel: body.videoModel,
-      imageModel: body.imageModel,
-      promptEnhanceModel: body.promptEnhanceModel,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: appSettings.id,
-      set: {
+    // Upsert the single row (id=1)
+    const result = await db
+      .insert(appSettings)
+      .values({
+        id: 1,
         videoModel: body.videoModel,
         imageModel: body.imageModel,
         promptEnhanceModel: body.promptEnhanceModel,
         updatedAt: now,
-      },
+      })
+      .onConflictDoUpdate({
+        target: appSettings.id,
+        set: {
+          videoModel: body.videoModel,
+          imageModel: body.imageModel,
+          promptEnhanceModel: body.promptEnhanceModel,
+          updatedAt: now,
+        },
+      })
+      .returning()
+      .get()
+
+    log.info('App settings updated', {
+      userId: user.id,
+      videoModel: body.videoModel,
+      imageModel: body.imageModel,
+      promptEnhanceModel: body.promptEnhanceModel,
     })
-    .returning()
-    .get()
 
-  log.info('App settings updated', {
-    userId: user.id,
-    videoModel: body.videoModel,
-    imageModel: body.imageModel,
-    promptEnhanceModel: body.promptEnhanceModel,
-  })
-
-  return result
-})
+    return result
+  },
+)

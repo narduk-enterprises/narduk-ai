@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import { eq } from 'drizzle-orm'
 import { generations, appSettings } from '#server/database/schema'
 import { useAppDatabase } from '#server/utils/database'
@@ -25,81 +26,84 @@ const bodySchema = z.object({
  * Starts async video generation. Returns a pending generation record.
  * Client polls /api/generate/poll/[requestId] until done.
  */
-export default defineEventHandler(async (event) => {
-  const log = useLogger(event).child('Generate')
-  const user = await requireAuth(event)
-  await enforceRateLimit(event, 'generate-video', 5, 60_000)
-  const body = await readValidatedBody(event, bodySchema.parse)
-  const config = useRuntimeConfig(event)
+export default defineUserMutation(
+  {
+    rateLimit: { namespace: 'generate-video', maxRequests: 5, windowMs: 60_000 },
+    parseBody: withValidatedBody(bodySchema.parse),
+  },
+  async ({ event, user, body }) => {
+    const log = useLogger(event).child('Generate')
+    const config = useRuntimeConfig(event)
 
-  if (!config.xaiApiKey) {
-    throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
-  }
-
-  log.info('AUDIT: T2V request', {
-    action: 'generate_t2v',
-    userId: user.id,
-    promptLength: body.prompt.length,
-    duration: body.duration,
-    aspectRatio: body.aspectRatio,
-    resolution: body.resolution,
-  })
-
-  const db = useAppDatabase(event)
-
-  // Prefer client-supplied model; fall back to DB-configured model
-  let videoModel = body.model || 'grok-imagine-video'
-  if (!body.model) {
-    try {
-      const settings = await db
-        .select({ videoModel: appSettings.videoModel })
-        .from(appSettings)
-        .where(eq(appSettings.id, 1))
-        .get()
-      if (settings?.videoModel) {
-        videoModel = settings.videoModel
-      }
-    } catch (err) {
-      log.warn('Could not fetch appSettings for videoModel', { err })
+    if (!config.xaiApiKey) {
+      throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
     }
-  }
 
-  // Start async video generation
-  const result = await grokStartVideo(config.xaiApiKey, {
-    prompt: body.prompt,
-    model: videoModel,
-    duration: body.duration,
-    aspect_ratio: body.aspectRatio,
-    resolution: body.resolution,
-  })
+    log.info('AUDIT: T2V request', {
+      action: 'generate_t2v',
+      userId: user.id,
+      promptLength: body.prompt.length,
+      duration: body.duration,
+      aspectRatio: body.aspectRatio,
+      resolution: body.resolution,
+    })
 
-  log.info('T2V started', { userId: user.id, requestId: result.request_id })
+    const db = useAppDatabase(event)
 
-  // Insert pending generation record
-  const id = crypto.randomUUID()
-  const now = new Date().toISOString()
+    // Prefer client-supplied model; fall back to DB-configured model
+    let videoModel = body.model || 'grok-imagine-video'
+    if (!body.model) {
+      try {
+        const settings = await db
+          .select({ videoModel: appSettings.videoModel })
+          .from(appSettings)
+          .where(eq(appSettings.id, 1))
+          .get()
+        if (settings?.videoModel) {
+          videoModel = settings.videoModel
+        }
+      } catch (err) {
+        log.warn('Could not fetch appSettings for videoModel', { err })
+      }
+    }
 
-  const record = {
-    id,
-    userId: user.id,
-    type: 'video' as const,
-    mode: 't2v' as const,
-    prompt: body.prompt,
-    status: 'pending' as const,
-    xaiRequestId: result.request_id,
-    ...createGenerationComparisonDefaults(),
-    duration: body.duration,
-    aspectRatio: body.aspectRatio,
-    resolution: body.resolution,
-    promptElements: body.promptElements ? JSON.stringify(body.promptElements) : null,
-    presets: body.presets ? JSON.stringify(body.presets) : null,
-    lineage: body.lineage || null,
-    userPromptId: body.userPromptId || null,
-    createdAt: now,
-    updatedAt: now,
-  }
+    // Start async video generation
+    const result = await grokStartVideo(config.xaiApiKey, {
+      prompt: body.prompt,
+      model: videoModel,
+      duration: body.duration,
+      aspect_ratio: body.aspectRatio,
+      resolution: body.resolution,
+    })
 
-  await db.insert(generations).values(record)
+    log.info('T2V started', { userId: user.id, requestId: result.request_id })
 
-  return record
-})
+    // Insert pending generation record
+    const id = crypto.randomUUID()
+    const now = new Date().toISOString()
+
+    const record = {
+      id,
+      userId: user.id,
+      type: 'video' as const,
+      mode: 't2v' as const,
+      prompt: body.prompt,
+      status: 'pending' as const,
+      xaiRequestId: result.request_id,
+      ...createGenerationComparisonDefaults(),
+      duration: body.duration,
+      aspectRatio: body.aspectRatio,
+      resolution: body.resolution,
+      promptElements: body.promptElements ? JSON.stringify(body.promptElements) : null,
+      presets: body.presets ? JSON.stringify(body.presets) : null,
+      lineage: body.lineage || null,
+      userPromptId: body.userPromptId || null,
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    await db.insert(generations).values(record)
+
+    return record
+  },
+)

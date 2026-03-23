@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { quickModifiers } from '../../../database/schema'
+import { quickModifiers } from '#server/database/schema'
+import { defineAdminMutation, withValidatedBody } from '#layer/server/utils/mutation'
 
 const bodySchema = z.object({
   id: z.string().min(1).max(100),
@@ -10,25 +11,20 @@ const bodySchema = z.object({
   enabled: z.number().int().min(0).max(1).default(1),
 })
 
-export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
-  const body = await readBody(event)
-  const parsed = bodySchema.safeParse(body)
+export default defineAdminMutation(
+  {
+    rateLimit: { namespace: 'admin-quick-modifier-create', maxRequests: 20, windowMs: 60_000 },
+    parseBody: withValidatedBody(bodySchema.parse),
+  },
+  async ({ event, body }) => {
+    const db = useAppDatabase(event)
+    const now = new Date().toISOString()
 
-  if (!parsed.success) {
-    throw createError({
-      statusCode: 400,
-      message: parsed.error.issues.map((i) => i.message).join(', '),
-    })
-  }
+    await db
+      .insert(quickModifiers)
+      .values({ ...body, updatedAt: now })
+      .execute()
 
-  const db = useDatabase(event)
-  const now = new Date().toISOString()
-
-  await db
-    .insert(quickModifiers)
-    .values({ ...parsed.data, updatedAt: now })
-    .execute()
-
-  return { success: true, id: parsed.data.id }
-})
+    return { success: true, id: body.id }
+  },
+)

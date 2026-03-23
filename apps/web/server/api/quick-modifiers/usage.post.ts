@@ -1,22 +1,18 @@
 import { z } from 'zod'
+import { definePublicMutation, withValidatedBody } from '#layer/server/utils/mutation'
 
 const usageSchema = z.object({
   modifierIds: z.array(z.string()).min(1),
 })
 
-export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
-  const parsed = usageSchema.safeParse(body)
+export default definePublicMutation(
+  {
+    rateLimit: { namespace: 'quick-modifier-usage', maxRequests: 120, windowMs: 60_000 },
+    parseBody: withValidatedBody(usageSchema.parse),
+  },
+  async ({ event, body }) => {
+    await incrementQuickModifierUsage(event, body.modifierIds)
 
-  if (!parsed.success) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Invalid request body',
-      data: parsed.error.issues,
-    })
-  }
-
-  await incrementQuickModifierUsage(event, parsed.data.modifierIds)
-
-  return { success: true }
-})
+    return { success: true }
+  },
+)

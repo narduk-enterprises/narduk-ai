@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
-import { promptElementVariants } from '../../database/schema'
+import { promptElementVariants } from '#server/database/schema'
 
 const querySchema = z.object({
   elementId: z.string().min(1),

@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { quickModifiers } from '../database/schema'
+import { quickModifiers } from '#server/database/schema'
 import { eq, sql } from 'drizzle-orm'
 
 export interface QuickModifier {

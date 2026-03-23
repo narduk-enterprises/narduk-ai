@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { promptElementVariants } from '../../database/schema'
+import { promptElementVariants } from '#server/database/schema'
+import { defineUserMutation } from '#layer/server/utils/mutation'
 
 const bodySchema = z.object({
   elementId: z.string().min(1),
@@ -10,27 +11,29 @@ const bodySchema = z.object({
 /**
  * POST /api/variants — Create a new variant for a prompt element.
  */
-export default defineEventHandler(async (event) => {
-  await requireAuth(event)
-  await enforceRateLimit(event, 'create-variant', 30, 60_000)
+export default defineUserMutation(
+  {
+    rateLimit: { namespace: 'create-variant', maxRequests: 30, windowMs: 60_000 },
+  },
+  async ({ event }) => {
+    const body = await readValidatedBody(event, bodySchema.parse)
+    const db = useDatabase(event)
 
-  const body = await readValidatedBody(event, bodySchema.parse)
-  const db = useDatabase(event)
+    const now = new Date().toISOString()
+    const id = crypto.randomUUID()
 
-  const now = new Date().toISOString()
-  const id = crypto.randomUUID()
+    const variant = {
+      id,
+      elementId: body.elementId,
+      name: body.name,
+      variantAttributes: JSON.stringify(body.variantAttributes),
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    }
 
-  const variant = {
-    id,
-    elementId: body.elementId,
-    name: body.name,
-    variantAttributes: JSON.stringify(body.variantAttributes),
-    sortOrder: 0,
-    createdAt: now,
-    updatedAt: now,
-  }
+    await db.insert(promptElementVariants).values(variant)
 
-  await db.insert(promptElementVariants).values(variant)
-
-  return { ...variant, variantAttributes: body.variantAttributes }
-})
+    return { ...variant, variantAttributes: body.variantAttributes }
+  },
+)

@@ -39,7 +39,7 @@ export function useDatabase(event: H3Event): DrizzleD1Database<typeof schema> {
  * @example
  * ```ts
  * // apps/web/server/utils/database.ts
- * import * as schema from '#server/database/schema'
+ * import * as schema from '../database/schema'
  * export const useAppDatabase = createAppDatabase(schema)
  * ```
  *
@@ -48,8 +48,10 @@ export function useDatabase(event: H3Event): DrizzleD1Database<typeof schema> {
  */
 export function createAppDatabase<T extends Record<string, unknown>>(appSchema: T) {
   return (event: H3Event): DrizzleD1Database<T> => {
-    if (event.context._appDb) {
-      return event.context._appDb as DrizzleD1Database<T>
+    type AppDbSlot = { _appDb?: DrizzleD1Database<T> }
+    const ctx = event.context as unknown as AppDbSlot
+    if (ctx._appDb) {
+      return ctx._appDb
     }
 
     const d1 = (event.context.cloudflare?.env as { DB?: D1Database })?.DB
@@ -61,7 +63,7 @@ export function createAppDatabase<T extends Record<string, unknown>>(appSchema: 
     }
 
     const db = drizzle(d1, { schema: appSchema })
-    event.context._appDb = db
+    ctx._appDb = db
     return db
   }
 }

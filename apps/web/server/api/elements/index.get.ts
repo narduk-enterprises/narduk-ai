@@ -1,5 +1,5 @@
 import { eq, desc } from 'drizzle-orm'
-import { promptElements } from '../../database/schema'
+import { promptElements } from '#server/database/schema'
 
 /**
  * GET /api/elements — List user's prompt elements (newest first).

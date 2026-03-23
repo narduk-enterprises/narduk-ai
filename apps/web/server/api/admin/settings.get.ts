@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
-import { appSettings } from '../../database/schema'
-import { grokListModels } from '../../utils/grok'
+import { appSettings } from '#server/database/schema'
+import { grokListModels } from '#server/utils/grok'
 import { buildXaiModelCatalog } from '~/utils/xaiModels'
 
 /**

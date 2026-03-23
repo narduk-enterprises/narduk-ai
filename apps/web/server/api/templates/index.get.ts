@@ -1,5 +1,5 @@
 import { eq, desc, or } from 'drizzle-orm'
-import { promptTemplates } from '../../database/schema'
+import { promptTemplates } from '#server/database/schema'
 
 /**
  * GET /api/templates — List available templates (system + user's own).

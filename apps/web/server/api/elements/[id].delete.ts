@@ -1,32 +1,35 @@
 import { eq, and } from 'drizzle-orm'
-import { promptElements } from '../../database/schema'
+import { promptElements } from '#server/database/schema'
+import { defineUserMutation } from '#layer/server/utils/mutation'
 
 /**
  * DELETE /api/elements/[id] — Delete a prompt element.
  */
-export default defineEventHandler(async (event) => {
-  const log = useLogger(event).child('PromptElements')
-  const user = await requireAuth(event)
-  await enforceRateLimit(event, 'delete-element', 30, 60_000)
+export default defineUserMutation(
+  {
+    rateLimit: { namespace: 'delete-element', maxRequests: 30, windowMs: 60_000 },
+  },
+  async ({ event, user }) => {
+    const log = useLogger(event).child('PromptElements')
+    const id = getRouterParam(event, 'id')
+    if (!id) {
+      throw createError({ statusCode: 400, message: 'Missing element ID' })
+    }
 
-  const id = getRouterParam(event, 'id')
-  if (!id) {
-    throw createError({ statusCode: 400, message: 'Missing element ID' })
-  }
+    const db = useDatabase(event)
 
-  const db = useDatabase(event)
+    const result = await db
+      .delete(promptElements)
+      .where(and(eq(promptElements.id, id), eq(promptElements.userId, user.id)))
+      .returning({ id: promptElements.id })
+      .get()
 
-  const result = await db
-    .delete(promptElements)
-    .where(and(eq(promptElements.id, id), eq(promptElements.userId, user.id)))
-    .returning({ id: promptElements.id })
-    .get()
+    if (!result) {
+      throw createError({ statusCode: 404, message: 'Element not found' })
+    }
 
-  if (!result) {
-    throw createError({ statusCode: 404, message: 'Element not found' })
-  }
+    log.info('Prompt element deleted', { userId: user.id, elementId: id })
 
-  log.info('Prompt element deleted', { userId: user.id, elementId: id })
-
-  return { success: true, id }
-})
+    return { success: true, id }
+  },
+)

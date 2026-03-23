@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { appSettings } from '#server/database/schema'
 import { grokChat } from '#server/utils/grok'
 import { getSystemPrompt } from '#server/utils/systemPrompts'
+import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import {
   MAX_ITERATION_CONTEXT_STEPS,
   MAX_ITERATION_PASS_COUNT,
@@ -78,81 +79,84 @@ function buildIterationUserContent(body: z.infer<typeof bodySchema>): string {
 /**
  * POST /api/chat/iterate-step — Runs one isolated prompt-improvement pass.
  */
-export default defineEventHandler(async (event) => {
-  const log = useLogger(event).child('ChatIterateStep')
-  const user = await requireAuth(event)
-  await enforceRateLimit(event, 'chat-iterate-step', 60, 60_000)
-  const body = await readValidatedBody(event, bodySchema.parse)
-  const config = useRuntimeConfig(event)
+export default defineUserMutation(
+  {
+    rateLimit: { namespace: 'chat-iterate-step', maxRequests: 60, windowMs: 60_000 },
+    parseBody: withValidatedBody(bodySchema.parse),
+  },
+  async ({ event, user, body }) => {
+    const log = useLogger(event).child('ChatIterateStep')
+    const config = useRuntimeConfig(event)
 
-  if (!config.xaiApiKey) {
-    throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
-  }
-
-  const db = useDatabase(event)
-  let chatModel = body.model || 'grok-3-mini'
-  if (!body.model) {
-    try {
-      const settings = await db
-        .select({ promptEnhanceModel: appSettings.promptEnhanceModel })
-        .from(appSettings)
-        .where(eq(appSettings.id, 1))
-        .get()
-      if (settings?.promptEnhanceModel) {
-        chatModel = settings.promptEnhanceModel
-      }
-    } catch (error) {
-      log.warn('Could not fetch appSettings for iterate-step model', { error })
+    if (!config.xaiApiKey) {
+      throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
     }
-  }
 
-  try {
-    const systemPrompt = await getSystemPrompt(event, 'chat_iteration_step')
-    const content = await grokChat(
-      config.xaiApiKey,
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: buildIterationUserContent(body) },
-      ],
-      chatModel,
-      { type: 'json_object' },
-    )
+    const db = useAppDatabase(event)
+    let chatModel = body.model || 'grok-3-mini'
+    if (!body.model) {
+      try {
+        const settings = await db
+          .select({ promptEnhanceModel: appSettings.promptEnhanceModel })
+          .from(appSettings)
+          .where(eq(appSettings.id, 1))
+          .get()
+        if (settings?.promptEnhanceModel) {
+          chatModel = settings.promptEnhanceModel
+        }
+      } catch (error) {
+        log.warn('Could not fetch appSettings for iterate-step model', { error })
+      }
+    }
 
-    const parsedJson = JSON.parse(content)
-    const parsed = grokResponseSchema.parse(parsedJson)
+    try {
+      const systemPrompt = await getSystemPrompt(event, 'chat_iteration_step')
+      const content = await grokChat(
+        config.xaiApiKey,
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: buildIterationUserContent(body) },
+        ],
+        chatModel,
+        { type: 'json_object' },
+      )
 
-    if (!parsed.revisedPrompt || !parsed.changeSummary) {
+      const parsedJson = JSON.parse(content)
+      const parsed = grokResponseSchema.parse(parsedJson)
+
+      if (!parsed.revisedPrompt || !parsed.changeSummary) {
+        throw createError({
+          statusCode: 500,
+          message: 'Iteration step returned an incomplete response.',
+        })
+      }
+
+      log.info('Iteration step completed', {
+        userId: user.id,
+        iteration: body.iteration,
+        totalIterations: body.totalIterations,
+        model: chatModel,
+      })
+
+      return parsed
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to run prompt iteration step'
+      const statusCode =
+        error && typeof error === 'object' && 'statusCode' in error
+          ? Number((error as { statusCode?: number }).statusCode) || 500
+          : 500
+
+      log.error('Iteration step failed', {
+        userId: user.id,
+        iteration: body.iteration,
+        error: errorMessage,
+      })
+
       throw createError({
-        statusCode: 500,
-        message: 'Iteration step returned an incomplete response.',
+        statusCode,
+        message: errorMessage || 'Failed to run prompt iteration step',
       })
     }
-
-    log.info('Iteration step completed', {
-      userId: user.id,
-      iteration: body.iteration,
-      totalIterations: body.totalIterations,
-      model: chatModel,
-    })
-
-    return parsed
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to run prompt iteration step'
-    const statusCode =
-      error && typeof error === 'object' && 'statusCode' in error
-        ? Number((error as { statusCode?: number }).statusCode) || 500
-        : 500
-
-    log.error('Iteration step failed', {
-      userId: user.id,
-      iteration: body.iteration,
-      error: errorMessage,
-    })
-
-    throw createError({
-      statusCode,
-      message: errorMessage || 'Failed to run prompt iteration step',
-    })
-  }
-})
+  },
+)

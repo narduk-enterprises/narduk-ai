@@ -1,5 +1,5 @@
 import { eq, desc } from 'drizzle-orm'
-import { userPrompts } from '../../database/schema'
+import { userPrompts } from '#server/database/schema'
 
 /**
  * GET /api/prompts — Get all saved prompts for the current user.

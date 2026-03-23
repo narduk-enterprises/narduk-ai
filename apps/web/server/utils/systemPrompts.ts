@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { systemPrompts } from '../database/schema'
+import { systemPrompts } from '#server/database/schema'
 import type { H3Event } from 'h3'
 
 export const DEFAULT_SYSTEM_PROMPTS: Record<string, { content: string; description: string }> = {

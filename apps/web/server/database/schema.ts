@@ -6,9 +6,9 @@
  * tables below the re-export.
  */
 import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
-import { users } from '../../../../layers/narduk-nuxt-layer/server/database/schema'
+import { users } from '#layer/server/database/schema'
 
-export * from '../../../../layers/narduk-nuxt-layer/server/database/schema'
+export * from '#layer/server/database/schema'
 
 // ─── App-Specific Tables ────────────────────────────────────
 

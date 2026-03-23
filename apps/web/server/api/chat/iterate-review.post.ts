@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { grokChat, grokListModels } from '#server/utils/grok'
 import { getSystemPrompt } from '#server/utils/systemPrompts'
+import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import {
   MAX_ITERATION_CONTEXT_STEPS,
   MAX_ITERATION_PASS_COUNT,
@@ -81,86 +82,89 @@ function buildIterationReviewContent(body: z.infer<typeof bodySchema>): string {
 /**
  * POST /api/chat/iterate-review — Reviews one generated image and revises the next pass.
  */
-export default defineEventHandler(async (event) => {
-  const log = useLogger(event).child('ChatIterateReview')
-  const user = await requireAuth(event)
-  await enforceRateLimit(event, 'chat-iterate-review', 60, 60_000)
-  const body = await readValidatedBody(event, bodySchema.parse)
-  const config = useRuntimeConfig(event)
+export default defineUserMutation(
+  {
+    rateLimit: { namespace: 'chat-iterate-review', maxRequests: 60, windowMs: 60_000 },
+    parseBody: withValidatedBody(bodySchema.parse),
+  },
+  async ({ event, user, body }) => {
+    const log = useLogger(event).child('ChatIterateReview')
+    const config = useRuntimeConfig(event)
 
-  if (!config.xaiApiKey) {
-    throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
-  }
+    if (!config.xaiApiKey) {
+      throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
+    }
 
-  try {
-    const systemPrompt = await getSystemPrompt(event, 'chat_iteration_review')
-    let visionModel: string | null = body.model ?? null
+    try {
+      const systemPrompt = await getSystemPrompt(event, 'chat_iteration_review')
+      let visionModel: string | null = body.model ?? null
 
-    if (!visionModel || !isVisionCapableChatModel(visionModel)) {
-      const catalog = buildXaiModelCatalog(
-        (await grokListModels(config.xaiApiKey)).map((m) => m.id),
+      if (!visionModel || !isVisionCapableChatModel(visionModel)) {
+        const catalog = buildXaiModelCatalog(
+          (await grokListModels(config.xaiApiKey)).map((m) => m.id),
+        )
+        visionModel = catalog.preferredVisionModel
+      }
+
+      if (!visionModel) {
+        throw createError({
+          statusCode: 500,
+          message: 'No vision-capable xAI model is available for iteration review.',
+        })
+      }
+
+      const content = await grokChat(
+        config.xaiApiKey,
+        [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: buildIterationReviewContent(body) },
+              { type: 'image_url', image_url: { url: body.imageUrl } },
+            ],
+          },
+        ],
+        visionModel,
+        { type: 'json_object' },
       )
-      visionModel = catalog.preferredVisionModel
-    }
 
-    if (!visionModel) {
+      const parsedJson = JSON.parse(content)
+      const parsed = grokResponseSchema.parse(parsedJson)
+
+      if (!parsed.revisedPrompt || !parsed.changeSummary || !parsed.imageAnalysis) {
+        throw createError({
+          statusCode: 500,
+          message: 'Iteration review returned an incomplete response.',
+        })
+      }
+
+      log.info('Iteration review completed', {
+        userId: user.id,
+        iteration: body.iteration,
+        totalIterations: body.totalIterations,
+        model: visionModel,
+      })
+
+      return parsed
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to run iteration image review'
+      const statusCode =
+        error && typeof error === 'object' && 'statusCode' in error
+          ? Number((error as { statusCode?: number }).statusCode) || 500
+          : 500
+
+      log.error('Iteration review failed', {
+        userId: user.id,
+        iteration: body.iteration,
+        error: errorMessage,
+      })
+
       throw createError({
-        statusCode: 500,
-        message: 'No vision-capable xAI model is available for iteration review.',
+        statusCode,
+        message: errorMessage || 'Failed to run iteration image review',
       })
     }
-
-    const content = await grokChat(
-      config.xaiApiKey,
-      [
-        { role: 'system', content: systemPrompt },
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: buildIterationReviewContent(body) },
-            { type: 'image_url', image_url: { url: body.imageUrl } },
-          ],
-        },
-      ],
-      visionModel,
-      { type: 'json_object' },
-    )
-
-    const parsedJson = JSON.parse(content)
-    const parsed = grokResponseSchema.parse(parsedJson)
-
-    if (!parsed.revisedPrompt || !parsed.changeSummary || !parsed.imageAnalysis) {
-      throw createError({
-        statusCode: 500,
-        message: 'Iteration review returned an incomplete response.',
-      })
-    }
-
-    log.info('Iteration review completed', {
-      userId: user.id,
-      iteration: body.iteration,
-      totalIterations: body.totalIterations,
-      model: visionModel,
-    })
-
-    return parsed
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to run iteration image review'
-    const statusCode =
-      error && typeof error === 'object' && 'statusCode' in error
-        ? Number((error as { statusCode?: number }).statusCode) || 500
-        : 500
-
-    log.error('Iteration review failed', {
-      userId: user.id,
-      iteration: body.iteration,
-      error: errorMessage,
-    })
-
-    throw createError({
-      statusCode,
-      message: errorMessage || 'Failed to run iteration image review',
-    })
-  }
-})
+  },
+)

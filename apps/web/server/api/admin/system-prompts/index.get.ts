@@ -1,4 +1,5 @@
-import { systemPrompts } from '../../../database/schema'
+import { systemPrompts } from '#server/database/schema'
+import { getAllSystemPrompts } from '#server/utils/systemPrompts'
 import { desc } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {

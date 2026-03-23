@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { appSettings } from '#server/database/schema'
+import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import { useAppDatabase } from '#server/utils/database'
 import { grokChat, grokGenerateImage, grokListModels } from '#server/utils/grok'
 import { persistGeneratedImage } from '#server/utils/persistGeneratedImage'
@@ -129,181 +130,184 @@ function buildIterationReviewUserContent(
  * POST /api/chat/iterate-pass — Runs one full iteration pass:
  * prompt rewrite -> draft image render -> vision review -> next prompt.
  */
-export default defineEventHandler(async (event) => {
-  const log = useLogger(event).child('ChatIteratePass')
-  const user = await requireAuth(event)
-  await enforceRateLimit(event, 'chat-iterate-pass', 60, 60_000)
-  const body = await readValidatedBody(event, bodySchema.parse)
-  const config = useRuntimeConfig(event)
+export default defineUserMutation(
+  {
+    rateLimit: { namespace: 'chat-iterate-pass', maxRequests: 60, windowMs: 60_000 },
+    parseBody: withValidatedBody(bodySchema.parse),
+  },
+  async ({ event, user, body }) => {
+    const log = useLogger(event).child('ChatIteratePass')
+    const config = useRuntimeConfig(event)
 
-  if (!config.xaiApiKey) {
-    throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
-  }
+    if (!config.xaiApiKey) {
+      throw createError({ statusCode: 500, message: 'GROK_API_KEY not configured' })
+    }
 
-  const db = useAppDatabase(event)
-  let chatModel = body.model || 'grok-3-mini'
-  let imageModel = body.imageModel || 'grok-imagine-image'
+    const db = useAppDatabase(event)
+    let chatModel = body.model || 'grok-3-mini'
+    let imageModel = body.imageModel || 'grok-imagine-image'
 
-  if (!body.model || !body.imageModel) {
+    if (!body.model || !body.imageModel) {
+      try {
+        const settings = await db
+          .select({
+            promptEnhanceModel: appSettings.promptEnhanceModel,
+            imageModel: appSettings.imageModel,
+          })
+          .from(appSettings)
+          .where(eq(appSettings.id, 1))
+          .get()
+
+        if (!body.model && settings?.promptEnhanceModel) {
+          chatModel = settings.promptEnhanceModel
+        }
+
+        if (!body.imageModel && settings?.imageModel) {
+          imageModel = settings.imageModel
+        }
+      } catch (error) {
+        log.warn('Could not fetch appSettings for iterate-pass models', { error })
+      }
+    }
+
     try {
-      const settings = await db
-        .select({
-          promptEnhanceModel: appSettings.promptEnhanceModel,
-          imageModel: appSettings.imageModel,
-        })
-        .from(appSettings)
-        .where(eq(appSettings.id, 1))
-        .get()
+      const stepSystemPrompt = await getSystemPrompt(event, 'chat_iteration_step')
+      const reviewSystemPrompt = await getSystemPrompt(event, 'chat_iteration_review')
 
-      if (!body.model && settings?.promptEnhanceModel) {
-        chatModel = settings.promptEnhanceModel
+      let visionModel: string | null =
+        body.visionModel || (isVisionCapableChatModel(chatModel) ? chatModel : null)
+
+      if (!visionModel || !isVisionCapableChatModel(visionModel)) {
+        const catalog = buildXaiModelCatalog(
+          (await grokListModels(config.xaiApiKey)).map((m) => m.id),
+        )
+        visionModel = catalog.preferredVisionModel
       }
 
-      if (!body.imageModel && settings?.imageModel) {
-        imageModel = settings.imageModel
+      if (!visionModel) {
+        throw createError({
+          statusCode: 500,
+          message: 'No vision-capable xAI model is available for iteration review.',
+        })
+      }
+
+      const stepContent = await grokChat(
+        config.xaiApiKey,
+        [
+          { role: 'system', content: stepSystemPrompt },
+          { role: 'user', content: buildIterationStepUserContent(body) },
+        ],
+        chatModel,
+        { type: 'json_object' },
+      )
+
+      const step = iterationStepResponseSchema.parse(JSON.parse(stepContent))
+      if (!step.revisedPrompt || !step.changeSummary) {
+        throw createError({
+          statusCode: 500,
+          message: 'Iteration step returned an incomplete response.',
+        })
+      }
+
+      const renderStartTimeMs = Date.now()
+      const generatedImage = await grokGenerateImage(config.xaiApiKey, {
+        prompt: step.revisedPrompt,
+        model: imageModel,
+      })
+      const generationTimeMs = Date.now() - renderStartTimeMs
+
+      const draftImageUrl = generatedImage.data?.[0]?.url
+      if (!draftImageUrl) {
+        throw createError({ statusCode: 502, message: 'No image returned from Grok API' })
+      }
+
+      const reviewContent = await grokChat(
+        config.xaiApiKey,
+        [
+          { role: 'system', content: reviewSystemPrompt },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: buildIterationReviewUserContent(body, step.revisedPrompt),
+              },
+              { type: 'image_url', image_url: { url: draftImageUrl } },
+            ],
+          },
+        ],
+        visionModel,
+        { type: 'json_object' },
+      )
+
+      const review = iterationReviewResponseSchema.parse(JSON.parse(reviewContent))
+      if (!review.revisedPrompt || !review.changeSummary || !review.imageAnalysis) {
+        throw createError({
+          statusCode: 500,
+          message: 'Iteration review returned an incomplete response.',
+        })
+      }
+
+      const savedGeneration = await persistGeneratedImage(event, {
+        userId: user.id,
+        prompt: step.revisedPrompt,
+        mode: 't2i',
+        remoteImageUrl: draftImageUrl,
+        generationTimeMs,
+        metadata: {
+          revised_prompt: generatedImage.data?.[0]?.revised_prompt ?? null,
+          iteration: {
+            pass: body.iteration,
+            totalIterations: body.totalIterations,
+            goal: body.goal,
+            context: body.context.trim() || null,
+            review: review.imageAnalysis,
+            nextPrompt: review.revisedPrompt,
+            renderedPrompt: step.revisedPrompt,
+          },
+        },
+        failureMessage: 'Failed to save iteration image',
+      })
+
+      log.info('Iteration pass completed', {
+        userId: user.id,
+        iteration: body.iteration,
+        totalIterations: body.totalIterations,
+        chatModel,
+        visionModel,
+        imageModel,
+        generationTimeMs,
+        generationId: savedGeneration.id,
+      })
+
+      return {
+        revisedPrompt: review.revisedPrompt,
+        changeSummary: review.changeSummary,
+        message: review.message || step.message || null,
+        contextSnapshot: body.context.trim() || null,
+        renderedPrompt: step.revisedPrompt,
+        imageUrl: savedGeneration.mediaUrl,
+        generationId: savedGeneration.id,
+        imageAnalysis: review.imageAnalysis,
+        generationTimeMs,
       }
     } catch (error) {
-      log.warn('Could not fetch appSettings for iterate-pass models', { error })
-    }
-  }
+      const errorMessage = error instanceof Error ? error.message : 'Failed to run iteration pass'
+      const statusCode =
+        error && typeof error === 'object' && 'statusCode' in error
+          ? Number((error as { statusCode?: number }).statusCode) || 500
+          : 500
 
-  try {
-    const stepSystemPrompt = await getSystemPrompt(event, 'chat_iteration_step')
-    const reviewSystemPrompt = await getSystemPrompt(event, 'chat_iteration_review')
+      log.error('Iteration pass failed', {
+        userId: user.id,
+        iteration: body.iteration,
+        error: errorMessage,
+      })
 
-    let visionModel: string | null =
-      body.visionModel || (isVisionCapableChatModel(chatModel) ? chatModel : null)
-
-    if (!visionModel || !isVisionCapableChatModel(visionModel)) {
-      const catalog = buildXaiModelCatalog(
-        (await grokListModels(config.xaiApiKey)).map((m) => m.id),
-      )
-      visionModel = catalog.preferredVisionModel
-    }
-
-    if (!visionModel) {
       throw createError({
-        statusCode: 500,
-        message: 'No vision-capable xAI model is available for iteration review.',
+        statusCode,
+        message: errorMessage || 'Failed to run iteration pass',
       })
     }
-
-    const stepContent = await grokChat(
-      config.xaiApiKey,
-      [
-        { role: 'system', content: stepSystemPrompt },
-        { role: 'user', content: buildIterationStepUserContent(body) },
-      ],
-      chatModel,
-      { type: 'json_object' },
-    )
-
-    const step = iterationStepResponseSchema.parse(JSON.parse(stepContent))
-    if (!step.revisedPrompt || !step.changeSummary) {
-      throw createError({
-        statusCode: 500,
-        message: 'Iteration step returned an incomplete response.',
-      })
-    }
-
-    const renderStartTimeMs = Date.now()
-    const generatedImage = await grokGenerateImage(config.xaiApiKey, {
-      prompt: step.revisedPrompt,
-      model: imageModel,
-    })
-    const generationTimeMs = Date.now() - renderStartTimeMs
-
-    const draftImageUrl = generatedImage.data?.[0]?.url
-    if (!draftImageUrl) {
-      throw createError({ statusCode: 502, message: 'No image returned from Grok API' })
-    }
-
-    const reviewContent = await grokChat(
-      config.xaiApiKey,
-      [
-        { role: 'system', content: reviewSystemPrompt },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: buildIterationReviewUserContent(body, step.revisedPrompt),
-            },
-            { type: 'image_url', image_url: { url: draftImageUrl } },
-          ],
-        },
-      ],
-      visionModel,
-      { type: 'json_object' },
-    )
-
-    const review = iterationReviewResponseSchema.parse(JSON.parse(reviewContent))
-    if (!review.revisedPrompt || !review.changeSummary || !review.imageAnalysis) {
-      throw createError({
-        statusCode: 500,
-        message: 'Iteration review returned an incomplete response.',
-      })
-    }
-
-    const savedGeneration = await persistGeneratedImage(event, {
-      userId: user.id,
-      prompt: step.revisedPrompt,
-      mode: 't2i',
-      remoteImageUrl: draftImageUrl,
-      generationTimeMs,
-      metadata: {
-        revised_prompt: generatedImage.data?.[0]?.revised_prompt ?? null,
-        iteration: {
-          pass: body.iteration,
-          totalIterations: body.totalIterations,
-          goal: body.goal,
-          context: body.context.trim() || null,
-          review: review.imageAnalysis,
-          nextPrompt: review.revisedPrompt,
-          renderedPrompt: step.revisedPrompt,
-        },
-      },
-      failureMessage: 'Failed to save iteration image',
-    })
-
-    log.info('Iteration pass completed', {
-      userId: user.id,
-      iteration: body.iteration,
-      totalIterations: body.totalIterations,
-      chatModel,
-      visionModel,
-      imageModel,
-      generationTimeMs,
-      generationId: savedGeneration.id,
-    })
-
-    return {
-      revisedPrompt: review.revisedPrompt,
-      changeSummary: review.changeSummary,
-      message: review.message || step.message || null,
-      contextSnapshot: body.context.trim() || null,
-      renderedPrompt: step.revisedPrompt,
-      imageUrl: savedGeneration.mediaUrl,
-      generationId: savedGeneration.id,
-      imageAnalysis: review.imageAnalysis,
-      generationTimeMs,
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to run iteration pass'
-    const statusCode =
-      error && typeof error === 'object' && 'statusCode' in error
-        ? Number((error as { statusCode?: number }).statusCode) || 500
-        : 500
-
-    log.error('Iteration pass failed', {
-      userId: user.id,
-      iteration: body.iteration,
-      error: errorMessage,
-    })
-
-    throw createError({
-      statusCode,
-      message: errorMessage || 'Failed to run iteration pass',
-    })
-  }
-})
+  },
+)

@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
-import { generations } from '../../database/schema'
-import { GENERATION_STALE_TIMEOUT_MS } from '../../utils/constants'
+import { generations } from '#server/database/schema'
+import { GENERATION_STALE_TIMEOUT_MS } from '#server/utils/constants'
 
 /**
  * GET /api/cron/sync-jobs

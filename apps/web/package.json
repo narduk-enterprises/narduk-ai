@@ -26,7 +26,7 @@
     "db:verify": "node node_modules/@narduk-enterprises/narduk-nuxt-template-layer/testing/verify-local-db.mjs ."
   },
   "dependencies": {
-    "@narduk-enterprises/eslint-config": "^1.0.14",
+    "@narduk-enterprises/eslint-config": "^1.0.17",
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",
     "@nuxt/ui": "^4.5.0",
     "drizzle-orm": "^0.45.1",

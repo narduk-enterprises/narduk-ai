@@ -1,5 +1,5 @@
 import { eq, and } from 'drizzle-orm'
-import { generations } from '../../../database/schema'
+import { generations } from '#server/database/schema'
 
 /**
  * GET /api/generate/poll/[requestId] — Poll video generation status.
