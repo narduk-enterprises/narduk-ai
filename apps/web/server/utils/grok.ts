@@ -557,12 +557,6 @@ export async function xaiImagineListModels(apiKey: string): Promise<XaiModel[]> 
   return data.data ?? []
 }
 
-/** Disambiguate from layer `xai.ts` when using explicit `#server/utils/grok` imports. */
-export type GrokChatMessage = XaiImagineChatMessage
-export const grokChat = xaiImagineChat
-export const grokChatStream = xaiImagineChatStream
-export const grokListModels = xaiImagineListModels
-
 /**
  * Download media from a temporary URL and return as ArrayBuffer.
  */

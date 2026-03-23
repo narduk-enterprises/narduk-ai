@@ -1,11 +1,11 @@
-import type { GrokChatMessage } from '#server/utils/grok'
+import type { XaiImagineChatMessage } from '#server/utils/grok'
 
 export const MAX_SERVER_CHAT_MODEL_MESSAGES = 50
 
 export function normalizeServerChatMessages(
-  messages: GrokChatMessage[],
+  messages: XaiImagineChatMessage[],
   maxMessages = MAX_SERVER_CHAT_MODEL_MESSAGES,
-): GrokChatMessage[] {
+): XaiImagineChatMessage[] {
   if (messages.length <= maxMessages) {
     return messages
   }
