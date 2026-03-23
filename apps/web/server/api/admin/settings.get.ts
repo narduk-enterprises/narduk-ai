@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { appSettings } from '#server/database/schema'
-import { grokListModels } from '#server/utils/grok'
+import { xaiImagineListModels } from '#server/utils/grok'
 import { buildXaiModelCatalog } from '~/utils/xaiModels'
 
 /**
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     if (config.xaiApiKey) {
       try {
         const catalog = buildXaiModelCatalog(
-          (await grokListModels(config.xaiApiKey)).map((m) => m.id),
+          (await xaiImagineListModels(config.xaiApiKey)).map((m) => m.id),
         )
         defaultSettings.videoModel = catalog.preferredVideoModel || defaultSettings.videoModel
         defaultSettings.imageModel = catalog.preferredImageModel || defaultSettings.imageModel

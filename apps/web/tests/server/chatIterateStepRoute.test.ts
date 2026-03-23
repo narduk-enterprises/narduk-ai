@@ -25,11 +25,11 @@ vi.mock('#server/database/schema', () => ({
 }))
 
 vi.mock('#server/utils/grok', () => ({
-  grokChat: mockGrokChat,
+  xaiImagineChat: mockGrokChat,
 }))
 
 vi.mock('#server/utils/systemPrompts', () => ({
-  getSystemPrompt: mockGetSystemPrompt,
+  getAppSystemPrompt: mockGetSystemPrompt,
 }))
 
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)

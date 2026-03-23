@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
- * LazyVideo – only sets the video `src` when the element enters the viewport.
+ * DeferredVideo — only sets the video `src` when the element enters the viewport.
+ *
+ * (Named DeferredVideo instead of Lazy* to avoid Nuxt's reserved Lazy prefix for dynamic imports.)
  *
  * Shows a poster image with a play-icon overlay when the video isn't loaded yet.
  * If no poster is provided, shows a dark placeholder with a play icon.

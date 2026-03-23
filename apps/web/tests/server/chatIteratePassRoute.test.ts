@@ -45,13 +45,13 @@ vi.mock('#server/utils/database', () => ({
 }))
 
 vi.mock('#server/utils/grok', () => ({
-  grokChat: mockGrokChat,
+  xaiImagineChat: mockGrokChat,
   grokGenerateImage: mockGrokGenerateImage,
-  grokListModels: mockGrokListModels,
+  xaiImagineListModels: mockGrokListModels,
 }))
 
 vi.mock('#server/utils/systemPrompts', () => ({
-  getSystemPrompt: mockGetSystemPrompt,
+  getAppSystemPrompt: mockGetSystemPrompt,
 }))
 
 vi.mock('#server/utils/persistGeneratedImage', () => ({

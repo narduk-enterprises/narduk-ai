@@ -2,8 +2,8 @@ import { z } from 'zod'
 import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import { eq } from 'drizzle-orm'
 import { luckyPrompts, promptElements, appSettings } from '#server/database/schema'
-import { grokChat } from '#server/utils/grok'
-import { getSystemPrompt } from '#server/utils/systemPrompts'
+import { xaiImagineChat } from '#server/utils/grok'
+import { getAppSystemPrompt } from '#server/utils/systemPrompts'
 
 const bodySchema = z.object({
   count: z.number().int().min(1).max(10).optional().default(5),
@@ -96,7 +96,7 @@ export default defineUserMutation(
 
         if (!pickedContent.length) return null
 
-        const rawSystemPrompt = await getSystemPrompt(event, 'lucky_prefill')
+        const rawSystemPrompt = await getAppSystemPrompt(event, 'lucky_prefill')
         const systemPrompt = rawSystemPrompt
           .replaceAll('{{mediaLabel}}', mediaLabel)
           .replaceAll(
@@ -107,7 +107,7 @@ export default defineUserMutation(
           )
 
         // Call Grok directly (server-side, no HTTP round-trip)
-        const responseContent = await grokChat(
+        const responseContent = await xaiImagineChat(
           config.xaiApiKey,
           [
             {

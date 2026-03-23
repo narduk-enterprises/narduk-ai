@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { systemPrompts } from '#server/database/schema'
+import { useAppDatabase } from '#server/utils/database'
 import type { H3Event } from 'h3'
 
 export const DEFAULT_SYSTEM_PROMPTS: Record<string, { content: string; description: string }> = {
@@ -61,8 +62,8 @@ export const DEFAULT_SYSTEM_PROMPTS: Record<string, { content: string; descripti
 /**
  * Get all system prompts, ensuring defaults are seeded in D1.
  */
-export async function getAllSystemPrompts(event: H3Event): Promise<Record<string, string>> {
-  const db = useDatabase(event)
+export async function getAppSystemPromptsMap(event: H3Event): Promise<Record<string, string>> {
+  const db = useAppDatabase(event)
   const now = new Date().toISOString()
 
   // Fetch existing
@@ -107,11 +108,11 @@ export async function getAllSystemPrompts(event: H3Event): Promise<Record<string
 /**
  * Get a specific system prompt, ensuring it's seeded.
  */
-export async function getSystemPrompt(
+export async function getAppSystemPrompt(
   event: H3Event,
   name: keyof typeof DEFAULT_SYSTEM_PROMPTS,
 ): Promise<string> {
-  const db = useDatabase(event)
+  const db = useAppDatabase(event)
   const existing = await db
     .select()
     .from(systemPrompts)

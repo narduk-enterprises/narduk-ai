@@ -3,9 +3,9 @@ import { z } from 'zod'
 import { appSettings } from '#server/database/schema'
 import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import { useAppDatabase } from '#server/utils/database'
-import { grokChat, grokGenerateImage, grokListModels } from '#server/utils/grok'
+import { xaiImagineChat, grokGenerateImage, xaiImagineListModels } from '#server/utils/grok'
 import { persistGeneratedImage } from '#server/utils/persistGeneratedImage'
-import { getSystemPrompt } from '#server/utils/systemPrompts'
+import { getAppSystemPrompt } from '#server/utils/systemPrompts'
 import {
   MAX_ITERATION_CONTEXT_STEPS,
   MAX_ITERATION_PASS_COUNT,
@@ -171,15 +171,15 @@ export default defineUserMutation(
     }
 
     try {
-      const stepSystemPrompt = await getSystemPrompt(event, 'chat_iteration_step')
-      const reviewSystemPrompt = await getSystemPrompt(event, 'chat_iteration_review')
+      const stepSystemPrompt = await getAppSystemPrompt(event, 'chat_iteration_step')
+      const reviewSystemPrompt = await getAppSystemPrompt(event, 'chat_iteration_review')
 
       let visionModel: string | null =
         body.visionModel || (isVisionCapableChatModel(chatModel) ? chatModel : null)
 
       if (!visionModel || !isVisionCapableChatModel(visionModel)) {
         const catalog = buildXaiModelCatalog(
-          (await grokListModels(config.xaiApiKey)).map((m) => m.id),
+          (await xaiImagineListModels(config.xaiApiKey)).map((m) => m.id),
         )
         visionModel = catalog.preferredVisionModel
       }
@@ -191,7 +191,7 @@ export default defineUserMutation(
         })
       }
 
-      const stepContent = await grokChat(
+      const stepContent = await xaiImagineChat(
         config.xaiApiKey,
         [
           { role: 'system', content: stepSystemPrompt },
@@ -221,7 +221,7 @@ export default defineUserMutation(
         throw createError({ statusCode: 502, message: 'No image returned from Grok API' })
       }
 
-      const reviewContent = await grokChat(
+      const reviewContent = await xaiImagineChat(
         config.xaiApiKey,
         [
           { role: 'system', content: reviewSystemPrompt },

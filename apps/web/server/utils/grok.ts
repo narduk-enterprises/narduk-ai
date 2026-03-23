@@ -8,6 +8,7 @@
  * so those use native fetch.
  */
 
+import type { XaiModel } from '#layer/server/utils/xai'
 import type OpenAI from 'openai'
 
 // ─── Outbound xAI Image Rate Limiter ────────────────────────
@@ -58,7 +59,7 @@ function sanitizeGrokSystemContent(content: string): string {
   )
 }
 
-function normalizeGrokMessages(messages: GrokChatMessage[]): GrokChatMessage[] {
+function normalizeGrokMessages(messages: XaiImagineChatMessage[]): XaiImagineChatMessage[] {
   return messages.map((message) => {
     if (message.role !== 'system') return message
 
@@ -97,16 +98,16 @@ function parseXaiError(body: string): string | null {
 
 // ─── Chat Completions (OpenAI SDK / REST) ────────────────────
 
-export interface GrokChatMessage {
+export interface XaiImagineChatMessage {
   role: 'system' | 'user' | 'assistant'
   content:
     | string
     | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>
 }
 
-export async function grokChat(
+export async function xaiImagineChat(
   apiKey: string,
-  messages: GrokChatMessage[],
+  messages: XaiImagineChatMessage[],
   model?: string,
   responseFormat?: { type: 'json_object' | 'text' },
 ): Promise<string> {
@@ -127,7 +128,7 @@ export async function grokChat(
 
   if (!res.ok) {
     const text = await res.text()
-    console.error(`[grokChat] API error (${res.status}):`, text)
+    console.error(`[xaiImagineChat] API error (${res.status}):`, text)
     const errorMsg = parseXaiError(text) || 'Failed to chat with Grok API.'
     throw createError({
       statusCode: res.status,
@@ -139,9 +140,9 @@ export async function grokChat(
   return data.choices?.[0]?.message?.content?.trim() || ''
 }
 
-export async function grokChatStream(
+export async function xaiImagineChatStream(
   apiKey: string,
-  messages: GrokChatMessage[],
+  messages: XaiImagineChatMessage[],
   model?: string,
 ): Promise<ReadableStream<Uint8Array>> {
   const normalizedMessages = normalizeGrokMessages(messages)
@@ -161,7 +162,7 @@ export async function grokChatStream(
 
   if (!res.ok) {
     const text = await res.text()
-    console.error(`[grokChatStream] API error (${res.status}):`, text)
+    console.error(`[xaiImagineChatStream] API error (${res.status}):`, text)
     const errorMsg = parseXaiError(text) || 'Failed to chat with Grok API.'
     throw createError({
       statusCode: res.status,
@@ -222,7 +223,7 @@ export async function grokEnhancePrompt(
   model?: string,
   imageBase64?: string,
 ): Promise<string> {
-  const userContent: GrokChatMessage['content'] = imageBase64
+  const userContent: XaiImagineChatMessage['content'] = imageBase64
     ? [
         { type: 'text', text: prompt },
         { type: 'image_url', image_url: { url: imageBase64 } },
@@ -271,7 +272,7 @@ export async function grokEnhancePromptStream(
   model?: string,
   imageBase64?: string,
 ): Promise<ReadableStream<Uint8Array>> {
-  const userContent: GrokChatMessage['content'] = imageBase64
+  const userContent: XaiImagineChatMessage['content'] = imageBase64
     ? [
         { type: 'text', text: prompt },
         { type: 'image_url', image_url: { url: imageBase64 } },
@@ -536,18 +537,11 @@ export async function grokPollVideo(
 
 // ─── Model Discovery ─────────────────────────────────────────
 
-export interface XaiModel {
-  id: string
-  object: string
-  created?: number
-  owned_by?: string
-}
-
 /**
  * List all models available to this API key.
  * Uses the standard OpenAI-compatible GET /v1/models endpoint.
  */
-export async function grokListModels(apiKey: string): Promise<XaiModel[]> {
+export async function xaiImagineListModels(apiKey: string): Promise<XaiModel[]> {
   const res = await fetch('https://api.x.ai/v1/models', {
     method: 'GET',
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -555,13 +549,19 @@ export async function grokListModels(apiKey: string): Promise<XaiModel[]> {
 
   if (!res.ok) {
     const text = await res.text()
-    console.error(`[grokListModels] API error (${res.status}):`, text)
+    console.error(`[xaiImagineListModels] API error (${res.status}):`, text)
     throw createError({ statusCode: res.status, message: 'Failed to list xAI models.' })
   }
 
   const data = (await res.json()) as { data?: XaiModel[] }
   return data.data ?? []
 }
+
+/** Disambiguate from layer `xai.ts` when using explicit `#server/utils/grok` imports. */
+export type GrokChatMessage = XaiImagineChatMessage
+export const grokChat = xaiImagineChat
+export const grokChatStream = xaiImagineChatStream
+export const grokListModels = xaiImagineListModels
 
 /**
  * Download media from a temporary URL and return as ArrayBuffer.

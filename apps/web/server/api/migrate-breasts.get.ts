@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { promptElements } from '#server/database/schema'
-import { grokChat } from '#server/utils/grok'
+import { xaiImagineChat } from '#server/utils/grok'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -28,7 +28,7 @@ ${item.content}
 
 Generate the 'breasts' description.`
 
-      const breastsDesc = await grokChat(apiKey, [
+      const breastsDesc = await xaiImagineChat(apiKey, [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ])

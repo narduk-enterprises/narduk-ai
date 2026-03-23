@@ -105,7 +105,7 @@ onUnmounted(() => {
               class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
             />
-            <LazyVideo
+            <DeferredVideo
               :src="item.mediaUrl"
               :poster="item.thumbnailUrl || undefined"
               video-class="h-full w-full object-cover"

@@ -2,8 +2,12 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import { appSettings } from '#server/database/schema'
-import { grokEnhancePrompt, grokEnhancePromptStream, grokListModels } from '#server/utils/grok'
-import { getSystemPrompt } from '#server/utils/systemPrompts'
+import {
+  grokEnhancePrompt,
+  grokEnhancePromptStream,
+  xaiImagineListModels,
+} from '#server/utils/grok'
+import { getAppSystemPrompt } from '#server/utils/systemPrompts'
 import { sendStream } from 'h3'
 import { MAX_GENERATION_PROMPT_LENGTH } from '~/utils/promptLimits'
 import { buildXaiModelCatalog } from '~/utils/xaiModels'
@@ -69,13 +73,13 @@ export default defineUserMutation(
 
       let systemContent = ''
       if (body.instructions) {
-        const rawPrompt = await getSystemPrompt(event, 'enhance_with_instructions')
+        const rawPrompt = await getAppSystemPrompt(event, 'enhance_with_instructions')
         systemContent = rawPrompt
           .replaceAll('{{mediaLabel}}', mediaLabel)
           .replaceAll('{{videoGuidance}}', videoGuidance)
           .replaceAll('{{instructions}}', body.instructions)
       } else {
-        const rawPrompt = await getSystemPrompt(event, 'enhance_without_instructions')
+        const rawPrompt = await getAppSystemPrompt(event, 'enhance_without_instructions')
         systemContent = rawPrompt
           .replaceAll('{{mediaLabel}}', mediaLabel)
           .replaceAll('{{videoGuidance}}', videoGuidance)
@@ -85,7 +89,7 @@ export default defineUserMutation(
       let effectiveModel = promptEnhanceModel
       if (body.imageBase64) {
         const catalog = buildXaiModelCatalog(
-          (await grokListModels(config.xaiApiKey)).map((m) => m.id),
+          (await xaiImagineListModels(config.xaiApiKey)).map((m) => m.id),
         )
         const visionModel = catalog.preferredVisionModel
 

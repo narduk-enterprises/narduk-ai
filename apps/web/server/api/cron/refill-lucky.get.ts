@@ -1,6 +1,6 @@
 import { eq, and, sql } from 'drizzle-orm'
 import { luckyPrompts, promptElements, appSettings } from '#server/database/schema'
-import { grokChat } from '#server/utils/grok'
+import { xaiImagineChat } from '#server/utils/grok'
 
 // How many cached prompts each user should have available per media type
 const TARGET_CACHE_SIZE = 5
@@ -117,7 +117,7 @@ export default defineEventHandler(async (event) => {
 
         if (!pickedContent.length) return null
 
-        const responseContent = await grokChat(
+        const responseContent = await xaiImagineChat(
           config.xaiApiKey,
           [
             {

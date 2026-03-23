@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
-  grokChat,
+  xaiImagineChat,
   grokEnhancePrompt,
   grokGenerateImage,
   grokEditImage,
@@ -26,7 +26,7 @@ beforeEach(() => {
 describe('grok server utilities error handling', () => {
   const API_KEY = 'test-key'
 
-  it('grokChat sanitizes provider-incompatible multi-agent phrasing in system prompts', async () => {
+  it('xaiImagineChat sanitizes provider-incompatible multi-agent phrasing in system prompts', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -34,7 +34,7 @@ describe('grok server utilities error handling', () => {
       }),
     })
 
-    await grokChat(
+    await xaiImagineChat(
       API_KEY,
       [
         {

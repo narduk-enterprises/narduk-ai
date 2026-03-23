@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { grokChat } from '#server/utils/grok'
+import { xaiImagineChat } from '#server/utils/grok'
 import { generateStoredImages } from '#server/utils/imageGeneration'
 import { defineAdminMutation, withValidatedBody } from '#layer/server/utils/mutation'
 
@@ -71,7 +71,7 @@ Return JSON ONLY: { "variations": [{ "name": "short-kebab-case-id", "description
     let variations: PersonVariation[]
 
     try {
-      const chatResult = await grokChat(
+      const chatResult = await xaiImagineChat(
         config.xaiApiKey,
         [
           {

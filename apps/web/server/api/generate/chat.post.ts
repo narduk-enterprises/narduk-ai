@@ -3,7 +3,11 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import { appSettings } from '#server/database/schema'
-import { grokChat, grokChatStream, type GrokChatMessage } from '#server/utils/grok'
+import {
+  xaiImagineChat,
+  xaiImagineChatStream,
+  type XaiImagineChatMessage,
+} from '#server/utils/grok'
 import { normalizeServerChatMessages } from '#server/utils/chatHistory'
 
 const contentPartSchema = z.object({
@@ -71,10 +75,12 @@ export default defineUserMutation(
     }
 
     try {
-      const normalizedMessages = normalizeServerChatMessages(body.messages as GrokChatMessage[])
+      const normalizedMessages = normalizeServerChatMessages(
+        body.messages as XaiImagineChatMessage[],
+      )
 
       if (body.stream) {
-        const stream = await grokChatStream(config.xaiApiKey, normalizedMessages, chatModel)
+        const stream = await xaiImagineChatStream(config.xaiApiKey, normalizedMessages, chatModel)
         log.info('Chat completion streaming started', {
           userId: user.id,
           outboundMessageCount: normalizedMessages.length,
@@ -88,9 +94,14 @@ export default defineUserMutation(
 
         return sendStream(event, stream)
       } else {
-        const responseContent = await grokChat(config.xaiApiKey, normalizedMessages, chatModel, {
-          type: 'json_object',
-        })
+        const responseContent = await xaiImagineChat(
+          config.xaiApiKey,
+          normalizedMessages,
+          chatModel,
+          {
+            type: 'json_object',
+          },
+        )
         log.info('Chat completion successful', {
           userId: user.id,
           outboundMessageCount: normalizedMessages.length,

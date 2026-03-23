@@ -113,7 +113,7 @@ function handleCompare() {
           class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
         />
-        <LazyVideo
+        <DeferredVideo
           :src="generation.mediaUrl"
           :poster="generation.thumbnailUrl || undefined"
           video-class="h-full w-full object-cover"

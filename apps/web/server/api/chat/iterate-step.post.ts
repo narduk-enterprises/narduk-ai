@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { appSettings } from '#server/database/schema'
-import { grokChat } from '#server/utils/grok'
-import { getSystemPrompt } from '#server/utils/systemPrompts'
+import { xaiImagineChat } from '#server/utils/grok'
+import { getAppSystemPrompt } from '#server/utils/systemPrompts'
 import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import {
   MAX_ITERATION_CONTEXT_STEPS,
@@ -110,8 +110,8 @@ export default defineUserMutation(
     }
 
     try {
-      const systemPrompt = await getSystemPrompt(event, 'chat_iteration_step')
-      const content = await grokChat(
+      const systemPrompt = await getAppSystemPrompt(event, 'chat_iteration_step')
+      const content = await xaiImagineChat(
         config.xaiApiKey,
         [
           { role: 'system', content: systemPrompt },

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { defineUserMutation, withValidatedBody } from '#layer/server/utils/mutation'
 import { eq } from 'drizzle-orm'
 import { appSettings, quickModifiers } from '#server/database/schema'
-import { grokChat } from '#server/utils/grok'
+import { xaiImagineChat } from '#server/utils/grok'
 import { MAX_GENERATION_PROMPT_LENGTH } from '~/utils/promptLimits'
 
 const bodySchema = z.object({
@@ -88,7 +88,7 @@ Return ONLY valid JSON (no markdown, no code fences):
 }`
 
     try {
-      const responseContent = await grokChat(
+      const responseContent = await xaiImagineChat(
         config.xaiApiKey,
         [
           { role: 'system', content: systemPrompt },

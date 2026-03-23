@@ -14,12 +14,12 @@ const mockGrokListModels = vi.fn()
 const mockGetSystemPrompt = vi.fn()
 
 vi.mock('#server/utils/grok', () => ({
-  grokChat: mockGrokChat,
-  grokListModels: mockGrokListModels,
+  xaiImagineChat: mockGrokChat,
+  xaiImagineListModels: mockGrokListModels,
 }))
 
 vi.mock('#server/utils/systemPrompts', () => ({
-  getSystemPrompt: mockGetSystemPrompt,
+  getAppSystemPrompt: mockGetSystemPrompt,
 }))
 
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)

@@ -1,7 +1,7 @@
-import { getAllSystemPrompts } from '#server/utils/systemPrompts'
+import { getAppSystemPromptsMap } from '#server/utils/systemPrompts'
 
 export default defineEventHandler(async (event) => {
   await requireAuth(event)
   // Retrieve the complete dictionary of name -> content
-  return await getAllSystemPrompts(event)
+  return await getAppSystemPromptsMap(event)
 })

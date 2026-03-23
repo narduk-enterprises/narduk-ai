@@ -26,8 +26,8 @@ vi.mock('../../server/database/schema', () => ({
 }))
 
 vi.mock('../../server/utils/grok', () => ({
-  grokChat: mockGrokChat,
-  grokChatStream: mockGrokChatStream,
+  xaiImagineChat: mockGrokChat,
+  xaiImagineChatStream: mockGrokChatStream,
 }))
 
 vi.mock('h3', () => ({

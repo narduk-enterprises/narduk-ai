@@ -8,6 +8,7 @@
  * doesn't hit xAI on every render. Cache is best-effort (per V8 isolate).
  */
 
+import { xaiImagineListModels } from '#server/utils/grok'
 import { buildXaiModelCatalog, type XaiModelCatalog } from '~/utils/xaiModels'
 
 interface ModelCache extends XaiModelCatalog {
@@ -30,7 +31,7 @@ export default defineEventHandler(async (event) => {
     return cachedResult
   }
 
-  const models = await grokListModels(config.xaiApiKey)
+  const models = await xaiImagineListModels(config.xaiApiKey)
   const catalog = buildXaiModelCatalog(models.map((m) => m.id))
   cachedResult = { ...catalog, fetchedAt: Date.now() }
   return cachedResult
