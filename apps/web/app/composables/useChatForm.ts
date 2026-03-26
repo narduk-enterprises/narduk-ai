@@ -93,6 +93,7 @@ function createIterationParsedResponse(run: IterationRun): ChatParsedResponse {
 }
 
 export function useChatForm(options: UseChatFormOptions = {}) {
+  const requestUrl = useRequestURL()
   const { elements, fetchElements } = usePromptElements()
   const { prompts } = useSystemPrompts()
   const { ensureLoaded: ensureTagsLoaded } = usePromptTags()
@@ -225,7 +226,7 @@ export function useChatForm(options: UseChatFormOptions = {}) {
         return {
           ...part,
           image_url: {
-            url: await resolveVisionImageUrl(part.image_url.url, window.location.origin),
+            url: await resolveVisionImageUrl(part.image_url.url, requestUrl.origin),
           },
         }
       }),

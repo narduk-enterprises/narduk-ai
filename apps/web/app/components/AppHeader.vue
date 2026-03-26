@@ -22,7 +22,7 @@ function cycleColorMode() {
 const mobileMenuOpen = ref(false)
 
 watch(
-  () => route.fullPath,
+  () => route.path,
   () => {
     mobileMenuOpen.value = false
   },
