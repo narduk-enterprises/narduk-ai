@@ -2,6 +2,8 @@ import { desc } from 'drizzle-orm'
 import { generations } from '#server/database/schema'
 import { GENERATION_STALE_TIMEOUT_MS } from '#server/utils/constants'
 
+type GenerationRow = typeof generations.$inferSelect
+
 /**
  * GET /api/admin/generations — List ALL generations across all users (admin only).
  * Returns generations with user email, status diagnostics, and age info.
@@ -13,7 +15,11 @@ export default defineEventHandler(async (event) => {
   const db = useDatabase(event)
   const config = useRuntimeConfig(event)
 
-  const rows = await db.select().from(generations).orderBy(desc(generations.createdAt)).limit(200)
+  const rows: GenerationRow[] = await db
+    .select()
+    .from(generations)
+    .orderBy(desc(generations.createdAt))
+    .limit(200)
 
   // Enrich with diagnostic info
   const enriched = rows.map((gen) => {

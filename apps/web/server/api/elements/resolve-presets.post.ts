@@ -17,16 +17,22 @@ export default defineUserMutation(
   },
   async ({ event, user }) => {
     const body = await readValidatedBody(event, bodySchema.parse)
-    const db = useDatabase(event)
+  const db = useDatabase(event)
 
-    const names = Object.values(body.presets).filter(Boolean)
-    if (!names.length) return { resolved: {} }
+  const names = Object.values(body.presets).filter(Boolean)
+  if (!names.length) return { resolved: {} }
 
-    // Fetch all matching elements in one query
-    const rows = await db
-      .select({
-        type: promptElements.type,
-        name: promptElements.name,
+  type PromptElementRow = {
+    type: string
+    name: string
+    content: string
+  }
+
+  // Fetch all matching elements in one query
+  const rows: PromptElementRow[] = await db
+    .select({
+      type: promptElements.type,
+      name: promptElements.name,
         content: promptElements.content,
       })
       .from(promptElements)

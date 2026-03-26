@@ -2,6 +2,8 @@ import { eq } from 'drizzle-orm'
 import { generations } from '#server/database/schema'
 import { GENERATION_STALE_TIMEOUT_MS } from '#server/utils/constants'
 
+type GenerationRow = typeof generations.$inferSelect
+
 /**
  * GET /api/cron/sync-jobs
  * Checks pending job statuses via xAI API and marks failed or completed jobs.
@@ -25,7 +27,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = useDatabase(event)
-  const pendingRows = await db.select().from(generations).where(eq(generations.status, 'pending'))
+  const pendingRows: GenerationRow[] = await db
+    .select()
+    .from(generations)
+    .where(eq(generations.status, 'pending'))
 
   const videoJobs = pendingRows.filter((row) => row.xaiRequestId)
   if (!videoJobs.length) {

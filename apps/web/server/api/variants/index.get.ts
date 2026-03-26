@@ -2,6 +2,8 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { promptElementVariants } from '#server/database/schema'
 
+type PromptElementVariantRow = typeof promptElementVariants.$inferSelect
+
 const querySchema = z.object({
   elementId: z.string().min(1),
 })
@@ -16,7 +18,7 @@ export default defineEventHandler(async (event) => {
   const rawQuery = getQuery(event)
   const query = querySchema.parse(rawQuery)
 
-  const rows = await db
+  const rows: PromptElementVariantRow[] = await db
     .select()
     .from(promptElementVariants)
     .where(eq(promptElementVariants.elementId, query.elementId))

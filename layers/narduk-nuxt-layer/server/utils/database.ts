@@ -119,8 +119,9 @@ export function useDatabase(event: H3Event): LayerDatabase {
  */
 export function createAppDatabase<T extends Record<string, unknown>>(appSchema: T) {
   return (event: H3Event): DrizzleD1Database<T> => {
-    if (event.context._appDb) {
-      return event.context._appDb as DrizzleD1Database<T>
+    const memoizedDb = event.context._appDb as DrizzleD1Database<T> | undefined
+    if (memoizedDb) {
+      return memoizedDb
     }
 
     const d1 = (event.context.cloudflare?.env as { DB?: D1Database })?.DB
@@ -134,8 +135,8 @@ export function createAppDatabase<T extends Record<string, unknown>>(appSchema: 
     const db = drizzleD1(d1, {
       schema: appSchema,
       logger: makeLogger(event, 'D1'),
-    })
-    event.context._appDb = db
+    }) as unknown as DrizzleD1Database<T>
+    event.context._appDb = db as unknown as typeof event.context._appDb
     return db
   }
 }

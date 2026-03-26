@@ -44,7 +44,12 @@ export default defineUserMutation(
     }
 
     // Fetch available Quick Modifiers
-    const modifiers = await db
+    const modifiers: Array<{
+      id: string
+      category: string
+      label: string
+      snippet: string
+    }> = await db
       .select({
         id: quickModifiers.id,
         category: quickModifiers.category,
